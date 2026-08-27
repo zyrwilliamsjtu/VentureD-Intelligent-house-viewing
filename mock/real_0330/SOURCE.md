@@ -33,7 +33,9 @@ polygon [IG_x, IG_y]  →  [IG_x, -IG_y]
 
 本场景 `house_center` 偏移：**(0.573, -1.087)**（SPEC 的 X / Z）。
 
-点云层（A 玩家）为 **-Y up**。`camera_poses.json` 草稿由 scene Y-up `(x,y,z)` 再按 `(x,-y,z)` 翻转，**待对拍，不保证绝对精度**。
+点云层（A 玩家）为 IG 原生 **Z-up**（非 -Y up）。`camera_poses.json` **已对拍转正**（2026-08-28），映射公式见 SPEC 附录 A（scene→点云 `X=x+0.573, Y=1.087−z, Z=y`）；点云为 IG 原生 Z-up（非 -Y up）。
+
+实测映射（转正）：scene(Y-up) → 点云(IG Z-up) 为 `(x, y, z) → (x+0.573, 1.087−z, y)`，反向见 SPEC 附录 A。
 
 ## 房间类型推断
 
@@ -81,5 +83,5 @@ Douglas-Peucker，`eps = 0.08 m`，简化后 ≥ 3 顶点；输出为俯视逆�
 
 ## 待办
 
-- [ ] **坐标对拍**（scene Y-up ↔ 点云 -Y up）完成后，用实测值更新 `camera_poses.json` 并转正附录 A
+- [x] 坐标对拍已完成并转正（0330）
 - [ ] 后端 `GET /api/scene/{world_id}`：`w_0330_840483` → 本目录；`w_mock_001` → 手写 `mock/scene_graph.json`
