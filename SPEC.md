@@ -100,6 +100,8 @@
 }
 ```
 
+真实场景完整示例见 `mock/real_0330/scene_graph.json`（world_id=w_0330_840483）。
+
 ### 2.2 字段说明
 
 | 字段 | 类型 | 必填 | 说明 |
@@ -264,7 +266,7 @@
 | **联调窗口** | 开赛后 36h 起 |
 | **里程碑合并** | 4h / 12h / 24h / 36h，PI 主持合 main |
 | **站会** | 早 9 点对契约、晚 9 点对进度，各 10 分钟 |
-| **统一 demo 场景** | 全队用同一套场景（PI 提供 world_id，见 `mock/`） |
+| **统一 demo 场景** | **主场景 = 真实数据 `w_0330_840483`（来自 InteriorGS `0330_840483`，见 `mock/real_0330/`）；手写 mock `w_mock_001`（`mock/scene_graph.json`）作为开发基线保留**。后端 `GET /api/scene` 按 `world_id` 路由：`w_0330_840483` → real_0330，`w_mock_001` → 手写 mock。 |
 | **接口变更流程** | 群里说 → 更新本文件 → 通知全员 → 才改代码 |
 | **Mock 先行** | PI 先提交 mock 数据 + API stub，B/A 对 mock 开发 |
 | **Golden Path（联调第一件事）** | 跑通：问"沙发在哪里" → `chat` 返回 `reply_text` + `actions.teleport(tp_id=tp_sofa)` → A 查映射表瞬移到沙发前 + 显示回答。**这条不通，一切白搭；先保它** |
@@ -304,6 +306,7 @@
 **背景**：
 - scene JSON：米，Y-up，房屋中心原点，右手系（`coord.up="Y"`）
 - 点云坐标系（A 玩家）：米，**-Y up**
+- **对拍锚点以 `0330_840483` 真实场景为准**；`mock/real_0330/camera_poses.json` 为待对拍草稿。
 
 **对拍任务（A 侧）**：
 1. 在本地 Aholo Viewer 加载一个 3DGS 点云场景，确定玩家/相机在点云坐标系下的实际位姿。
