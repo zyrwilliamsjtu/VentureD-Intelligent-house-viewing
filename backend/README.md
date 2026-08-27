@@ -65,7 +65,8 @@ backend ──读 mock/real_0330/scene_graph.json / mock/scene_graph.json──>
 
 | 日期 | 变更 | 说明 |
 |---|---|---|
-| （待填） | 后端初始化 | 建立骨架 |
+| 2026-08-27 | 后端初始化 | 建立 FastAPI 骨架（main/config/routers 占位） |
+| 2026-08-27 | GET /api/scene/{world_id} | 按 world_id 路由 mock / real_0330，coord 校验 |
 
 ## 8. 与本仓库其他板块的关系
 
