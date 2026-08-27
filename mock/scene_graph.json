@@ -1,0 +1,32 @@
+{
+    "worldId": "w_demo_001",
+    "house": {
+      "type": "两室一厅",
+      "totalArea": 89,
+      "orientation": "南向",
+      "rooms": [
+        {
+          "id": "room_living", "type": "客厅", "name": "客厅", "area": 24,
+          "trajectoryPointId": "tp_living",
+          "instances": [
+            {"id": "inst_sofa", "category": "沙发", "position": [0.5, 0.0, 2.0], "confidence": 0.9, "trajectoryPointId": "tp_sofa"},
+            {"id": "inst_tv", "category": "电视柜", "position": [2.5, 0.0, 1.5], "confidence": 0.88, "trajectoryPointId": "tp_tv"}
+          ]
+        },
+        {
+          "id": "room_master", "type": "卧室", "name": "主卧", "area": 15,
+          "trajectoryPointId": "tp_master",
+          "instances": [
+            {"id": "inst_bed", "category": "床", "position": [1.2, 0.0, 2.1], "confidence": 0.87, "trajectoryPointId": "tp_bed"}
+          ]
+        },
+        {
+          "id": "room_kitchen", "type": "厨房", "name": "厨房", "area": 8,
+          "trajectoryPointId": "tp_kitchen",
+          "instances": [
+            {"id": "inst_stove", "category": "灶台", "position": [1.0, 0.0, 1.0], "confidence": 0.8, "trajectoryPointId": "tp_stove"}
+          ]
+        }
+      ]
+    }
+  }
