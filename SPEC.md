@@ -298,26 +298,36 @@
 | 4 | `tp_id` → 点云坐标映射表由谁提供 | 默认 PI 提供（`mock/camera_poses.json` 或映射表） |
 
 ---
-## 附录 A：坐标对拍（scene Y-up ↔ 点云 -Y up）— 0330 前端查看器对拍法
+## 附录 A：坐标映射（已对拍转正 · 仅 0330 标定）
 
-> ⚠️ 两组坐标系必须实测对齐。目标场景已钉死为 **InteriorGS 0330**（`mock/real_0330/`）。
+> 0330 坐标对拍完成（2026-08-28，A 实测：75/75 实例 <1cm、10/10 房间命中、残差 0.0003m）。以下公式为最终实测结果，写死为本附录正式约定。
 
 **背景**：
-- scene JSON：米，Y-up，房屋中心原点，右手系（`coord.up="Y"`）
-- 点云坐标系（A 玩家）：米，**-Y up**
-- **RenderCloud 路线已废弃**：实测对 spatial-gen 世界渲染不出室内（见 `mock/real_0330/SOURCE.md` 归档），对拍改在**前端查看器内**进行。
+- scene JSON：米，Y-up，原点 house_center（`coord.up="Y"`）
+- 点云（0330 ply）：IG 原生坐标系，右手系，**Z-up**（地板 z≈0、天花板 z≈2.8），原点在户型左下角附近
+- ⚠️ 重要更正：SPEC v2.2 曾假设"点云为 -Y up"，**实测不成立**；0330 ply 为 IG 原生 Z-up，aholo-viewer 原样渲染、无轴变换
 
-**对拍方法（前端查看器内）**：
-1. A 前端加载 0330 ply（点云，-Y up），确认室内可见。
-2. 取 scene JSON 已知锚点家具（如客厅沙发 `inst_sofa_417`，scene 坐标 `[-0.498, 0.426, 1.105]`），在查看器读出其点云坐标。
-3. 验证映射（期望 `(x,y,z) → (x, -y, z)`，如不对试轴交换变体），至少 3 个锚点交叉验证。
-4. 结论写死本附录，并更新 `mock/real_0330/camera_poses.json` 转正。
+**正向（scene → 点云，teleport 用）**：
+```
+X_pc = x + 0.573
+Y_pc = 1.087 − z
+Z_pc = y
+```
 
-**对拍完成前**：`room_id` 恒 `null`；B 不输出 `position` 型动作；`camera_poses.json` 保持"待对拍"草稿。
+**逆向（点云 → scene，点击拾取用）**：
+```
+x = X_pc − 0.573
+y = Z_pc
+z = 1.087 − Y_pc
+```
 
-**对拍完成后**：
-- 把映射写死进本附录（转正）
-- PI 提供 `tp_id` → 点云坐标映射表（`mock/camera_poses.json`），B 可输出 `position`
+- 变换保持右手系（行列式 +1，无镜像）
+- 语义：scene 原点 = IG 坐标 − (0.573, −1.087)
+- **标定范围：仅 0330 场景**；更换场景需重新标定平移量
+
+**应用**：
+- A 前端：`teleport(tp_id)` 查 `mock/real_0330/camera_poses.json`（fixed 转正版）；或按正向公式从 scene 坐标计算。**ply 加载后 viewer 无需任何旋转变换**（原生 Z-up 直接显示）。
+- B Agent：对拍已完成，可输出 `position` 型动作（`tp_id` 或 `position` 均可）。
 
 ---
 
