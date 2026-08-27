@@ -70,6 +70,15 @@ Douglas-Peucker，`eps = 0.08 m`，简化后 ≥ 3 顶点；输出为俯视逆�
 | `house.title` / `orientation` / `floor` / `price` / `tags` | **占位**，数据集无这些字段 |
 | 物业费 / 得房率 / 学区等 | **未填**（禁止编造） |
 
+## RenderCloud 坐标验证结论（2026-08-27，A 实测，已归档）
+
+> 背景：曾计划用 RenderCloud 对拍 Y-up↔Z-up 公式，实测后废弃。本结论记录原因，防止后人再走弯路。
+
+- **RenderCloud 对 spatial-gen 世界渲染不出室内家具**：室内内容以微小低 alpha 高斯存在，ParticleField 溅射渲染无法呈现（28 次实验全部如此）。
+- **spatial-gen 世界本质是"全景球"**：以全景机位为原点、半径约 9 原生单位，z 竖直（+z 天空 / -z 地面），x/y 为窗外环境；无真实房间几何，因此"无法开门/穿墙"。
+- **结论**：demo 主画面使用前端本地渲染器（室内可见，已跑通），**不依赖 RenderCloud 出室内图**；RenderCloud 仅可作外观/环境环视的可选加分项。
+- **坐标对拍改在"前端查看器内"进行**（见 SPEC 附录 A）：验证 scene(Y-up) ↔ 点云(-Y up)，目标场景 0330。
+
 ## 待办
 
 - [ ] **坐标对拍**（scene Y-up ↔ 点云 -Y up）完成后，用实测值更新 `camera_poses.json` 并转正附录 A
