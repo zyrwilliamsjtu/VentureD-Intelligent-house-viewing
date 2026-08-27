@@ -1,5 +1,13 @@
 {
   "world_id": "w_mock_001",
+  "coord": {
+    "unit": "m",
+    "up": "Y",
+    "origin": "house_center",
+    "handedness": "right",
+    "polygon_axis": "XZ",
+    "polygon_winding": "ccw_top"
+  },
   "house": {
     "title": "阳光里 · 两室一厅 1203",
     "type": "两室一厅",
