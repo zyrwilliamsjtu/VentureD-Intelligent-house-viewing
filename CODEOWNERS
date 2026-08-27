@@ -1,0 +1,16 @@
+# 目录责任制：谁的领域谁负责
+# 格式：路径  @负责人用户名
+# 命中该路径的改动，PR 会自动要求对应负责人审查
+
+# 三个模块目录
+/backend/    @zyrwilliamsjtu
+/agent/      @jimmy723
+/frontend/   @XT0018R
+
+# 公共/共享文件归 PI 管
+/mock/       @zyrwilliamsjtu
+/SPEC.md     @zyrwilliamsjtu
+/README.md   @zyrwilliamsjtu
+
+# CODEOWNERS 文件本身也归 PI 管（防止被随意改）
+/CODEOWNERS  @zyrwilliamsjtu
