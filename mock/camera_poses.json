@@ -1,13 +1,14 @@
 {
-    "tp_entrance": { "position": [-4.5, 1.6, -2.8], "look_at": [-2.0, 1.0, -1.0] },
-    "tp_living": { "position": [1.25, 1.6, -3.2], "look_at": [1.25, 1.0, 0.5] },
-    "tp_balcony": { "position": [4.8, 1.6, -1.2], "look_at": [5.0, 1.0, 0.0] },
-    "tp_kitchen": { "position": [4.3, 1.6, -3.4], "look_at": [5.0, 1.0, -2.4] },
-    "tp_bathroom": { "position": [-5.2, 1.6, -1.5], "look_at": [-4.6, 1.0, -2.2] },
-    "tp_second": { "position": [-4.0, 1.6, 0.6], "look_at": [-4.0, 1.0, 2.4] },
-    "tp_master": { "position": [3.2, 1.6, 0.8], "look_at": [4.2, 1.0, 2.6] },
-    "tp_sofa": { "position": [-1.6, 1.6, -2.2], "look_at": [-0.5, 0.8, -3.5] },
-    "tp_tv": { "position": [1.2, 1.6, -2.4], "look_at": [2.5, 0.8, -3.6] },
-    "tp_refrigerator": { "position": [4.9, 1.6, -3.0], "look_at": [4.3, 1.0, -3.6] },
-    "tp_bed_master": { "position": [3.2, 1.6, 2.0], "look_at": [4.3, 0.8, 2.8] }
+    "_note": "tp_id → 点云坐标映射表（SPEC v2.2）。点云坐标系：-Y up，单位米。当前数值为对拍前假设（由 scene Y-up 按 (x,-y,z) 翻转），待 A 对拍验证后转正。",
+    "tp_entrance": [-4.5, -1.6, -2.8],
+    "tp_living": [1.25, -1.6, -3.2],
+    "tp_balcony": [4.8, -1.6, -1.2],
+    "tp_kitchen": [4.3, -1.6, -3.4],
+    "tp_bathroom": [-5.2, -1.6, -1.5],
+    "tp_second": [-4.0, -1.6, 0.6],
+    "tp_master": [3.2, -1.6, 0.8],
+    "tp_sofa": [-1.6, -1.6, -2.2],
+    "tp_tv": [1.2, -1.6, -2.4],
+    "tp_refrigerator": [4.9, -1.6, -3.0],
+    "tp_bed_master": [3.2, -1.6, 2.0]
   }

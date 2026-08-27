@@ -1,0 +1,52 @@
+{
+    "_note": "agent 契约 mock 响应样例（SPEC v2.2）。B 按此结构实现，A 按此结构解析。错误用顶层 {code, message}。",
+  
+    "chat_request_example": {
+      "session_id": "s_1770000001234_x8f2",
+      "world_id": "w_mock_001",
+      "user_text": "主卧能放下多大的床？",
+      "player_position": [-1.5, -1.6, 0.4],
+      "player_facing": [0.1, 0.0, -0.9],
+      "room_id": null,
+      "event": "button_press"
+    },
+  
+    "chat_response_example": {
+      "reply_text": "主卧约 15 平，放得下 1.8 米大床加整墙衣柜，还带南向飘窗。",
+      "tts_url": null,
+      "actions": [
+        { "type": "teleport", "tp_id": "tp_master", "position": [3.2, -1.6, 0.8], "label": "带您去主卧" },
+        { "type": "show_card", "data": { "title": "主卧", "lines": ["面积 15 平", "可放 1.8 米大床", "南向飘窗"] } }
+      ]
+    },
+  
+    "chat_enter_room_example": {
+      "request": { "session_id": "s_xxx", "world_id": "w_mock_001", "user_text": null, "event": "enter_room" },
+      "response": {
+        "reply_text": "这是 24 平朝南客厅，全景落地窗直连阳台。",
+        "tts_url": null,
+        "actions": []
+      }
+    },
+  
+    "asr_response_example": {
+      "text": "主卧能放下多大的床？",
+      "duration_ms": 3200
+    },
+  
+    "tts_request_example": { "text": "主卧约 15 平", "voice": "female_sales" },
+    "tts_response_example": { "audio_url": "https://api.example.com/audio/abc123.mp3" },
+  
+    "narration_response_example": {
+      "reply_text": "这是 24 平朝南客厅，全景落地窗直连阳台。",
+      "tts_url": null
+    },
+  
+    "error_example": { "code": "AGENT_TIMEOUT", "message": "AI 响应超时，请稍后再试" },
+  
+    "action_types": {
+      "teleport": { "type": "teleport", "tp_id": "tp_sofa", "position": [-1.6, -1.6, -2.2], "label": "带您去看沙发" },
+      "highlight": { "type": "highlight", "tp_id": "tp_refrigerator", "position": [4.9, -1.6, -3.0] },
+      "show_card": { "type": "show_card", "data": { "title": "厨房", "lines": ["501L 双开门冰箱", "U 型操作台"] } }
+    }
+  }
