@@ -16,12 +16,22 @@ function cardOf(a: Extract<AgentAction, { type: 'show_card' }>): { title: string
 
 let audio: HTMLAudioElement | null = null
 
+/** 后端资产相对路径（/static/...）→ 直连时补后端地址；dev 走 vite proxy /static（同源） */
+const API_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/+$/, '')
+
+function resolveAssetUrl(url: string): string {
+  if (url.startsWith('/') && !url.startsWith('//')) {
+    return API_BASE ? `${API_BASE}${url}` : url
+  }
+  return url
+}
+
 /** 播放 TTS 直链；被拦/失效静默降级（降级矩阵：tts 失败 → 静音气泡） */
 export function playTts(url?: string | null): void {
   if (!url) return
   try {
     audio?.pause()
-    audio = new Audio(url)
+    audio = new Audio(resolveAssetUrl(url))
     void audio.play().catch(() => {})
   } catch {
     /* ignore */

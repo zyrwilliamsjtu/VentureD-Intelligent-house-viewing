@@ -253,3 +253,22 @@ npm run build                    # 必过
 
 ### 阶段 19 · UI 重设计落地：iOS 亮色磨砂（2026-08-28 傍晚）
 UI AI 外包一轮跑偏（交付了无关产品的营销落地页），改为前端侧直接落地：视觉基准 `ui-frost-preview.html` v2（亮色磨砂 + iOS 字阶 + Apple 字色 #1D1D1F/#6E6E73/#AEAEB2 + 陶土橙 #C4613C）。实现方式：**只重写 `global.css` 一个文件**，类名/DOM/z-index 层级（hud-tr 23 > agent-panel 22 > resume-overlay 21 > walk-hud 20，boot-status 25 / no-webgl 30）/pointer-events 架构与旧版逐项一致，组件 TSX 零改动（voice-btn 三态类名、boot-status.done、agent-stub.live 等 JS 引用全部保留）。性能约束：backdrop-filter 仅用于 chips/agent-panel/toast/恢复卡（小面积），气泡输入框按钮用不透明 --frost-fill；blur 26px 不参与动画；`@supports` 降级不透明面板。帧率不足时全局把 --frost-blur 降 16px 即可。旧 --glass/--glass-border 变量保留别名映射，防外部依赖。
+
+### 阶段 20 · 落地页对齐 LuxeEstate Demo（2026-08-28 晚）
+将开场落地页从「深色金调玻璃拟态」整体改为参考 Demo（LuxeEstate）的**浅色奢华**：白玻璃吸顶导航 / 整屏实景 Hero（Cinzel + Noto Serif SC 衬线标题 + 金 #ffd700 点缀）/ 玻璃拟态搜索卡（位置·户型·价格三筛选，真联动列表页）/ 数据条 / 精选房源图卡 / 核心优势 / AI 顾问团 / 预约表单 / 深色页脚。主按钮蓝 #0077b6、卡片白底 16px 圆角、浅灰白交替分节。字体加 Cinzel + DM Sans（中文回落 Noto Serif SC）。列表页同步换成同套白卡圆角风格。搜索筛选接入 store（filters: layout/price），Hero「搜索房源」→ 列表页按筛选过滤 + 顶部筛选项 chip + 一键清除。
+
+### 阶段 21 · 实景素材嵌入（效果图/平面图）（2026-08-28 晚）
+用户提供 3 套实景素材（翡翠云邸/玉兰公馆/云栖雅苑，各 1 效果图 + 1 平面图）。文件名统一 ASCII（`0330-effect.jpg`/`0330-floor.jpg` 等，sceneId 命名，防部署中文名乱码），放入 `public/assets/`。新建 `src/data/houseImages.ts` 映射（HOUSE_EFFECT / HOUSE_FLOOR）。首页精选卡封面用效果图（缺图回退 Unsplash 占位）、列表卡户型图用平面图（缺图回退点云 SVG 户型图）。首页精选优先展示有实景图的房源。
+
+### 阶段 22 · 性能优化：落地页不挂 3D（2026-08-28 晚）
+卡顿根因：3D 视口此前常驻挂载，落地页/列表页虽被白底盖住，仍在后台下载 38MB 点云并每帧渲染。修复：`App.tsx` 改为 `view !== 'splash'` 才挂 `AholoViewport`（落地页纯 DOM、零画布、不下载 ply）；`AholoViewport` tick 循环在非 walk 视图下跳过渲染/漫游计算（点云 fetch+解析在 boot 独立进行，进房仍秒开）。实测：落地页 canvas=0、无 ply 请求；进列表后台预载，进漫游「场景就绪」秒开。
+
+### 阶段 23 · 前后端接口对账 + TTS 静态资源修复（2026-08-28 晚）
+拉取远端分支对账后端接口（`origin/main` 真实后端）：`/health`、`/api/scene/{world_id}`、`/api/listings`、`/api/camera_poses/{world_id}`、`/api/agent/{chat,asr,tts,narration,tour}`、`/static`（TTS 产物）。前端已全部接入（agent.ts/asr.ts/api.ts/listings.ts/coords.ts）。**发现并修复一处真缺口**：后端 TTS（volcengine）返回相对路径 `audio_url=/static/tts/xxx.mp3`，且 chat 的 `tts_url` 同源；前端 `new Audio('/static/...')` 会打到 5173 端口 404（vite 只代理了 `/api`）。修复：`vite.config.ts` 加 `/static` 代理；`agentActions.ts` `playTts` 对相对 `/static/...` 在 `VITE_API_BASE` 为绝对地址时补前缀（dev 走代理、直连走前缀）。
+
+---
+
+### 变更记录补充
+| 日期 | 变更 | commit |
+|---|---|---|
+| 2026-08-28 | 阶段 20-23：LuxeEstate 落地页 + 实景素材嵌入 + 性能优化 + 接口对账/TTS 修复 | 本次提交 |

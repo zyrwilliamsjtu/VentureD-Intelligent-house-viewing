@@ -21,6 +21,12 @@ export default defineConfig({
         target: process.env.VITE_API_BASE || 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
+      // 后端 TTS 产物挂在 /static/tts/xxx.mp3（相对路径）；dev 期一并代理到网关，
+      // 否则前端 new Audio('/static/...') 会打到 5173 端口 404
+      '/static': {
+        target: process.env.VITE_API_BASE || 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
     },
   },
 })

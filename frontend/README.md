@@ -40,6 +40,9 @@ VITE_WORLD_ID=w_0330_840483       # 对拍世界 ID，见 scene/coords.ts
 
 | 能力 | 说明 |
 |---|---|
+| 高端落地页 | 对齐 LuxeEstate Demo：白玻璃吸顶导航 / 实景 Hero / 玻璃搜索卡（位置·户型·价格筛选，真联动列表）/ 数据条 / 精选房源图卡 / 顾问团 / 预约表单 / 深色页脚 |
+| 实景素材 | 首页精选卡封面用用户效果图、列表卡户型图用用户平面图（`public/assets/`，`src/data/houseImages.ts` 映射；缺图自动回退 Unsplash/点云 SVG） |
+| 性能优化 | 落地页纯 DOM 不挂 3D 引擎（不下载点云），列表页暂停点云渲染，进漫游秒开（见 WORKLOG 阶段 22） |
 | 第一人称漫游 | WASD 移动 + 鼠标视角（Pointer Lock）+ Shift 快走 |
 | 3DGS 点云渲染 | `@manycore/aholo-viewer` LodSplat，分块多级 LOD，视锥调度 |
 | 体素碰撞 | splat-transform Voxel 产物（`public/collision/`），胶囊推出 + 贴地 |
@@ -98,9 +101,26 @@ HUD 右上角 `AI 讲解 · 询问` 已接线为**真对话面板**（mock 模�
 
 1. `services/agent.ts`：`VITE_API_MODE=mock|real` 一键切换；session_id 前端生成复用；real 走 `POST {VITE_API_BASE}/api/agent/chat`（30s 超时，错误顶层 `{code,message}`）
 2. 请求自动携带玩家上下文：`player_position`/`player_facing`/`room_id`（视口每 200ms 节流发布到 store）
-3. `actions` 执行（`scene/agentActions.ts`）：`teleport` → `resolveTeleportCloud` → 体素贴地瞬移；`show_card`/`highlight` → toast 承接（show_card 兼容平铺与 `data` 嵌套两种载荷）；`tts_url` 直接播放（失败静默）
+3. `actions` 执行（`scene/agentActions.ts`）：`teleport` → `resolveTeleportCloud` → 体素贴地瞬移；`show_card`/`highlight` → toast 承接（show_card 兼容平铺与 `data` 嵌套两种载荷）；`tts_url` 直接播放（失败静默；相对 `/static/...` 已做 dev 代理 + 直连前缀解析，见 WORKLOG 阶段 23）
 4. 坐标铁律：后端收到什么坐标就原样回，**不要自己翻轴**；要下发 scene 系数据必须先按上节公式转点云系
 5. mock 行为：按当前 world 的 scene_graph 匹配（房间名 / 20 类家具中文类别 / 户型元信息），动作引用真实 tp_id → 后端未就绪也能演示 Golden Path
+
+### 后端接口对账清单（2026-08-28 · `origin/main` 真实后端）
+
+| 后端接口 | 前端接入点 | 状态 |
+|---|---|---|
+| `GET /health` | —（未使用，非必需） | 未接（无需） |
+| `GET /api/scene/{world_id}` | `services/api.ts getHouse` | ✅ |
+| `GET /api/listings` | `services/listings.ts` | ✅ |
+| `GET /api/camera_poses/{world_id}` | `scene/coords.ts loadTpTable` | ✅ |
+| `POST /api/agent/chat` | `services/agent.ts agentChat` | ✅ |
+| `POST /api/agent/asr` | `services/asr.ts agentAsr` | ✅ |
+| `POST /api/agent/tts` | `services/agent.ts synthesizeTts` | ✅ |
+| `GET /api/agent/narration` | `services/agent.ts getNarration` | ✅ |
+| `POST /api/agent/tour` | `services/agent.ts getTour` | ✅ |
+| `GET /static/tts/*`（TTS 产物） | `scene/agentActions.ts playTts` | ✅（已补 dev 代理 + 相对路径解析） |
+
+唯一发现并已修复的缺口：后端 TTS/chat 返回**相对** `/static/tts/*.mp3`，前端此前直接 `new Audio()` 会打到前端端口 404。现已加 `/static` vite 代理 + `VITE_API_BASE` 前缀解析（见 WORKLOG 阶段 23）。
 
 ## Git 协作（遵守团队规范）
 
@@ -117,4 +137,5 @@ HUD 右上角 `AI 讲解 · 询问` 已接线为**真对话面板**（mock 模�
 - [x] 进房主动讲解（`event=enter_room`，每房间每会话一次）
 - [x] 部署 GitHub Pages（`.github/workflows/deploy-pages.yml`；首次需配 repo Secrets + Pages Source=GitHub Actions）
 - [ ] 后端 `/api/agent/chat` 就绪后联调（`VITE_API_MODE=real` + `VITE_API_BASE`）
-- [ ] UI 视觉重设计（护栏见 `../docs/ui-handoff.md`）
+- [x] UI 视觉重设计（LuxeEstate 浅色奢华落地页 + 列表页同风格，见 WORKLOG 阶段 20）
+- [ ] 后端 `/api/agent/chat` 真实 key 就绪后全链路联调（ASR/TTS 已接好，`VITE_API_MODE=real` 即切）
