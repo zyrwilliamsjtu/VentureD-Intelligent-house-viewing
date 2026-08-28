@@ -7,6 +7,12 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   base: './',
   plugins: [react()],
+  optimizeDeps: {
+    // 排除预打包，让 Aholo Viewer 内部的 splat-worker / transcoder-worker
+    // 以真实相对路径（/@fs/.../dist/splat-worker.js）被 dev 服务器正常提供；
+    // 否则 dev 下 /node_modules/.vite/deps/splat-worker.js 404 → 点云解码失败 → 黑屏
+    exclude: ['@manycore/aholo-viewer'],
+  },
   server: {
     port: 5173,
     host: true,
