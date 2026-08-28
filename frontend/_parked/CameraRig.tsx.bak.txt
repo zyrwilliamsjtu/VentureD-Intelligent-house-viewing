@@ -1,0 +1,85 @@
+import { useEffect, useRef } from 'react'
+import * as THREE from 'three'
+import { useFrame, useThree } from '@react-three/fiber'
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
+import { useAppStore } from '../store/useAppStore'
+
+// ==== 镜头飞行：desiredCam 变化 → 平滑阻尼飞过去；用户拖拽即接管 ====
+// 同时对外发布飞行进度（HUD 进度胶囊）并响应视口控制按钮（缩放/平移）
+export function CameraRig() {
+  const desired = useAppStore((s) => s.desiredCam)
+  const viewCmd = useAppStore((s) => s.viewCmd)
+  const controls = useThree((s) => s.controls) as OrbitControlsImpl | null
+  const camera = useThree((s) => s.camera)
+  const anim = useRef<{ pos: THREE.Vector3; target: THREE.Vector3; total: number } | null>(null)
+
+  const launch = (pos: THREE.Vector3, target: THREE.Vector3) => {
+    anim.current = { pos, target, total: camera.position.distanceTo(pos) || 1 }
+    useAppStore.getState().setFlight(0.02)
+  }
+
+  // 新指令 → 起飞
+  useEffect(() => {
+    if (!desired) return
+    launch(new THREE.Vector3(...desired.pos), new THREE.Vector3(...desired.target))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [desired?.key])
+
+  // 视口控制按钮（+ − 方向键）
+  useEffect(() => {
+    if (!viewCmd || !controls) return
+    const kind = viewCmd.kind
+    const pos = camera.position.clone()
+    const target = controls.target.clone()
+    if (kind === 'zoom_in' || kind === 'zoom_out') {
+      const f = kind === 'zoom_in' ? 0.8 : 1.25
+      const np = target.clone().add(pos.clone().sub(target).multiplyScalar(f))
+      const dist = np.distanceTo(target)
+      if (dist > 2 && dist < 32) launch(np, target)
+    } else {
+      const step = 0.8
+      const dir = new THREE.Vector3(
+        kind === 'pan_left' ? -step : kind === 'pan_right' ? step : 0,
+        0,
+        kind === 'pan_up' ? -step : kind === 'pan_down' ? step : 0,
+      )
+      launch(pos.clone().add(dir), target.clone().add(dir))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewCmd?.seq])
+
+  // 用户开始拖拽 → 放弃自动飞行
+  useEffect(() => {
+    if (!controls) return
+    const stop = () => {
+      anim.current = null
+      useAppStore.getState().setFlight(null)
+    }
+    controls.addEventListener('start', stop)
+    return () => controls.removeEventListener('start', stop)
+  }, [controls])
+
+  useFrame((_, dt) => {
+    const to = anim.current
+    if (!to || !controls) return
+    const k = 1 - Math.exp(-3.4 * Math.min(dt, 0.05))
+    camera.position.lerp(to.pos, k)
+    controls.target.lerp(to.target, k)
+    controls.update()
+
+    // 发布进度
+    const remain = camera.position.distanceTo(to.pos)
+    const p = Math.min(0.99, 1 - remain / to.total)
+    useAppStore.getState().setFlight(Math.max(0.02, p))
+
+    if (remain < 0.03) {
+      camera.position.copy(to.pos)
+      controls.target.copy(to.target)
+      controls.update()
+      anim.current = null
+      useAppStore.getState().setFlight(null)
+    }
+  })
+
+  return null
+}
