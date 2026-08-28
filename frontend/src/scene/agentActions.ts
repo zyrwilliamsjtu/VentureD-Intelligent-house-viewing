@@ -75,6 +75,58 @@ export function stopTts(): void {
   audio = null
 }
 
+/** 播完（onended）再 resolve；失败/超时/取消也 resolve，不阻塞带看。 */
+export function playTtsAndWait(
+  url: string,
+  timeoutMs: number,
+  isCancelled: () => boolean,
+): Promise<void> {
+  const abs = mediaUrl(url)
+  return new Promise((resolve) => {
+    let settled = false
+    let timer = 0
+    let poll = 0
+    const finish = () => {
+      if (settled) return
+      settled = true
+      if (timer) window.clearTimeout(timer)
+      if (poll) window.clearInterval(poll)
+      resolve()
+    }
+    try {
+      unlockAudio()
+      audio?.pause()
+      const el = new Audio(abs)
+      audio = el
+      el.preload = 'auto'
+      el.onended = finish
+      el.onerror = () => finish()
+      timer = window.setTimeout(finish, Math.max(500, timeoutMs))
+      poll = window.setInterval(() => {
+        if (isCancelled()) {
+          try {
+            el.pause()
+          } catch {
+            /* ignore */
+          }
+          finish()
+        }
+      }, 80)
+      const p = el.play()
+      if (p && typeof p.then === 'function') {
+        void p
+          .then(() => ttsBlockedFn?.(null))
+          .catch(() => {
+            ttsBlockedFn?.(abs)
+            finish()
+          })
+      }
+    } catch {
+      finish()
+    }
+  })
+}
+
 const TTS_MS = 15_000
 
 /** 仅当 chat 已带 tts_url 才自动播（语音/带看）。打字不补播。 */

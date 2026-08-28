@@ -265,7 +265,8 @@ def handle_narration(
     listing_id: str | None = None,
 ) -> dict:
     body = get_narration(world_id, room_id, session_id=session_id, listing_id=listing_id)
-    return attach_tts_url(body, str(body.get("reply_text") or ""))
+    # 转房讲解只上屏：省略 tts_url。TTS 留给语音问答与带看。
+    return body
 
 
 def handle_tour(world_id: str, session_id: str | None = None) -> dict:
@@ -285,4 +286,4 @@ def handle_tour(world_id: str, session_id: str | None = None) -> dict:
     sess["world_id"] = world_id
     session_store.save(session_id, sess)
     # 待确认：tour 步骤多，构建时全量 TTS 会拖慢带看；逐步播放由前端 POST /tts 合成
-    return build_tour(scene_graph=graph)
+    return build_tour(world_id=world_id, scene_graph=graph)

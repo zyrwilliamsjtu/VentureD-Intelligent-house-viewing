@@ -123,3 +123,41 @@ def room_name_needles(text: str) -> list[str]:
 
 def normalize_query(text: str) -> str:
     return "".join((text or "").split()).lower()
+
+
+# category → 中文展示名（tour speech 用；只覆盖 scene 已有类）
+CATEGORY_ZH: dict[str, str] = {
+    "dining_table": "餐桌",
+    "desk": "书桌",
+    "sofa": "沙发",
+    "refrigerator": "冰箱",
+    "washing_machine": "洗衣机",
+    "coffee_table": "茶几",
+    "chair": "椅子",
+    "wardrobe": "衣柜",
+    "cabinet": "柜子",
+    "tv_cabinet": "电视柜",
+    "lamp": "灯",
+    "stove": "灶台",
+    "bed": "床",
+    "toilet": "马桶",
+    "shower": "淋浴",
+    "sink": "洗手台",
+    "curtain": "窗帘",
+    "bedside_table": "床头柜",
+    "bookshelf": "书架",
+    "plant": "绿植",
+}
+
+
+def zh_label_for_category(category: str) -> str:
+    """实例 category → 中文名；未知类返回空串（不把英文标签念出来）。"""
+    cat = (category or "").strip()
+    if not cat:
+        return ""
+    if cat in CATEGORY_ZH:
+        return CATEGORY_ZH[cat]
+    for alias, cats in INSTANCE_ALIASES.items():
+        if cat in cats and not alias.isascii():
+            return alias
+    return ""

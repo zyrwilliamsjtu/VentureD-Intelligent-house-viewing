@@ -56,7 +56,8 @@ def test_attach_tts_url_writes_field(monkeypatch: pytest.MonkeyPatch) -> None:
     clear_tts_cache()
 
 
-def test_narration_attaches_tts_when_provider_returns_url(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_narration_omits_tts_even_when_provider_ready(monkeypatch: pytest.MonkeyPatch) -> None:
+    """转房讲解只上屏：GET /narration 不再附 tts_url（语音问答 / 带看才发声）。"""
     from app.services.agent.service import handle_narration
     from app.services.agent.session import store as session_store
 
@@ -69,6 +70,6 @@ def test_narration_attaches_tts_when_provider_returns_url(monkeypatch: pytest.Mo
     session_store.clear(sid)
     body = handle_narration("w_0330_840483", "room_living", session_id=sid)
     assert "客厅" in body["reply_text"]
-    assert body["tts_url"] == "/static/tts/n.mp3"
+    assert "tts_url" not in body
     session_store.clear(sid)
     clear_tts_cache()

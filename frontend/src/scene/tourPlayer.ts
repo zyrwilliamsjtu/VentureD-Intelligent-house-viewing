@@ -1,13 +1,15 @@
 import { fetchTour } from '../services/tour'
 import { resolveRoomLookAt, resolveTeleportCloud } from './coords'
-import { playTts, stopTts, unlockAudio } from './agentActions'
+import { playTtsAndWait, stopTts, unlockAudio } from './agentActions'
 import { useAppStore } from '../store/useAppStore'
+import type { TourStep } from '../types/api'
 
-// 自主带看：拉 steps → 依次 teleport（当前 world 的 camera_poses）+ toast + 可选 TTS。
+// 自主带看：拉 steps → 依次 teleport + 短句上屏 + 长 speech 发声。
+// 等 TTS 播完（onended）再切下一房；stub/失败按文本时长估算兜底。
 // 用 generation token 中途停止；换世界必须 stopTour。
 
-const DWELL_MS = 4000
-const TTS_MS = 8_000
+const TTS_FETCH_MS = 15_000
+const MIN_DWELL_MS = 1_200
 
 let generation = 0
 
@@ -23,12 +25,22 @@ function sleep(ms: number, token: number): Promise<void> {
   })
 }
 
+/** 中文 TTS 约 4.2 字/秒；夹在 1.8s–20s。 */
+export function estimateSpeechMs(text: string): number {
+  const n = text.replace(/\s/g, '').length
+  return Math.min(20_000, Math.max(1_800, Math.round((n / 4.2) * 1000) + 500))
+}
+
+function voiceText(step: TourStep): string {
+  return (step.speech || step.narration || '').trim()
+}
+
 async function tryTtsUrl(text: string | undefined): Promise<string | null> {
   const t = text?.trim()
   if (!t) return null
   const BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/+$/, '')
   const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), TTS_MS)
+  const timer = setTimeout(() => ctrl.abort(), TTS_FETCH_MS)
   try {
     const res = await fetch(`${BASE}/api/agent/tts`, {
       method: 'POST',
@@ -69,6 +81,17 @@ export async function startTour(worldId: string): Promise<void> {
       store.showToast('带看暂不可用', '动线为空')
       return
     }
+    const ttsCache = new Map<string, Promise<string | null>>()
+    const ttsOf = (text: string) => {
+      if (!text) return Promise.resolve(null)
+      let hit = ttsCache.get(text)
+      if (!hit) {
+        hit = tryTtsUrl(text)
+        ttsCache.set(text, hit)
+      }
+      return hit
+    }
+    unlockAudio()
     for (let i = 0; i < steps.length; i++) {
       if (token !== generation) return
       const step = steps[i]
@@ -85,13 +108,22 @@ export async function startTour(worldId: string): Promise<void> {
       } else {
         useAppStore.getState().showToast('传送点不可用', step.trajectory_point_id)
       }
-      const narr = step.narration || step.room_id
-      useAppStore.getState().showToast(`带看 ${label}`, narr)
-      unlockAudio()
-      const url = await tryTtsUrl(step.narration)
+      const onScreen = step.narration || step.room_id
+      useAppStore.getState().showToast(`带看 ${label}`, onScreen)
+      const voice = voiceText(step)
+      const nextVoice = i + 1 < steps.length ? voiceText(steps[i + 1]) : ''
+      if (nextVoice) void ttsOf(nextVoice)
+      const url = voice ? await ttsOf(voice) : null
       if (token !== generation) return
-      if (url) playTts(url)
-      await sleep(DWELL_MS, token)
+      if (url) {
+        await playTtsAndWait(
+          url,
+          Math.max(estimateSpeechMs(voice) * 2 + 2_000, 8_000),
+          () => token !== generation,
+        )
+      } else {
+        await sleep(Math.max(MIN_DWELL_MS, estimateSpeechMs(voice || onScreen)), token)
+      }
     }
     if (token !== generation) return
     useAppStore.getState().showToast('带看结束', `${steps.length} 个房间已走完`)

@@ -22,6 +22,7 @@ function parseSteps(raw: unknown): TourStep[] {
       trajectory_point_id: tp,
     }
     if (typeof s.narration === 'string' && s.narration) step.narration = s.narration
+    if (typeof s.speech === 'string' && s.speech) step.speech = s.speech
     if (Array.isArray(s.selling_points) && s.selling_points.length) {
       step.selling_points = s.selling_points.map(String).filter(Boolean)
     }

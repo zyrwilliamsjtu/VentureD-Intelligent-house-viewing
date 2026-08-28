@@ -116,6 +116,8 @@ export interface TourStep {
   room_id: string
   trajectory_point_id: string
   narration?: string
+  /** 只增：长讲解稿，仅 TTS 发声、不上屏 */
+  speech?: string
   selling_points?: string[]
 }
 

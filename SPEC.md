@@ -246,7 +246,22 @@
 
 ### 3.5 `POST /api/agent/tour`（P1 · 已实现）
 
-一次性返回整条带看动线 `steps[]`（含 `room_id`/`trajectory_point_id`/`narration`/`selling_points`）。网关 `handle_tour` / `build_tour` 已接入；前端「开始带看」播放。进房主动讲解仍走 §3.4 `narration`（失败可回落 `event=enter_room`），与 tour 步骤互不替代。
+一次性返回整条带看动线 `steps[]`。网关 `handle_tour` / `build_tour` 已接入；前端「开始带看」播放。进房主动讲解仍走 §3.4 `narration`（失败可回落 `event=enter_room`），与 tour 步骤互不替代。
+
+请求：`{ "world_id": "...", "session_id": "..." }`
+
+响应 `steps[]` 每步：
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| `index` | 是 | 从 0 起 |
+| `room_id` | 是 | 房间 id |
+| `trajectory_point_id` | 是 | 该房 `tp_id`（只出 tp，不出 `position`） |
+| `narration` | 否 | **短句**，供 HUD 上屏 |
+| `speech` | 否 | **只增**：长讲解稿，**仅供 TTS 发声、不上屏**；无则前端回落 `narration` 或静音，不阻塞 |
+| `selling_points` | 否 | 房间卖点列表；无则 omit |
+
+`speech` 由规则模板从 `scene_graph`（及可选 listing 亮点）组装，**不进 LLM**。面积/实例/邻接必须来自真实字段，不编造。数据不足时允许只有「房间名+面积」（最小模板）。
 
 ### 3.6 agent 契约共同约定
 
@@ -420,3 +435,4 @@ z = 1.087 − Y_pc
 - v2.1 → v2.2（抛弃 RenderCloud 轨道、坐标系改两层并新增点云层、agent 契约按 chat/actions/asr/tts/narration 重构、语音按 A 意见、删除附录 B、Golden Path 与降级矩阵更新）。
 - v2.2 → v2.3（`GET /api/listings`；chat/narration 可选 `listing_id`；5 套真实世界；snake_case / 会话隔离方案 A / 逐场景坐标铁律写入 §7）。
 - v2.3 状态对齐 main（2026-08-28）：§9 坐标改为 Z-up 且 5 套已对拍；§4.1/§8 tour·highlight·show_card 标已实现；§3.1 示例改为 `tp_bedroom_master` 且只出 `tp_id`。**未改字段语义、未改 §7 会话 400 行为**。
+- v2.3 只增（2026-08-28）：§3.5 `steps[].speech` 可选长稿（TTS 专用、不上屏）；既有 `narration` 语义不变。

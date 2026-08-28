@@ -7,11 +7,11 @@ import { makeHighlightMarker } from './highlightMarker'
 import { useAppStore } from '../store/useAppStore'
 import { unlockAudio } from './agentActions'
 
-// ==== 命令式视口：Spark 3DGS + 体素碰撞 + 点击传送 + 对拍出生点 ====
+// ==== 命令式视口：Spark 3DGS + 体素碰撞 + 对拍出生点 ====
 // 渲染：THREE.WebGLRenderer + SparkRenderer + SplatMesh（InteriorGS compressed ply）
 // 碰撞：splat-transform Voxel 任务产物（public/collision/），运行时查询在 voxel.ts
-// 传送：锁定时点击 → 射线命中点瞬移（解决关门房间不可达）
-//       + store.teleportCmd（Agent tp_id/position → coords.ts 解析 → 此处执行）
+// 传送：store.teleportCmd（Agent tp_id/position → coords.ts 解析 → 此处执行）
+//       点击不再瞬移；V 键回归初始出生点并复位视角
 
 const VOXEL_META_URL =
   import.meta.env.VITE_AHOLO_VOXEL_META_URL ||
@@ -27,7 +27,6 @@ const SENS = 0.0022
 const PITCH_LIMIT = 1.15 // 勿贴近 ±π/2，lookAt 与 up 平行会闪回
 const MOUSE_MAX = 40 // Pointer Lock 首帧/丢帧常给超大 movementX，不夹会甩视角
 const CAPSULE_R = 0.28
-const TELEPORT_MAX = 40
 // 侧移符号：点云为 IG 原生 Z-up（右手系，对拍转正），常规取 +1；
 // 旧 -Y up 素材实测反向时改 -1
 const SIDE_SIGN = 1
@@ -86,6 +85,8 @@ export function AholoViewport({ worldId }: { worldId: string }) {
     let tpTable: TpTable | null = null
     let roomPolys: RoomPoly[] = [] // 房间归因 polygon（对拍世界才有；空则 room_id=null）
     let ctxLast = 0
+    type SpawnPose = { x: number; y: number; z: number; yaw: number; pitch: number }
+    let spawnPose: SpawnPose | null = null
 
     const boot = async () => {
       setStatus('初始化渲染引擎…')
@@ -163,6 +164,11 @@ export function AholoViewport({ worldId }: { worldId: string }) {
         camera.position.set(-1.5, EYE * upSign, 0)
       }
       camera.up.set(0, upAxis === 2 ? 0 : upSign, upAxis === 2 ? 1 : 0)
+      const captureSpawn = () => {
+        const p = camera.position
+        spawnPose = { x: p.x, y: p.y, z: p.z, yaw: st.yaw, pitch: st.pitch }
+      }
+      captureSpawn()
 
       // ---- 房间归因数据（对拍世界 polygon；加载失败不阻塞，room_id 降级 null）----
       if (worldId) {
@@ -205,6 +211,7 @@ export function AholoViewport({ worldId }: { worldId: string }) {
             st.yaw = Math.atan2(-dx, -dy)
             st.pitch = clamp(Math.asin(clamp(dz / len, -1, 1)), -0.35, 0.35)
           }
+          captureSpawn()
 
           const ms = Math.round(performance.now() - tLoad0)
           const cw = renderer?.domElement.width ?? 0
@@ -218,7 +225,7 @@ export function AholoViewport({ worldId }: { worldId: string }) {
             cw,
             ch,
           )
-          setStatus(`场景就绪 · ${mesh.numSplats.toLocaleString()} 高斯 · WASD 漫游${upAxis === 2 ? ' · 黑屏先按 V' : ''}`, true)
+          setStatus(`场景就绪 · ${mesh.numSplats.toLocaleString()} 高斯 · WASD 漫游 · V 回起点`, true)
         },
       })
       scene.add(splats)
@@ -362,46 +369,6 @@ export function AholoViewport({ worldId }: { worldId: string }) {
       }
       raf = requestAnimationFrame(tick)
 
-      // ---- 点击传送（锁定状态下）----
-      const onCanvasClick = () => {
-        const c = host.querySelector('canvas')
-        if (!c || document.pointerLockElement !== c) return
-        const p = camera.position
-        if (!vox) {
-          // 无体素（0330 帧不匹配停用）：沿视线水平冲刺 2.2m
-          p.setComponent(h1, p.getComponent(h1) - Math.sin(st.yaw) * 2.2)
-          p.setComponent(h2, p.getComponent(h2) - Math.cos(st.yaw) * 2.2)
-          return
-        }
-        if (upAxis === 2) return
-        const fx = -Math.sin(st.yaw) * Math.cos(st.pitch)
-        const fy = upSign * Math.sin(st.pitch)
-        const fz = -Math.cos(st.yaw) * Math.cos(st.pitch)
-        const hit = vox.raycast(p.x, p.y, p.z, fx, fy, fz, TELEPORT_MAX)
-        if (!hit) {
-          useAppStore.getState().showToast('这里到不了', '视线内没有可站立的落点')
-          return
-        }
-        // 沿视线回退找落脚点（贴墙物体后面也能站）
-        for (const back of [0.3, 0.8, 1.6]) {
-          const tx = hit.x - fx * back
-          const tz = hit.z - fz * back
-          const feetProbe = vox.raycast(tx, hit.y + 2 * upSign, tz, 0, -upSign, 0, 3.5)
-          if (!feetProbe) continue
-          const ty = feetProbe.y + EYE * upSign
-          const push1 = vox.resolveSphere(tx, feetProbe.y + 0.3 * upSign, tz, CAPSULE_R)
-          const push2 = vox.resolveSphere(tx, ty - 0.15 * upSign, tz, CAPSULE_R)
-          const blocked = Math.hypot(push1?.[0] ?? 0, push1?.[2] ?? 0) + Math.hypot(push2?.[0] ?? 0, push2?.[2] ?? 0)
-          if (blocked > 0.12) continue
-          p.set(tx, ty, tz)
-          st.vx = 0
-          st.vz = 0
-          return
-        }
-        useAppStore.getState().showToast('落点被挡住了', '换个角度看目标位置')
-      }
-      host.addEventListener('click', onCanvasClick)
-
       // ---- Agent 传送命令（store.teleportCmd，nonce 变化触发）----
       // 落点为点云系（Agent 契约/tp 表转正产物）；有体素时向下探测贴地，
       // 防穿地板/悬空；探测失败直接信任给定眼高。不要求指针锁定（语音传送也要能用）
@@ -494,27 +461,16 @@ export function AholoViewport({ worldId }: { worldId: string }) {
         if (hlMesh) scene.remove(hlMesh)
       })
 
-      // ---- V 键视角校准（z-up 联调用）：黑屏时逐个试出生候选，可见的编号告诉我 ----
-      const spawnPresets: Array<{ name: string; tp?: string; dz: number; pitch: number }> = [
-        { name: 'A 客厅·眼高1.0', tp: 'tp_living', dz: 1.0, pitch: 0 },
-        { name: 'B 客厅·眼高1.5', tp: 'tp_living', dz: 1.5, pitch: 0 },
-        { name: 'C 客厅·眼高2.2·俯视', tp: 'tp_living', dz: 2.2, pitch: -0.5 },
-        { name: 'D 厨房·眼高1.0', tp: 'tp_kitchen', dz: 1.0, pitch: 0 },
-        { name: 'E 场景中心·眼高1.5', dz: 1.5, pitch: 0 },
-      ]
-      let presetIdx = 0
-      const cycleSpawn = () => {
-        if (!tpTable) return
-        const ps = spawnPresets[presetIdx % spawnPresets.length]
-        presetIdx++
-        const tp = ps.tp ? tpTable[ps.tp] : null
-        if (tp) camera.position.set(tp[0], tp[1], tp[2] + ps.dz)
-        else camera.position.set(0, 0, ps.dz)
-        st.pitch = ps.pitch
+      // ---- V 键回归初始点（位置 + 视角复位）。原 voxel 校准循环已废弃。----
+      const resetToSpawn = () => {
+        if (!spawnPose) return
+        camera.position.set(spawnPose.x, spawnPose.y, spawnPose.z)
+        st.yaw = spawnPose.yaw
+        st.pitch = spawnPose.pitch
         st.vx = 0
         st.vz = 0
-        useAppStore.getState().showToast('视角校准', `${ps.name} · 能看到房间就记住编号`)
-        console.info('[calibrate] %s pos=%o', ps.name, camera.position.toArray().map((n) => +n.toFixed(2)))
+        useAppStore.getState().showToast('已回到起点', '位置和视角已复位')
+        console.info('[spawn] reset pos=%o yaw=%s', camera.position.toArray().map((n) => +n.toFixed(2)), spawnPose.yaw.toFixed(2))
       }
 
       // ---- 键鼠 ----
@@ -553,7 +509,11 @@ export function AholoViewport({ worldId }: { worldId: string }) {
         unlockAudio()
         st.keys.add(e.code)
         if (e.code.startsWith('Arrow')) e.preventDefault()
-        if (e.code === 'KeyV' && upAxis === 2 && useAppStore.getState().entered) cycleSpawn()
+        if (e.code === 'KeyV' && useAppStore.getState().entered) {
+          const el = e.target as HTMLElement | null
+          if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+          resetToSpawn()
+        }
       }
       const onUp = (e: KeyboardEvent) => st.keys.delete(e.code)
       window.addEventListener('keydown', onDown)
@@ -570,7 +530,6 @@ export function AholoViewport({ worldId }: { worldId: string }) {
       ro.observe(host)
 
       cleanupFns.push(() => {
-        host.removeEventListener('click', onCanvasClick)
         host.removeEventListener('click', onHostClickLock)
         document.removeEventListener('pointerlockchange', onLockChange)
         document.removeEventListener('mousemove', onMove)

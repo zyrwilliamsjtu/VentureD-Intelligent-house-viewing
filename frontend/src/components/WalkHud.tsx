@@ -300,14 +300,14 @@ export function WalkHud({ worldId, listing }: { worldId: string; listing?: World
       <CenterToast />
       <InfoCard />
 
-      {/* 传送准星（锁定时显示，点击视线落点瞬移） */}
+      {/* 准星（锁定时显示，仅指示视线） */}
       {locked && <div className="crosshair" />}
 
       {/* 底部操作提示 */}
       <div className="hint-bar">
         <span><b>W A S D</b> 移动</span>
         <span><b>鼠标</b> 视角</span>
-        <span><b>点击</b> 传送</span>
+        <span><b>V</b> 回起点</span>
         <span><b>Shift</b> 快走</span>
         <span><b>B</b> 带看</span>
         <span><b>ESC</b> 释放鼠标</span>

@@ -6,6 +6,7 @@ from typing import Any
 
 from app.data.listing_store import get_listing
 from app.data.scene_store import load_scene_graph
+from app.schemas.errors import GatewayError
 
 
 def load(world_id: str) -> dict | None:
@@ -72,6 +73,21 @@ def find_instances_by_query(graph: dict, query: str) -> list[dict]:
 def load_listing(listing_id: str | None) -> dict | None:
     """按 listing_id 取挂牌；未知 id 返回 None（chat 回退 scene_graph）。"""
     return get_listing(listing_id)
+
+
+def listing_for_world(world_id: str) -> dict | None:
+    """按 world_id 取挂牌；无挂牌或读盘失败返回 None（tour 不阻塞）。"""
+    if not world_id:
+        return None
+    try:
+        from app.data.listing_store import list_listings
+
+        for item in list_listings():
+            if isinstance(item, dict) and item.get("world_id") == world_id:
+                return item
+    except GatewayError:
+        return None
+    return None
 
 
 def overlay_listing(graph: dict, listing: dict | None) -> dict:

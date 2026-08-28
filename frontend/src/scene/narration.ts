@@ -3,11 +3,11 @@ import { useAppStore } from '../store/useAppStore'
 import { agentChat, getSessionId, loadScene } from '../services/agent'
 import { fetchNarration } from '../services/narration'
 import { listingIdForWorld } from './worlds'
-import { playReplyVoice } from './agentActions'
 
 // 进房讲解：优先 GET /api/agent/narration（story_card + selling_points）；
 // 失败/404 回落 chat event=enter_room。带看中跳过，避免与 tour 双讲。
 // 每房间每会话只讲一次（前端 Set）；未对拍世界 room_id=null 不触发。
+// 导航转房只上屏 toast，不自动播 TTS（语音问答 / 带看才发声）。
 
 const DEBOUNCE_MS = 700
 
@@ -38,7 +38,6 @@ export function useRoomNarration(worldId: string): void {
           try {
             const sid = getSessionId()
             let text = ''
-            let tts: string | null | undefined
             let source: 'narration' | 'enter_room' = 'narration'
             try {
               const nar = await fetchNarration({
@@ -49,7 +48,6 @@ export function useRoomNarration(worldId: string): void {
               })
               if (nar?.reply_text) {
                 text = nar.reply_text
-                tts = nar.tts_url
               }
             } catch (e) {
               console.warn('[narration] GET 失败 → 回落 enter_room', e)
@@ -66,14 +64,12 @@ export function useRoomNarration(worldId: string): void {
                 event: 'enter_room',
               })
               text = res.reply_text ?? ''
-              tts = res.tts_url
             }
             if (!alive || !text) return
             narrated.add(room)
             const scene = await loadScene(p.world_id)
             const name = scene?.rooms.find((r) => r.id === room)?.name ?? '当前房间'
             st.showToast(name, text)
-            playReplyVoice(text, tts)
             console.info('[narration] %s %s via %s', p.world_id, room, source)
           } catch {
             /* 讲解失败静默 */

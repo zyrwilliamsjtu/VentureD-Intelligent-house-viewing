@@ -41,6 +41,7 @@ def test_handle_tour_steps_follow_tour_path() -> None:
         assert step["room_id"] == expected_rid
         assert step["trajectory_point_id"] in allowed
         assert step["narration"]
+        assert step.get("speech")
         assert "audio" not in step
 
 
@@ -98,3 +99,67 @@ def test_narration_session_dedup() -> None:
     assert first["reply_text"] != second["reply_text"]
     assert second["reply_text"] == "这就是客厅。"
     session_store.clear(sid)
+
+
+def _step(body: dict, room_id: str) -> dict:
+    for step in body["steps"]:
+        if step["room_id"] == room_id:
+            return step
+    raise AssertionError(f"missing step {room_id}")
+
+
+def test_tour_speech_grounded_master_0330() -> None:
+    """主卧 speech 模板：面积+真实实例+邻接卫生间；不上屏长稿与短 narration 分离。"""
+    body = handle_tour(WORLD, "s_tour_speech_master")
+    step = _step(body, "room_bedroom_master")
+    assert step["narration"] == "主卧约20.1平。"
+    speech = step["speech"]
+    assert "这里是主卧" in speech
+    assert "20.1" in speech
+    for token in ("床", "衣柜", "床头柜", "独立卫生间"):
+        assert token in speech, token
+    assert "双人床" not in speech  # 未在 GT 标注尺寸，不编造
+    assert "地铁" not in speech
+    session_store.clear("s_tour_speech_master")
+
+
+def test_tour_speech_living_has_furniture_not_listing_tags() -> None:
+    body = handle_tour(WORLD, "s_tour_speech_living")
+    step = _step(body, "room_living")
+    speech = step["speech"]
+    assert "客厅" in speech and "52.6" in speech
+    for token in ("沙发", "餐桌", "电视柜"):
+        assert token in speech, token
+    assert "近地铁" not in speech
+    assert "学区" not in speech
+    session_store.clear("s_tour_speech_living")
+
+
+def test_tour_speech_does_not_invent_missing_fridge() -> None:
+    """0469 无冰箱实例：厨房 speech 不得出现冰箱。"""
+    body = handle_tour("w_0469_840829", "s_tour_0469")
+    kitchen = _step(body, "room_kitchen")
+    assert "冰箱" not in (kitchen.get("speech") or "")
+    session_store.clear("s_tour_0469")
+
+
+def test_tour_speech_no_llm(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _boom(*_a, **_k):
+        raise AssertionError("tour 不得调用 LLM")
+
+    monkeypatch.setattr("app.services.agent.chat.llm_provider.get_chat_llm_provider", _boom)
+    body = handle_tour(WORLD, "s_tour_no_llm")
+    assert body["steps"]
+    assert all(s.get("speech") for s in body["steps"])
+    session_store.clear("s_tour_no_llm")
+
+
+def test_tour_mock_selling_points_in_speech() -> None:
+    body = handle_tour("w_mock_001", "s_tour_mock")
+    living = _step(body, "room_living")
+    assert living.get("selling_points")
+    speech = living["speech"]
+    assert "24" in speech or "客厅" in speech
+    assert "落地窗" in speech or "采光" in speech
+    assert len(living["narration"]) < len(speech)
+    session_store.clear("s_tour_mock")
