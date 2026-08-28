@@ -74,6 +74,9 @@ Pointer Lock + WASD；AABB 碰撞（后升级为体素）；程序化户型生�
 ### 阶段 8 · Agent 接线（2026-08-28）
 `AgentStub` 占位 → 真对话面板（`WalkHud.tsx`）。新增 `services/agent.ts`（session_id 管理 + mock/real 双实现，30s 超时，错误 `{code,message}`）与 `scene/agentActions.ts`（动作执行器 + TTS 播放）。mock 按当前 world 的 scene_graph 关键词匹配（房间名 → 传送+卡；20 类家具中文类别 → 传送+属性卡；元信息问答），动作引用真实 tp_id → 后端未就绪也能演练 Golden Path。浏览器实测 7/7 步通过（见 §5）。
 
+### 阶段 11 · B 板块交接（2026-08-28 晚）
+B 无法继续合作，agent 板块转由 A+PI 承接。整理自包含需求书 `docs/agent-handoff.md`（接口契约、坐标铁律、数据字典含真实房间全表、MOSS 选型、24h 最小可用路线、自测清单、Git 规范、已知坑），可直接交给任何 AI/开发者开工。示例坐标已按 `scene_graph.json` 实测值修正（room_id 真实格式 `room_bedroom_master`）。
+
 ### 阶段 10 · 交接文档（2026-08-28 下午）
 后端接手视角缺口补齐：`frontend/docs/backend-handbook.md`（五分钟跑通、文档地图、接口清单+前端调用点、tp 表/scene_graph 数据字典、联调三步含硬编码冒烟响应、坐标铁律、5 条已知坑）+ `frontend/docs/agent-api.md` v1.1 入库。契约事实源仍是根目录 SPEC，手册只补实测行为不重复定义。
 
@@ -194,7 +197,7 @@ npm run build                    # 必过
 |---|---|---|---|
 | 1 | 根目录 `mock/real_0330/camera_poses.json` 旧草稿 | PI（@zyrwilliamsjtu） | ✅ **已办**（2026-08-28 main `b1afb93` 换转正版，SPEC 附录 A 同步写死公式） |
 | 2 | `agent-api.md` v1.1 入仓库 | PI / agent | ✅ **已办**（A 侧放 `frontend/docs/agent-api.md`；另附 `frontend/docs/backend-handbook.md` 联调手册） |
-| 3 | `/api/agent/chat` + `/api/agent/asr` + CORS | 后端 | ⏳ 网关骨架+scene 路由已合并（`b7afc83`）；chat/asr 未实现，B 侧 dev-agent 零进度 |
+| 3 | `/api/agent/chat` + `/api/agent/asr` + CORS | 后端 | 🔴 **B 已退出**，转 A+PI 承接；需求书见 `docs/agent-handoff.md`，待新执行方按 24h 路线开工 |
 | 4 | tp 表按 `world_id` 入库 | agent | ⏳ 前端本地已可直接用（`public/mock/real_0330/camera_poses.json`） |
 | 5 | SPEC 正文 5 处旧「-Y up」结论未同步附录 A | PI | 🔴 **新增**：§0 坐标表/§3.1/§4.2/§4.3/§9 仍写 -Y up 与「对拍完成前 room_id 恒 null」，B 读正文会做反坐标轴 |
 
