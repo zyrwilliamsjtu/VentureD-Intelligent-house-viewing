@@ -54,6 +54,30 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .agent-stub:hover { color: #d5dafc; border-color: rgba(124, 134, 242, 0.9); background: rgba(30, 34, 54, 0.85); }
 .agent-stub .dot { width: 7px; height: 7px; border-radius: 50%; background: #7c86f2; box-shadow: 0 0 8px rgba(124, 134, 242, 0.9); animation: blink 1.6s ease infinite; }
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+/* 已接线态：实线高亮 */
+.agent-stub.live { border-style: solid; border-color: rgba(124, 134, 242, 0.75); color: #d5dafc; background: linear-gradient(135deg, rgba(79, 91, 238, 0.32), rgba(15, 181, 166, 0.22)); }
+.agent-stub.live .dot { background: #34d399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.9); }
+
+/* ---- Agent 对话面板 ---- */
+.agent-panel { position: absolute; top: 64px; right: 18px; width: 324px; max-height: min(58vh, 480px); display: flex; flex-direction: column; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; backdrop-filter: blur(14px); pointer-events: auto; overflow: hidden; animation: rise 0.25s ease both; z-index: 22; }
+.agent-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.ah-title { color: #f2f4ff; font-size: 13.5px; font-weight: 700; letter-spacing: 0.08em; }
+.agent-close { color: #8a90a8; font-size: 11.5px; padding: 3px 10px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.14); transition: all 0.15s ease; }
+.agent-close:hover { color: #d5dafc; border-color: rgba(124, 134, 242, 0.7); }
+.agent-list { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.agent-list::-webkit-scrollbar { width: 5px; }
+.agent-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); border-radius: 999px; }
+.agent-tip { color: #6a7089; font-size: 12px; text-align: center; padding: 8px 4px; line-height: 1.8; }
+.msg { max-width: 88%; padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.55; word-break: break-word; }
+.msg.user { align-self: flex-end; background: linear-gradient(135deg, #4f5bee, #3a45c9); color: #fff; border-bottom-right-radius: 4px; }
+.msg.assistant { align-self: flex-start; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.1); color: #e8ebff; border-bottom-left-radius: 4px; }
+.msg.pending { color: #8a90a8; font-style: italic; }
+.agent-input { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.agent-input input { flex: 1; background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 10px; color: #f0f2ff; font-size: 13px; font-family: inherit; padding: 8px 12px; outline: none; transition: border-color 0.15s ease; }
+.agent-input input:focus { border-color: rgba(124, 134, 242, 0.8); }
+.agent-input input::placeholder { color: #6a7089; }
+.agent-input .send { background: linear-gradient(135deg, #4f5bee, #0fb5a6); color: #fff; font-size: 12.5px; font-weight: 700; padding: 0 16px; border-radius: 10px; transition: opacity 0.15s ease; }
+.agent-input .send:hover:not(:disabled) { opacity: 0.88; }
 
 /* 进房提示 */
 .center-toast { position: absolute; top: 84px; left: 50%; transform: translateX(-50%); text-align: center; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 14px; padding: 10px 26px; backdrop-filter: blur(10px); animation: toastIn 0.3s ease both; }

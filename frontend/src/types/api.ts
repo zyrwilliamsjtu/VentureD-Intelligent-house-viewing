@@ -81,7 +81,8 @@ export interface ChatResponse {
 export type AgentAction =
   | { type: 'teleport'; tp_id?: string; position?: V3; label?: string }
   | { type: 'highlight'; tp_id?: string; position?: V3 }
-  | { type: 'show_card'; title: string; lines: string[] }
+  // show_card 兼容两种载荷：平铺 {title,lines}（契约正文）/ 嵌套 {data:{title,lines}}（PI mock 样例）
+  | { type: 'show_card'; title?: string; lines?: string[]; data?: { title?: string; lines?: string[] } }
 
 export interface AgentChatRequest {
   session_id: string

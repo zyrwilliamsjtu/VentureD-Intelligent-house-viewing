@@ -4,6 +4,8 @@
 
 第一人称 3D 漫游 + Agent 传送。桌面 Chrome / Edge 优先，适配 1280-1440。
 
+> **接管/协作前必读：[WORKLOG.md](./WORKLOG.md)** —— 全程执行日志（时间线、关键决策 D1-D6、已验证事实、接管指引、跨域待办）。任何 AI 或人接手先读它。
+
 ## 快速开始
 
 ```bash
@@ -67,17 +69,24 @@ src/
 │   ├── voxel.ts            # 体素碰撞运行时查询
 │   └── coords.ts           # 坐标映射 / 房间归因 / tp 表（对拍转正）
 ├── components/
-│   └── WalkHud.tsx         # 漫游 HUD：房源信息 / 当前房间 / Agent 占位按钮
+│   └── WalkHud.tsx         # 漫游 HUD：房源信息 / 当前房间 / Agent 对话面板
+├── services/
+│   └── agent.ts            # Agent 客户端：session_id + mock/real 双实现
+├── scene/
+│   ├── agentActions.ts     # Agent 动作执行器（teleport/show_card/highlight + TTS）
+│   └── ...
 └── _parked/                # 已下线的上帝视角+小安讲解代码，Agent 就绪后按需回迁
 ```
 
 ## Agent 接入状态
 
-HUD 右上角 `AgentStub` 是占位按钮。后端 `/api/agent/chat` 就绪后：
+HUD 右上角 `AI 讲解 · 询问` 已接线为**真对话面板**（mock 模式实测通过）：
 
-1. `AgentChatRequest`（`types/api.ts`）字段已备好，`player_position`/`player_facing`/`room_id` 视口每 200ms 节流发布到 store
-2. `actions.teleport` 的执行链路已通：`resolveTeleportCloud`（`scene/coords.ts`）→ `requestTeleport`（store）→ 视口体素贴地 → 瞬移
-3. 坐标铁律：后端收到什么坐标就原样回，**不要自己翻轴**；要下发 scene 系数据必须先按上节公式转点云系
+1. `services/agent.ts`：`VITE_API_MODE=mock|real` 一键切换；session_id 前端生成复用；real 走 `POST {VITE_API_BASE}/api/agent/chat`（30s 超时，错误顶层 `{code,message}`）
+2. 请求自动携带玩家上下文：`player_position`/`player_facing`/`room_id`（视口每 200ms 节流发布到 store）
+3. `actions` 执行（`scene/agentActions.ts`）：`teleport` → `resolveTeleportCloud` → 体素贴地瞬移；`show_card`/`highlight` → toast 承接（show_card 兼容平铺与 `data` 嵌套两种载荷）；`tts_url` 直接播放（失败静默）
+4. 坐标铁律：后端收到什么坐标就原样回，**不要自己翻轴**；要下发 scene 系数据必须先按上节公式转点云系
+5. mock 行为：按当前 world 的 scene_graph 匹配（房间名 / 20 类家具中文类别 / 户型元信息），动作引用真实 tp_id → 后端未就绪也能演示 Golden Path
 
 ## Git 协作（遵守团队规范）
 
@@ -87,7 +96,9 @@ HUD 右上角 `AgentStub` 是占位按钮。后端 `/api/agent/chat` 就绪后�
 
 ## TODO
 
-- [ ] `AgentStub` 接入真实 `/api/agent/chat`（等后端 P0 接口）
-- [ ] `highlight` / `show_card` 动作执行（占位待做）
-- [ ] TTS 播放（`tts_url` 直接播，无则调后端 tts 接口）
+- [x] Agent 对话面板接线（mock 实测通过；`.env.local` 改 `VITE_API_MODE=real` 切真后端）
+- [x] `highlight` / `show_card` 动作执行（toast 承接）
+- [x] TTS 播放（`tts_url` 直接播，失败静默）
+- [ ] 后端 `/api/agent/chat` 就绪后联调 + ASR 录音按钮（等 `/api/agent/asr`）
+- [ ] 进房主动讲解（`event=enter_room` 请求已支持）
 - [ ] 部署 GitHub Pages（`vite.config.ts` 已设 `base: './'`）
