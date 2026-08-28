@@ -1,0 +1,289 @@
+{
+  "world_id": "w_mock_001",
+  "coord": {
+    "unit": "m",
+    "up": "Y",
+    "origin": "house_center",
+    "handedness": "right",
+    "polygon_axis": "XZ",
+    "polygon_winding": "ccw_top"
+  },
+  "house": {
+    "title": "阳光里 · 两室一厅 1203",
+    "type": "两室一厅",
+    "total_area": 89,
+    "orientation": "南向",
+    "floor": "12/28",
+    "price": "430万",
+    "tags": ["南北通透", "全明户型", "近地铁", "精装修"],
+    "facts": {
+      "ceiling_height": 2.8,
+      "property_fee": "4.2元/㎡·月",
+      "usable_ratio": 0.82,
+      "floor": "12/28",
+      "built_year": 2023
+    }
+  },
+  "rooms": [
+    {
+      "id": "room_entrance",
+      "type": "entrance",
+      "name": "玄关",
+      "area": 5,
+      "polygon": [[-5.5, -4], [-3.5, -4], [-3.5, -2], [-5.5, -2]],
+      "adjacent_rooms": ["room_living", "room_bathroom"],
+      "trajectory_point_id": "tp_entrance",
+      "selling_points": ["进门玄关带收纳空间"],
+      "story_card": "进门是5平玄关，预留鞋柜收纳位，动线自然衔接客厅。",
+      "instances": []
+    },
+    {
+      "id": "room_living",
+      "type": "living_room",
+      "name": "客厅",
+      "area": 24,
+      "polygon": [[-2, -4], [4.5, -4], [4.5, 0], [-2, 0]],
+      "adjacent_rooms": ["room_entrance", "room_balcony", "room_kitchen", "room_bedroom_second", "room_bedroom_master"],
+      "trajectory_point_id": "tp_living",
+      "selling_points": ["南向全景落地窗，直连阳台", "开间进深比约1:1.5，采光充足"],
+      "story_card": "24平朝南客厅，全景落地窗直连阳台，沙发到电视墙约3米，动线开阔。",
+      "instances": [
+        {
+          "id": "inst_sofa",
+          "category": "sofa",
+          "position": [-0.5, 0.4, -3.5],
+          "bbox3d": { "center": [-0.5, 0.4, -3.5], "size": [2.4, 0.9, 0.9] },
+          "tag": "3人位",
+          "attrs": { "type": "三人位布艺沙发", "material": "棉麻", "color": "浅灰" },
+          "confidence": 0.96,
+          "trajectory_point_id": "tp_sofa"
+        },
+        {
+          "id": "inst_tv_cabinet",
+          "category": "tv_cabinet",
+          "position": [2.5, 0.3, -3.6],
+          "bbox3d": { "center": [2.5, 0.3, -3.6], "size": [1.8, 0.5, 0.4] },
+          "tag": "55寸电视墙",
+          "confidence": 0.9,
+          "trajectory_point_id": "tp_tv"
+        },
+        {
+          "id": "inst_coffee_table",
+          "category": "coffee_table",
+          "position": [0.8, 0.35, -2.6],
+          "bbox3d": { "center": [0.8, 0.35, -2.6], "size": [1.2, 0.4, 0.7] },
+          "confidence": 0.88
+        },
+        {
+          "id": "inst_lamp",
+          "category": "lamp",
+          "position": [3.8, 1.2, -3.4],
+          "bbox3d": { "center": [3.8, 1.2, -3.4], "size": [0.3, 1.6, 0.3] },
+          "tag": "落地灯",
+          "confidence": 0.82
+        }
+      ]
+    },
+    {
+      "id": "room_balcony",
+      "type": "balcony",
+      "name": "阳台",
+      "area": 4,
+      "polygon": [[4.5, -1.5], [5.5, -1.5], [5.5, 0], [4.5, 0]],
+      "adjacent_rooms": ["room_living"],
+      "trajectory_point_id": "tp_balcony",
+      "selling_points": ["朝南生活阳台", "约4平可做晾晒或休闲区"],
+      "story_card": "4平朝南阳台，采光好，可作晾晒区或小花园。",
+      "instances": [
+        {
+          "id": "inst_plant",
+          "category": "plant",
+          "position": [5.1, 0.6, -0.9],
+          "bbox3d": { "center": [5.1, 0.6, -0.9], "size": [0.5, 1.0, 0.5] },
+          "confidence": 0.78
+        }
+      ]
+    },
+    {
+      "id": "room_kitchen",
+      "type": "kitchen",
+      "name": "厨房",
+      "area": 8,
+      "polygon": [[4, -4], [5.5, -4], [5.5, -1.5], [4, -1.5]],
+      "adjacent_rooms": ["room_living"],
+      "trajectory_point_id": "tp_kitchen",
+      "selling_points": ["U型操作台", "配501升双开门冰箱"],
+      "story_card": "8平U型厨房，配501升双开门冰箱，操作动线顺手。",
+      "instances": [
+        {
+          "id": "inst_refrigerator",
+          "category": "refrigerator",
+          "position": [4.3, 0.9, -3.6],
+          "bbox3d": { "center": [4.3, 0.9, -3.6], "size": [0.9, 1.8, 0.7] },
+          "tag": "501L",
+          "attrs": { "brand": "西门子", "capacity": "501升", "type": "双开门冰箱" },
+          "confidence": 0.94,
+          "trajectory_point_id": "tp_refrigerator"
+        },
+        {
+          "id": "inst_stove",
+          "category": "stove",
+          "position": [5.0, 0.8, -2.8],
+          "bbox3d": { "center": [5.0, 0.8, -2.8], "size": [0.7, 0.1, 0.5] },
+          "attrs": { "type": "燃气灶" },
+          "confidence": 0.9
+        },
+        {
+          "id": "inst_sink_kitchen",
+          "category": "sink",
+          "position": [4.6, 0.8, -2.0],
+          "bbox3d": { "center": [4.6, 0.8, -2.0], "size": [0.7, 0.1, 0.5] },
+          "attrs": { "type": "厨房水槽" },
+          "confidence": 0.85
+        }
+      ]
+    },
+    {
+      "id": "room_bathroom",
+      "type": "bathroom",
+      "name": "卫生间",
+      "area": 5,
+      "polygon": [[-5.5, -4], [-4, -4], [-4, 0], [-5.5, 0]],
+      "adjacent_rooms": ["room_entrance", "room_bedroom_second"],
+      "trajectory_point_id": "tp_bathroom",
+      "selling_points": ["干湿分离", "明卫带窗"],
+      "story_card": "5平卫生间，干湿分离，明卫带窗，通风好。",
+      "instances": [
+        {
+          "id": "inst_toilet",
+          "category": "toilet",
+          "position": [-5.0, 0.4, -0.5],
+          "bbox3d": { "center": [-5.0, 0.4, -0.5], "size": [0.4, 0.8, 0.7] },
+          "confidence": 0.93
+        },
+        {
+          "id": "inst_shower",
+          "category": "shower",
+          "position": [-4.3, 0.6, -3.2],
+          "bbox3d": { "center": [-4.3, 0.6, -3.2], "size": [0.9, 1.8, 0.9] },
+          "confidence": 0.84
+        },
+        {
+          "id": "inst_sink_bathroom",
+          "category": "sink",
+          "position": [-4.4, 0.8, -0.7],
+          "bbox3d": { "center": [-4.4, 0.8, -0.7], "size": [0.6, 0.8, 0.5] },
+          "confidence": 0.86
+        }
+      ]
+    },
+    {
+      "id": "room_bedroom_second",
+      "type": "bedroom",
+      "name": "次卧",
+      "area": 12,
+      "polygon": [[-5.5, 0], [-2.5, 0], [-2.5, 4], [-5.5, 4]],
+      "adjacent_rooms": ["room_living", "room_bathroom"],
+      "trajectory_point_id": "tp_second",
+      "selling_points": ["次卧灵活多变", "可作儿童房或书房"],
+      "story_card": "12平次卧，可作儿童房或书房，配书桌书架，安静宜居。",
+      "instances": [
+        {
+          "id": "inst_bed_second",
+          "category": "bed",
+          "position": [-3.2, 0.5, 1.8],
+          "bbox3d": { "center": [-3.2, 0.5, 1.8], "size": [1.5, 0.5, 2.0] },
+          "tag": "1.5米床",
+          "confidence": 0.91
+        },
+        {
+          "id": "inst_desk",
+          "category": "desk",
+          "position": [-4.6, 0.75, 3.4],
+          "bbox3d": { "center": [-4.6, 0.75, 3.4], "size": [1.2, 0.75, 0.6] },
+          "attrs": { "type": "书桌" },
+          "confidence": 0.88
+        },
+        {
+          "id": "inst_chair",
+          "category": "chair",
+          "position": [-4.2, 0.45, 3.3],
+          "bbox3d": { "center": [-4.2, 0.45, 3.3], "size": [0.45, 0.9, 0.45] },
+          "confidence": 0.85
+        },
+        {
+          "id": "inst_bookshelf",
+          "category": "bookshelf",
+          "position": [-5.2, 1.0, 1.5],
+          "bbox3d": { "center": [-5.2, 1.0, 1.5], "size": [0.8, 1.8, 0.35] },
+          "confidence": 0.83
+        }
+      ]
+    },
+    {
+      "id": "room_bedroom_master",
+      "type": "bedroom",
+      "name": "主卧",
+      "area": 15,
+      "polygon": [[2.5, 0], [5.5, 0], [5.5, 4], [2.5, 4]],
+      "adjacent_rooms": ["room_living"],
+      "trajectory_point_id": "tp_master",
+      "selling_points": ["南向主卧，采光充足", "约15平，可放1.8米大床"],
+      "story_card": "15平南向主卧，放得下1.8米大床加整墙衣柜，还带南向飘窗。",
+      "instances": [
+        {
+          "id": "inst_bed_master",
+          "category": "bed",
+          "position": [4.3, 0.5, 2.8],
+          "bbox3d": { "center": [4.3, 0.5, 2.8], "size": [1.8, 0.5, 2.0] },
+          "tag": "1.8米床",
+          "attrs": { "type": "双人床", "size": "1.8x2.0米" },
+          "confidence": 0.95,
+          "trajectory_point_id": "tp_bed_master"
+        },
+        {
+          "id": "inst_wardrobe",
+          "category": "wardrobe",
+          "position": [3.0, 1.0, 3.6],
+          "bbox3d": { "center": [3.0, 1.0, 3.6], "size": [1.8, 2.4, 0.6] },
+          "tag": "整墙衣柜",
+          "confidence": 0.92
+        },
+        {
+          "id": "inst_bedside_table",
+          "category": "bedside_table",
+          "position": [3.4, 0.5, 2.8],
+          "bbox3d": { "center": [3.4, 0.5, 2.8], "size": [0.5, 0.5, 0.4] },
+          "confidence": 0.87
+        },
+        {
+          "id": "inst_curtain",
+          "category": "curtain",
+          "position": [5.3, 1.5, 2.0],
+          "bbox3d": { "center": [5.3, 1.5, 2.0], "size": [0.1, 2.4, 2.8] },
+          "confidence": 0.8
+        }
+      ]
+    }
+  ],
+  "tour_path": [
+    "room_entrance",
+    "room_living",
+    "room_balcony",
+    "room_kitchen",
+    "room_bathroom",
+    "room_bedroom_second",
+    "room_bedroom_master"
+  ],
+  "topology": {
+    "adjacency": [
+      { "from": "room_entrance", "to": "room_living" },
+      { "from": "room_entrance", "to": "room_bathroom" },
+      { "from": "room_living", "to": "room_balcony" },
+      { "from": "room_living", "to": "room_kitchen" },
+      { "from": "room_living", "to": "room_bedroom_second" },
+      { "from": "room_living", "to": "room_bedroom_master" },
+      { "from": "room_bathroom", "to": "room_bedroom_second" }
+    ]
+  }
+}
