@@ -123,9 +123,9 @@ HUD 动作：`teleport.tp_id` → `coords.resolveTeleportCloud` → 体素贴地
 | **M1** | 规则版 `handle_chat`：intent / grounding / responder / actions | ✅ |
 | **M2** | narration 打磨 + session 去重；`handle_tour` 接入 `build_tour` | ✅ |
 | **M3** | router 与契约测试对齐 | ✅ |
-| **P0** | ASR Provider（stub + openai_compat + 超时/失败降级） | ⏳ 进行中（结构完成，真实端点待确认） |
-| **P1** | TTS Provider（stub + 缓存 + 降级；chat 可附 tts_url） | ⏳ 进行中（结构完成，真实端点待确认） |
-| **P2 / M4** | chat LLM 增强（规则版保底） | ⏳ 进行中（结构完成，真实端点待确认） |
+| **P0** | ASR Provider（stub + openai_compat + volcengine 骨架） | ⏳ 进行中（WS 协议待下轮） |
+| **P1** | TTS Provider（stub + volcengine V1 + 缓存） | ⏳ 进行中（音色待确认） |
+| **P2 / M4** | chat LLM 增强（规则版保底） | ⏳ 进行中（方舟需 ep- 接入点） |
 
 ---
 
@@ -179,6 +179,7 @@ backend/app/services/agent/
 | 2026-08-28 | M1 规则版 handle_chat（intent/grounding/responder/actions）；SPEC §3.1 改为点云 Z-up |
 | 2026-08-28 | M2 handle_tour 接入 build_tour；narration 拼 selling_points + 可选 session 去重；SPEC §4.2 Z-up |
 | 2026-08-28 | 接真实 API：ASR/TTS/chat-LLM Provider 抽象 + stub 兜底（P0/P1/P2）；key 仅 .env |
+| 2026-08-28 | chat 切火山方舟（openai_compat）；volcengine TTS V1 + ASR 骨架；凭证仅 .env |
 
 ---
 
@@ -186,31 +187,32 @@ backend/app/services/agent/
 
 **决策（PI，2026-08-28）**：agent 接真实 API（ASR / TTS / chat LLM），与理解层一样用 **Provider 抽象 + stub 兜底 + 环境变量热切换**。
 
-### 供应商（待确认）
+### 供应商
 
-- Key 已在 `backend/.env`（**未跟踪、禁止入库**），`sk-` 前缀，按 **OpenAI 兼容** 优先实现。
-- **base_url / 模型名 / ASR·TTS 端点路径尚未向提供方确认**。代码里默认路径为：
-  - chat：`POST {LLM_BASE_URL}/chat/completions`
-  - ASR：`POST {ASR_BASE_URL}/audio/transcriptions`
-  - TTS：`POST {TTS_BASE_URL}/audio/speech`
-- 上述路径若与供应商不一致，只改 `.env` 的 `*_BASE_URL` 或对应 `openai_compat.py` 顶栏常量，不要把 key 写进仓库。
+- **chat**：火山方舟 OpenAI 兼容（PI 批准 2026-08-28）。`POST {LLM_BASE_URL}/chat/completions`，`LLM_BASE_URL` 已含 `/api/v3`，**不要再拼 `/v1`**。
+- **待确认（chat 真接阻塞）**：当前 `LLM_MODEL=doubao-1-5-pro-32k-250115` 对 `/chat/completions` 返回 `InvalidEndpointOrModel.NotFound`。`GET /models` 能列出该模型，但本 key 无推理权限。需在方舟控制台创建 **推理接入点**，把 `LLM_MODEL` 改成 `ep-...`（只写 `.env`）。未开通前 chat 自动回规则版，接口不 500。
+- **TTS**：豆包语音 V1 HTTP `POST https://openspeech.bytedance.com/api/v1/tts`，鉴权 `Authorization: Bearer;${token}`（**分号**）。`TTS_PROVIDER=volcengine`。本账号实测 403 `resource_id=volc.tts.default requested resource not granted`——**待确认**控制台是否已开通语音合成资源/音色；失败降级 `{}`。
+- **ASR**：豆包大模型流式 WebSocket `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel`。本轮 **骨架**（Header 已按官方列出；二进制帧协议 / `websockets` 依赖待下轮，需装包先问 PI）。失败降级 stub。
+- 凭证只在 `backend/.env`（**未跟踪、禁止入库**）。`.env.example` 只列变量名。
 
 ### 配置（只写变量名）
 
 | 变量 | 作用 | 缺省 |
 |------|------|------|
-| `ASR_PROVIDER` / `TTS_PROVIDER` / `CHAT_PROVIDER` | `stub` 或 `openai_compat` | `stub` |
-| `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` | chat 增强 | 空 → 不调用 |
-| `ASR_*` / `TTS_*` | 语音；空则回退用 `LLM_*` | 空 → 降级 stub |
+| `CHAT_PROVIDER` | `stub` / `openai_compat` | `stub` |
+| `ASR_PROVIDER` / `TTS_PROVIDER` | `stub` / `openai_compat` / `volcengine` | `stub` |
+| `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` | chat 方舟 | 空或不达 → 规则版 |
+| `TTS_APP_ID` / `TTS_ACCESS_TOKEN` / `TTS_VOICE` | 豆包 TTS | 空 → stub；音色缺省 `zh_female_qingxin`（待确认） |
+| `ASR_APP_ID` / `ASR_ACCESS_TOKEN` / `ASR_RESOURCE_ID` | 豆包 ASR | 空 → stub；resource 缺省小时版（待确认） |
 
 真实 key **只允许**出现在本机 `backend/.env`。`.env.example` 与文档只列变量名。
 
 ### 降级链（demo 永不挂）
 
 ```
-ASR：openai_compat（超时 10s）→ stub {text:"", duration_ms:0}
-TTS：openai_compat（超时 15s）+ 同文本缓存 → {}（omit audio_url）
-chat：规则版始终先跑 → LLM enhance 成功才替换 reply_text；失败/未配置保持规则版；actions 仍由规则版产出
+ASR：volcengine 骨架 / openai_compat（超时 10s）→ stub {text:"", duration_ms:0}
+TTS：volcengine V1 HTTP（超时 15s）+ 同文本缓存 → {}（omit audio_url）
+chat：规则版始终先跑 → 方舟 openai_compat 成功才替换 reply_text；失败/未配置/模型 404 保持规则版；actions 仍由规则版产出
 ```
 
 热切换：改 `.env` 里 `*_PROVIDER` 后重启 uvicorn（或新进程读环境）。
@@ -219,7 +221,7 @@ chat：规则版始终先跑 → LLM enhance 成功才替换 reply_text；失败
 
 | ID | 内容 | 状态 |
 |----|------|------|
-| P0 | ASR | ⏳ 结构完成，真实端点待确认 |
-| P1 | TTS + chat 可选 tts_url | ⏳ 结构完成，真实端点待确认 |
-| P2 | chat LLM 增强 | ⏳ 结构完成，真实端点待确认 |
+| P0 | ASR | ⏳ volcengine 工厂+骨架（WebSocket 二进制协议待下轮） |
+| P1 | TTS + chat 可选 tts_url | ⏳ volcengine V1 HTTP 已实现；音色代号待确认 |
+| P2 | chat LLM 增强 | ⏳ 路径已接方舟；`LLM_MODEL` 需 ep- 接入点后真通 |
 

@@ -13,7 +13,7 @@ from app.services.agent.chat.grounding import Facts, is_placeholder_value
 
 # SPEC §0：chat 30s
 _TIMEOUT = 30.0
-# 待确认：OpenAI 为 POST {base}/chat/completions
+# 方舟：POST {LLM_BASE_URL}/chat/completions；BASE 已含 /api/v3，不要再拼 /v1
 _PATH = "/chat/completions"
 
 _SYSTEM = (

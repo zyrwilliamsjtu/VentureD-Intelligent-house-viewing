@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import httpx
 import pytest
 
+from app.services.agent._openai_http import join_url
 from app.services.agent.chat.llm_provider import StubChatLLMProvider, get_chat_llm_provider
 from app.services.agent.service import handle_chat
 from app.services.agent.session import store as session_store
@@ -34,6 +36,42 @@ def test_unconfigured_openai_compat_keeps_rule(monkeypatch: pytest.MonkeyPatch) 
     body = handle_chat(session_id=sid, world_id=WORLD, user_text="主卧在哪")
     assert "主卧" in body["reply_text"]
     assert "501" not in body["reply_text"]
+    session_store.clear(sid)
+
+
+def test_join_url_keeps_v3_no_extra_v1() -> None:
+    url = join_url("https://ark.cn-beijing.volces.com/api/v3", "/chat/completions")
+    assert url == "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+    assert "/v1/" not in url
+
+
+def test_openai_compat_http_error_keeps_rule(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CHAT_PROVIDER", "openai_compat")
+    monkeypatch.setenv("LLM_API_KEY", "ark-test-not-real")
+    monkeypatch.setenv("LLM_BASE_URL", "https://example.invalid/api/v3")
+    monkeypatch.setenv("LLM_MODEL", "doubao-1-5-pro-32k-250115")
+
+    class _Boom:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            _ = args, kwargs
+
+        def __enter__(self) -> "_Boom":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def post(self, *args: object, **kwargs: object) -> None:
+            _ = args, kwargs
+            raise httpx.ConnectError("llm down")
+
+    monkeypatch.setattr("app.services.agent.chat.llm_provider.httpx.Client", _Boom)
+    sid = "s_llm_http_err"
+    session_store.clear(sid)
+    body = handle_chat(session_id=sid, world_id=WORLD, user_text="主卧在哪")
+    assert body["reply_text"]
+    assert "主卧" in body["reply_text"]
+    assert body["actions"][0]["type"] == "teleport"
     session_store.clear(sid)
 
 

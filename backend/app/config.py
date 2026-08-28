@@ -46,12 +46,12 @@ def llm_api_key() -> str:
 
 
 def llm_base_url() -> str:
-    # 待确认：向 key 提供方确认是否含 /v1
+    # 火山方舟：https://ark.cn-beijing.volces.com/api/v3 （不要再拼 /v1）
     return _opt("LLM_BASE_URL")
 
 
 def llm_model() -> str:
-    # 待确认：模型名由提供方给出
+    # 待确认：方舟需控制台「推理接入点」ID（ep-...）；仅填模型名可能 404
     return _opt("LLM_MODEL")
 
 
@@ -79,6 +79,38 @@ def tts_base_url() -> str:
 def tts_model() -> str:
     # 待确认：如 tts-1 / 供应商 TTS 模型名
     return _opt("TTS_MODEL")
+
+
+def asr_app_id() -> str:
+    return _opt("ASR_APP_ID")
+
+
+def asr_access_token() -> str:
+    return _opt("ASR_ACCESS_TOKEN")
+
+
+def asr_resource_id() -> str:
+    # 待确认：小时版 volc.bigasr.sauc.duration / 并发版 volc.bigasr.sauc.concurrent
+    return _opt("ASR_RESOURCE_ID") or "volc.bigasr.sauc.duration"
+
+
+def tts_app_id() -> str:
+    return _opt("TTS_APP_ID")
+
+
+def tts_access_token() -> str:
+    return _opt("TTS_ACCESS_TOKEN")
+
+
+def tts_voice() -> str:
+    # 待确认：控制台音色列表；缺省女声代号
+    return _opt("TTS_VOICE") or "zh_female_qingxin"
+
+
+def tts_output_dir() -> Path:
+    path = BACKEND_ROOT / "static" / "tts"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def asr_provider_name() -> str:

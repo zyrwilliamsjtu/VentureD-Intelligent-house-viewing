@@ -2,10 +2,12 @@ from app.config import tts_provider_name
 from app.services.agent.tts.providers.base import TTSProvider
 from app.services.agent.tts.providers.openai_compat import OpenAICompatTTSProvider
 from app.services.agent.tts.providers.stub import StubTTSProvider
+from app.services.agent.tts.providers.volcengine import VolcengineTTSProvider
 
 _REGISTRY: dict[str, type[TTSProvider]] = {
     "stub": StubTTSProvider,
     "openai_compat": OpenAICompatTTSProvider,
+    "volcengine": VolcengineTTSProvider,
 }
 
 

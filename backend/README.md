@@ -72,7 +72,7 @@ GET /api/scene/{world_id}
 
 - **拍板**：agent 由我方用 Python 做在网关内（`backend/app/services/agent/`），与理解层任务解耦并行。
 - **单一事实源**：`docs/AGENT_DEV.md`（架构、坐标铁律、事实约束、L0/L1、里程碑）。
-- **本阶段**：M2 已接入；ASR/TTS/chat-LLM 为 Provider 抽象 + stub 兜底（真实端点待确认），详见 `docs/AGENT_DEV.md` §13。
+- **本阶段**：chat 已接方舟 openai_compat（`LLM_MODEL` 需控制台 ep- 接入点后真通）；TTS volcengine V1；ASR volcengine 骨架。详见 `docs/AGENT_DEV.md` §13。
 - **消费**：A 前端 `agent.ts` / `asr.ts`；演示世界 `w_0330_840483`；tp 落点用 `GET /api/camera_poses`，agent 只出 `tp_id`。
 - agent 语音/LLM 接真实 API（Provider 抽象 + stub 兜底），**key 只在 `backend/.env`、不入库**。
 
@@ -139,6 +139,7 @@ A 前端 ──POST /api/agent/chat|asr|tts|tour / GET narration──> backend 
 | 2026-08-28 | M2 tour + narration | `handle_tour` 接入 `build_tour`；narration session 去重；SPEC §4.2 Z-up |
 | 2026-08-28 | 理解层重构 S0 受阻 | SpatialLM 笔记本编译失败，止损存档；demo 主线继续 GT；后续主线转 agent |
 | 2026-08-28 | agent 真实 API | ASR/TTS/LLM Provider + stub 兜底；配置见 `.env.example`（无 key） |
+| 2026-08-28 | 方舟 chat + 豆包语音 | chat 切 openai_compat（需 ep- 接入点）；volcengine TTS 真接 / ASR 骨架 |
 
 ## 8. 与本仓库其他板块的关系
 
