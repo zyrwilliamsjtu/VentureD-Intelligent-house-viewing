@@ -8,7 +8,7 @@ from app.schemas.errors import GatewayError
 from app.services.agent.asr.service import transcribe
 from app.services.agent.chat.actions import build as build_actions
 from app.services.agent.chat.grounding import retrieve
-from app.services.agent.chat.intent import understand
+from app.services.agent.chat.intent import Intent, understand
 from app.services.agent.chat.llm_provider import get_chat_llm_provider
 from app.services.agent.chat.responder import generate
 from app.services.agent.facts import load as load_facts
@@ -46,16 +46,18 @@ def handle_chat(
     grounded = retrieve(intent, user_text, graph, room_id=room_id or sess.get("current_room"))
     reply = generate(grounded, intent, graph)
     actions = build_actions(intent, grounded, graph)
-    try:
-        enhanced = get_chat_llm_provider().enhance(
-            grounded,
-            user_text,
-            sess.get("history") if isinstance(sess.get("history"), list) else [],
-        )
-        if enhanced:
-            reply = enhanced
-    except Exception:
-        pass
+    # 导航话术必须与 teleport 一致；LLM 改写会变成「无法判断在哪」却仍瞬移
+    if intent != Intent.NAVIGATION:
+        try:
+            enhanced = get_chat_llm_provider().enhance(
+                grounded,
+                user_text,
+                sess.get("history") if isinstance(sess.get("history"), list) else [],
+            )
+            if enhanced:
+                reply = enhanced
+        except Exception:
+            pass
 
     history = sess.get("history")
     if not isinstance(history, list):

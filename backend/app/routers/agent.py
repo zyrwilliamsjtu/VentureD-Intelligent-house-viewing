@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, File, Request, UploadFile
 
 from app.schemas.errors import GatewayError
 from app.services.agent import (
@@ -71,14 +71,14 @@ async def chat(request: Request) -> dict:
 
 
 @router.post("/asr")
-async def asr(request: Request) -> dict:
+def asr(request: Request, audio: UploadFile | None = File(None)) -> dict:
+    """同步路由：FastAPI 放线程池执行，内部 asyncio.run 才不会撞上 uvicorn 事件循环。"""
     ctype = (request.headers.get("content-type") or "").lower()
     if "multipart/form-data" not in ctype:
         raise GatewayError(400, "ASR_FAILED", "需要 multipart/form-data 上传 audio")
-    form = await request.form()
-    if "audio" not in form:
+    if audio is None:
         raise GatewayError(400, "ASR_FAILED", "缺少 audio")
-    return handle_asr(form["audio"])
+    return handle_asr(audio)
 
 
 @router.post("/tts")

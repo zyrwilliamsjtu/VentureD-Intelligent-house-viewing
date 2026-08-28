@@ -133,10 +133,12 @@ def test_responses_fallback_when_completions_404(monkeypatch: pytest.MonkeyPatch
 
 def test_enhance_override_keeps_actions(monkeypatch: pytest.MonkeyPatch) -> None:
     class _Fake:
+        called = False
+
         def enhance(self, facts, user_text, history):
             _ = facts, history
-            assert user_text == "主卧在哪"
-            return "根据场景事实，这是主卧。"
+            type(self).called = True
+            return f"LLM改写:{user_text}"
 
     monkeypatch.setattr(
         "app.services.agent.service.get_chat_llm_provider",
@@ -144,8 +146,15 @@ def test_enhance_override_keeps_actions(monkeypatch: pytest.MonkeyPatch) -> None
     )
     sid = "s_llm_fake"
     session_store.clear(sid)
-    body = handle_chat(session_id=sid, world_id=WORLD, user_text="主卧在哪")
-    assert body["reply_text"] == "根据场景事实，这是主卧。"
-    assert body["actions"][0]["tp_id"] == "tp_bedroom_master"
-    assert "501" not in body["reply_text"]
+    nav = handle_chat(session_id=sid, world_id=WORLD, user_text="主卧在哪")
+    assert "带您去主卧" in nav["reply_text"]
+    assert "LLM改写" not in nav["reply_text"]
+    assert nav["actions"][0]["tp_id"] == "tp_bedroom_master"
+    assert _Fake.called is False
+
+    sid2 = "s_llm_fake_prop"
+    session_store.clear(sid2)
+    prop = handle_chat(session_id=sid2, world_id=WORLD, user_text="这套房适合什么人住")
+    assert prop["reply_text"] == "LLM改写:这套房适合什么人住"
     session_store.clear(sid)
+    session_store.clear(sid2)
