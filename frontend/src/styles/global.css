@@ -198,6 +198,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .fp-room { fill: rgba(176, 81, 46, 0.1); stroke: rgba(176, 81, 46, 0.55); stroke-width: 0.09; stroke-linejoin: round; transition: fill 0.25s ease, stroke 0.25s ease; }
 .fp-name { font-size: 0.62px; font-weight: 600; fill: #9b968a; letter-spacing: 0.02em; transition: fill 0.25s ease; }
 .hc-live-badge { position: absolute; top: 6px; left: 6px; font-family: var(--font-mono); font-size: 8.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #fff; background: var(--brand); padding: 3px 7px; border-radius: 0; }
+.hc-live-badge.ghost { color: var(--ink-2); background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); }
 .hc-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 .hc-no { font-size: 10px; color: var(--ink-3); letter-spacing: 0.14em; transition: color 0.25s ease; }
 .hc-title { font-family: var(--font-display); font-size: 17px; font-weight: 700; letter-spacing: 0.03em; color: var(--ink); transition: color 0.25s ease; }

@@ -46,7 +46,11 @@ function HouseCard({ l, index, onPick }: { l: Listing; index: number; onPick: (l
     <button className="house-card" onClick={() => onPick(l)}>
       <div className="hc-plan">
         <MiniFloorplan rooms={l.floorplan} className="fp-svg" />
-        {l.isReal && <span className="hc-live-badge mono">3DGS 实景</span>}
+        {l.isReal ? (
+          <span className="hc-live-badge mono">3DGS 实景</span>
+        ) : (
+          <span className="hc-live-badge ghost mono">点云就绪</span>
+        )}
       </div>
       <div className="hc-body">
         <span className="hc-no mono">{no} / {l.layout}</span>
@@ -60,7 +64,7 @@ function HouseCard({ l, index, onPick }: { l: Listing; index: number; onPick: (l
             <b>{l.price}</b>
             <i>{(l.priceNum / l.area).toFixed(1)}万/㎡</i>
           </span>
-          <span className="hc-go">进入实景 →</span>
+          <span className="hc-go">{l.isReal ? '进入实景 →' : '先看 0330 实景 →'}</span>
         </div>
         <div className="hc-tags">
           {l.tags.map((t) => (
@@ -82,7 +86,11 @@ export function HouseList() {
     selectListing(l)
     const canvas = document.querySelector('canvas')
     void canvas?.requestPointerLock()
-    showToast(`欢迎来到 ${l.title}`, 'AI 管家随时为您讲解，按 T 呼出')
+    if (l.isReal) {
+      showToast(`欢迎来到 ${l.title}`, 'AI 管家随时为您讲解，按 T 呼出')
+    } else {
+      showToast(`${l.title} · 点云 LOD 转码中`, '先以 0330 实景为您演示，AI 管家按 T 呼出')
+    }
   }
 
   return (
