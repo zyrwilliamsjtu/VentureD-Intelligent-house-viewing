@@ -63,10 +63,10 @@ GET /api/scene/{world_id}
 - scene_graph 的数据来源（GT provider / 未来理解层）属内部实现。
 
 ### 理解层重构（进行中）
-- 理解层当前为"GT 兜底为主"，正按**小步快跑**逐步替换为真引擎。
-- 完整重构计划、阶段状态、变更/踩坑记录见 **`docs/REFACTOR_PLAN.md`**（单一事实源）。
+- 理解层当前为"GT 兜底为主"。**SpatialLM（S0）部署验证受阻**，降级为可选加分；详见 **`docs/REFACTOR_PLAN.md`**。
+- 完整重构计划、阶段状态、变更/踩坑记录见 `docs/REFACTOR_PLAN.md`（单一事实源）。
 - 每完成一个阶段：更新 `docs/REFACTOR_PLAN.md`（标 ✅）+ 本文件对应章节。
-- 原则：一次只换一个步骤；每步有验收（vs GT）+ 回退；demo 主线永不依赖理解层。
+- 原则：一次只换一个步骤；每步有验收（vs GT）+ 回退；**demo 主线永不依赖理解层**。后续开发主线 = **AI agent（M1 规则版 chat）**，S0 不再阻塞。
 
 ## 1.6 AI agent 语义服务（PI 开发 · 网关内模块）
 
@@ -135,6 +135,7 @@ A 前端 ──POST /api/agent/chat|asr|tts|tour / GET narration──> backend 
 | 2026-08-28 | 验收 Y 项清理 | README 架构图/GT 钩子/schemas 表述对齐代码；agent stub 空可选字段 omit；SPEC §0 点云层改为 Z-up |
 | 2026-08-28 | agent 服务骨架 | 建立 `services/agent/`（facts/session/stub）+ `docs/AGENT_DEV.md`；router 改调 handle_* |
 | 2026-08-28 | M1 规则版 chat | intent/grounding/responder/actions；问主卧 → teleport `tp_bedroom_master` |
+| 2026-08-28 | 理解层重构 S0 受阻 | SpatialLM 笔记本编译失败，止损存档；demo 主线继续 GT；后续主线转 agent |
 
 ## 8. 与本仓库其他板块的关系
 
