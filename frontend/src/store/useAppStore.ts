@@ -29,6 +29,12 @@ export interface TeleportCmd {
 
 type View = 'splash' | 'list' | 'walk'
 
+/** 落地页搜索卡筛选条件（list 页应用；location 固定上海，仅保留户型/价格） */
+export interface ListingFilters {
+  layout: string // 'all' | 户型名
+  price: string // 'all' | 'lt300' | '300-450' | 'gt450'
+}
+
 interface AppState {
   /** 页面流转：splash 开场 → list 房源列表 → walk 漫游（3D 视口常驻，仅覆盖层切换） */
   view: View
@@ -38,6 +44,7 @@ interface AppState {
   /** 房源列表（mount 时 loadListings 拉网关，失败已是本地兜底初值） */
   listings: Listing[]
   listingsSource: 'api' | 'local'
+  filters: ListingFilters
   house: House | null
   houseLoading: boolean
   houseError: string | null
@@ -50,6 +57,8 @@ interface AppState {
   selectListing: (l: Listing) => void // list → walk（换房重置会话，指南 §3.4）
   backToList: () => void // walk → list（3D 不卸载，再进秒开）
   loadListings: (r: { listings: Listing[]; source: 'api' | 'local' }) => void
+  setFilters: (f: Partial<ListingFilters>) => void
+  clearFilters: () => void
   setLocked: (v: boolean) => void
   setHouse: (h: House | null, loading?: boolean, error?: string | null) => void
   setZone: (z: string | null) => void
@@ -68,6 +77,7 @@ export const useAppStore = create<AppState>()((set) => ({
   listing: null,
   listings: LISTINGS,
   listingsSource: 'local',
+  filters: { layout: 'all', price: 'all' },
   house: null,
   houseLoading: true,
   houseError: null,
@@ -91,6 +101,8 @@ export const useAppStore = create<AppState>()((set) => ({
     set({ view: 'list', entered: false })
   },
   loadListings: (r) => set({ listings: r.listings, listingsSource: r.source }),
+  setFilters: (f) => set({ filters: { ...useAppStore.getState().filters, ...f } }),
+  clearFilters: () => set({ filters: { layout: 'all', price: 'all' } }),
   setLocked: (v) => set({ pointerLocked: v }),
   setHouse: (h, loading = false, error = null) => set({ house: h, houseLoading: loading, houseError: error }),
   setZone: (z) => set({ currentZone: z }),

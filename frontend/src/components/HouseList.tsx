@@ -84,6 +84,30 @@ export function HouseList() {
   const showToast = useAppStore((s) => s.showToast)
   const listings = useAppStore((s) => s.listings)
   const source = useAppStore((s) => s.listingsSource)
+  const filters = useAppStore((s) => s.filters)
+  const clearFilters = useAppStore((s) => s.clearFilters)
+
+  const filtered = useMemo(
+    () =>
+      listings.filter((l) => {
+        if (filters.layout !== 'all' && l.layout !== filters.layout) return false
+        if (filters.price === 'lt300') return l.priceNum < 300
+        if (filters.price === '300-450') return l.priceNum >= 300 && l.priceNum <= 450
+        if (filters.price === 'gt450') return l.priceNum > 450
+        return true
+      }),
+    [listings, filters],
+  )
+
+  const priceLabel =
+    filters.price === 'lt300'
+      ? '300万以下'
+      : filters.price === '300-450'
+        ? '300-450万'
+        : filters.price === 'gt450'
+          ? '450万以上'
+          : ''
+  const hasFilter = filters.layout !== 'all' || filters.price !== 'all'
 
   const onPick = (l: Listing) => {
     selectListing(l) // 换房自动重置会话（指南 §3.4）
@@ -118,11 +142,32 @@ export function HouseList() {
         <span>点击卡片进入第一人称实景 · AI 管家全程讲解</span>
       </div>
 
+      {hasFilter && (
+        <div className="filter-bar">
+          <span className="filter-label mono">当前筛选</span>
+          {filters.layout !== 'all' && <span className="filter-chip">{filters.layout}</span>}
+          {filters.price !== 'all' && <span className="filter-chip">{priceLabel}</span>}
+          <button className="filter-clear mono" onClick={clearFilters}>
+            清除 ✕
+          </button>
+          <span className="filter-count mono">{filtered.length} 套匹配</span>
+        </div>
+      )}
+
       <div className="hl-grid">
-        {listings.map((l, i) => (
+        {filtered.map((l, i) => (
           <HouseCard key={l.id} l={l} index={i} onPick={onPick} />
         ))}
       </div>
+
+      {filtered.length === 0 && (
+        <div className="hl-empty">
+          没有匹配的房源，试试调整筛选条件
+          <button className="filter-clear mono" onClick={clearFilters}>
+            清除筛选
+          </button>
+        </div>
+      )}
 
       <footer className="hl-foot">3DGS 点云由群核 Aholo 提供 · AI 讲解由 MOSS 大模型驱动</footer>
     </div>
