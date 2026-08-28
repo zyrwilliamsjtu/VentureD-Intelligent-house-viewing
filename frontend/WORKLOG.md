@@ -236,3 +236,14 @@ npm run build                    # 必过
 
 ### 阶段 13 · 黑屏根因修复：坐标系错位（2026-08-28 深夜）
 **症状**：加载仪表盘到"场景就绪"但持续黑屏。**根因**：① 点云为 IG 原生 Z-up（coords.ts 头注已写明，层高落在 Z 轴），而视口相机/重力/碰撞全部按 Y 轴当竖直轴 → 相机横躺；② 体素网格帧与点云帧不同（23.8×13.8×39.6m vs ~11×10×3.7m），voxel 出生点把相机放到点云区域外。**修复**：相机改轴向无关（规则表 `up:'z'`），出生点改用 tp_living（与点云同帧的对拍产物）+ 眼高 1.0；0330 体素规则级停用（`voxel:false`），点击传送降级为视线冲刺 2.2m；Agent 传送按 z 轴 +1.0 落位；新增 **V 键视角校准**循环 5 个出生候选（A–E），现场定了哪个能见再固化。旧 Y-up 素材路径行为不变。
+
+### 阶段 17 · PI 三决策落实：主链路统一 + world_id 统一 + tp 表走网关（2026-08-28 下午）
+**背景**：PI《前端联调决策通知（1143）》三项已定决策。**顺带修掉一个真 bug**：`App.tsx` 写死 `HOUSE_ID='w_mock_001'`，与 3D 场景（0330 世界）错位——HUD/Agent 语义数据加载的是 w_mock_001 的 scene_graph，real 模式下还会先打一发不存在的 `/api/houses/w_mock_001`（后端无此路由，404 后降级）。
+1. **决策 1（废弃 realApi 旧路径）**：`api.ts` 重写，主链路 = `agent.ts`（`/api/agent/chat`、`/api/agent/asr`）+ `GET /api/scene/{world_id}`（real 路径，10s 超时，world_id 回显校验）；`realApi.ts` 头部打"遗留代码"标记，主链路零引用（全仓 grep 验证：仅 api.ts 曾引用，已摘除）。
+2. **决策 2（world_id 统一 w_0330_840483，P0）**：`App.tsx` / `AholoViewport.tsx` 统一 `(VITE_WORLD_ID || 'w_0330_840483')`；`.env.example` 默认值同步。`mock/data.ts` 按 world 参数化（0330 → `public/mock/real_0330/`，根目录仍 w_mock_001），抽出 `houseFromSceneGraph(scene, poses?)` 供网关/本地两路复用；0330 无 `timeline.json` → timeline 可空（`loadRepoScene` catch 置 null，`mockGetTour` 空表降级）；兼容两种 pose 形态（根目录 `{position,look_at}` / 0330 纯 V3，后者无机位朝向 → zone.camera 缺省）。
+3. **决策 3（camera_poses 走网关，P1）**：`coords.ts` `loadTpTable` 改两级：real 先 `GET /api/camera_poses/{world_id}`（响应 `{world_id, poses}`，5s 超时，空表视为失败）→ 失败降级本地 `public/mock/real_0330/camera_poses.json`（同一份对拍产物）；mock 模式直连本地。控制台可见来源标注（`tp 表（网关）` / `tp 表（本地 fallback）`）。
+4. **数据漂移修复（联调时实测发现）**：本地 fallback 副本与仓库正本不一致——10 个房间级 tp 点 z 值旧版 1.5 / 正版 0.5（PI `4cf31a7` 已转正仓库正本，前端副本停留在 `d0eb8ce` 未同步）。旧副本会让出生点落在 **z=2.5m**（眼高约定 +1.0 后几乎贴 2.8m 层高天花板，加剧黑屏/贴顶）。已同步副本与正本一致（`tp_living=[0.061,0.934,0.5]` → 出生眼高 1.5m 归位）。scene_graph 两边逐字段比对一致，无需同步。
+5. **Pages 子路径 404 修复（黑屏又一根因）**：`coords.ts` / `AholoViewport.tsx` 原写死绝对路径 `/mock/...`、`/collision/...`，GitHub Pages 部署在 `/<repo>/` 子路径下全部 404 → tp 表加载不到 → 出生点退化。已改 `import.meta.env.BASE_URL` 相对拼接（与 `agent.ts` 同策略），子路径部署可命中。
+6. **交付状态警告**：本沙箱 `dev/frontend` 一度领先 `origin/dev/frontend` **10 个提交**（含阶段 13 黑屏根因修复三连 `777a5ab`/`9f52aad`/`c63ce44`）——即线上/队友本地从未拿到黑屏修复。本次连同三决策修复一并出 bundle，**收到后必须 fetch+merge+push**，勿再积压。
+**验证**：`npm run build`（tsc + vite）✓；沙箱内起后端 + vite dev（proxy `/api`）实测：`GET /api/camera_poses/w_0330_840483` 返回 85 点（含 tp_living）、`GET /api/scene/w_0330_840483` 返回 10 房间 scene_graph（coord Y/m），与前端解析形状逐字段吻合；本地 fallback 文件同步后 HTTP 200 且 tp_living 已转正。
+

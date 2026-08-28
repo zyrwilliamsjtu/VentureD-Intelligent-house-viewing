@@ -79,11 +79,12 @@ export async function mockSendChat(req: ChatRequest): Promise<ChatResponse> {
 }
 
 // ==== Mock 带看脚本：由仓库 tour_path + timeline 生成（30 秒模拟参数同源）====
+// timeline 仅根目录 w_mock_001 有；0330 真实场景降级为单段欢迎语
 export async function mockGetTour(): Promise<TourScript> {
   const house = getLoadedHouse() ?? (await loadRepoHouse())
   const { timeline } = await loadRepoScene()
 
-  const segments = timeline.segments.map((seg, i) => {
+  const segments = (timeline?.segments ?? []).map((seg, i) => {
     const zone = house.zones.find((z) => house.tour_path[i] === z.id) ?? null
     const tpId = seg.tp_id
     void tpId

@@ -1,8 +1,10 @@
-import type { ChatRequest, ChatResponse, House, TourScript } from '../types/api'
-import * as mock from './mock'
-import * as real from './realApi'
+import type { House } from '../types/api'
+import { houseFromSceneGraph, loadRepoScene, type RepoSceneGraph } from './mock/data'
 
-// ==== 服务入口：mock / real 一键切换 ====
+// ==== 服务入口（PI 决策 1 · 2026-08-28 1143 通知）====
+// 主链路：services/agent.ts（POST /api/agent/chat、POST /api/agent/asr）
+//        + GET /api/scene/{world_id}（本文件 getHouse 的 real 路径）。
+// 旧 realApi.ts（/api/houses、/api/chat、/api/health）为遗留代码，主链路不再调用。
 // .env: VITE_API_MODE=mock | real（缺省 mock）
 
 export type ApiMode = 'mock' | 'real'
@@ -10,45 +12,50 @@ export type ApiMode = 'mock' | 'real'
 export const apiMode: ApiMode =
   import.meta.env.VITE_API_MODE === 'real' ? 'real' : 'mock'
 
-// 简单缓存：houses / tour 均为静态数据，重复进入不重复请求
+// 同源空串 = dev 走 vite proxy /api → 后端网关（无跨源）；直连时 .env 配 VITE_API_BASE
+const BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/+$/, '')
+
 const houseCache = new Map<string, House>()
-const tourCache = new Map<string, TourScript>()
 
-export async function getHouse(id: string): Promise<House> {
-  const hit = houseCache.get(id)
-  if (hit) return hit
-  let h: House
-  if (apiMode === 'real') {
-    // real 失败降级本地 mock（house 为前端展示数据，不阻塞进入；Agent chat 仍走网关）。
-    // 注：后端网关无 /api/houses 路由（scene_graph 走 /api/scene），故 real 路径常态即降级。
-    try {
-      h = await real.realGetHouse(id)
-    } catch {
-      console.warn('[api] realGetHouse 失败，降级本地 mock（不影响漫游与 Agent 联调）')
-      h = await mockGetHouse(id)
+/** real 主链路：GET /api/scene/{world_id} → scene_graph JSON → House（10s 超时） */
+async function sceneFromGateway(worldId: string): Promise<House> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 10_000)
+  try {
+    const res = await fetch(`${BASE}/api/scene/${encodeURIComponent(worldId)}`, {
+      signal: ctrl.signal,
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const scene = (await res.json()) as RepoSceneGraph
+    if (!scene?.world_id || scene.world_id !== worldId) {
+      throw new Error(`world_id 不符（响应 ${scene?.world_id}）`)
     }
-  } else {
-    h = await mockGetHouse(id)
+    return houseFromSceneGraph(scene)
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') throw new Error('/api/scene 超时(10s)')
+    throw e
+  } finally {
+    clearTimeout(timer)
   }
-  houseCache.set(id, h)
-  return h
 }
 
-export async function getTour(houseId: string): Promise<TourScript> {
-  const hit = tourCache.get(houseId)
+/** 房源语义数据：real 先走网关 /api/scene，失败/非 real 降级本地 public/mock（不阻塞进入）。
+ *  worldId 与 3D 视口共用 VITE_WORLD_ID（PI 决策 2：demo 统一 w_0330_840483）。 */
+export async function getHouse(worldId: string): Promise<House> {
+  const hit = houseCache.get(worldId)
   if (hit) return hit
-  const t = apiMode === 'mock' ? await mock.mockGetTour() : await real.realGetTour(houseId)
-  tourCache.set(houseId, t)
-  return t
-}
-
-export async function sendChat(req: ChatRequest): Promise<ChatResponse> {
-  return apiMode === 'mock' ? mock.mockSendChat(req) : real.realSendChat(req)
-}
-
-export const checkBackendHealth = real.realHealth
-
-// ---- mock 内部小包装：仓库 mock 是唯一事实源，忽略请求 id ----
-async function mockGetHouse(_id: string): Promise<House> {
-  return mock.loadRepoHouse()
+  let h: House | null = null
+  if (apiMode === 'real') {
+    try {
+      h = await sceneFromGateway(worldId)
+    } catch (e) {
+      console.warn('[api] 网关 /api/scene 失败，降级本地 mock（漫游/Agent 不受影响）', e)
+    }
+  }
+  if (!h) {
+    const { scene, poses } = await loadRepoScene(worldId)
+    h = houseFromSceneGraph(scene, poses)
+  }
+  houseCache.set(worldId, h)
+  return h
 }

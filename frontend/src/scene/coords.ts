@@ -12,6 +12,9 @@
 
 import type { V3 } from '../types/api'
 
+/** 静态资源根：跟随 vite base（'./' 部署在 GitHub Pages 子路径也能命中，勿写死 '/mock/...' 绝对路径） */
+const ASSET_BASE = import.meta.env.BASE_URL || '/'
+
 export interface CloudRule {
   /** 平移量：scene→点云为 (x+tx, ty−z, y) */
   tx: number
@@ -65,39 +68,89 @@ export function dirCloudToScene(d: V3): V3 {
 }
 
 // ==== tp_id → 点云坐标表（对拍转正产物）====
+// PI 决策 3（2026-08-28）：优先后端网关 GET /api/camera_poses/{world_id}（85 条对拍转正 poses），
+// 网关不可用 / 非 real 模式才 fallback 到 public/mock 本地表（同一份对拍产物，内容一致）。
 
 export type TpTable = Record<string, V3>
 
 const tpCache = new Map<string, TpTable>()
 
-function tpTableUrl(worldId: string): string | null {
-  if (worldId === 'w_0330_840483') return '/mock/real_0330/camera_poses.json'
+/** 网关 BASE：空 = 同源（dev 走 vite proxy /api）；与 agent.ts / asr.ts 同策略 */
+const GATEWAY_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/+$/, '')
+
+/** 任意 Record → 只保留 tp_id → V3 项（过滤 _note 等文档键与非坐标值） */
+function toV3Table(raw: Record<string, unknown>): TpTable {
+  const table: TpTable = {}
+  for (const [k, v] of Object.entries(raw)) {
+    if (k.startsWith('_')) continue
+    if (Array.isArray(v) && v.length === 3 && v.every((n) => typeof n === 'number')) {
+      table[k] = v as V3
+    }
+  }
+  return table
+}
+
+/** 主路径：GET /api/camera_poses/{world_id} → { world_id, poses }（5s 超时，启动不被卡死） */
+async function tpFromGateway(worldId: string): Promise<TpTable> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 5_000)
+  try {
+    const res = await fetch(`${GATEWAY_BASE}/api/camera_poses/${encodeURIComponent(worldId)}`, {
+      signal: ctrl.signal,
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const body = (await res.json()) as { poses?: Record<string, unknown> }
+    if (!body?.poses || typeof body.poses !== 'object') throw new Error('响应缺 poses 字段')
+    const table = toV3Table(body.poses)
+    if (!Object.keys(table).length) throw new Error('poses 为空表')
+    console.info('[coords] tp 表（网关）%s · %d 点', worldId, Object.keys(table).length)
+    return table
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') throw new Error('camera_poses 超时(5s)')
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+function localTpTableUrl(worldId: string): string | null {
+  if (worldId === 'w_0330_840483') return `${ASSET_BASE}mock/real_0330/camera_poses.json`
   return null
 }
 
-/** 加载对拍转正的 tp 表；无对应世界返回空表 */
-export async function loadTpTable(worldId: string): Promise<TpTable> {
-  const hit = tpCache.get(worldId)
-  if (hit) return hit
-  const url = tpTableUrl(worldId)
+/** fallback：public/mock 本地表（对拍转正产物，与网关数据同源） */
+async function tpFromLocal(worldId: string): Promise<TpTable> {
+  const url = localTpTableUrl(worldId)
   if (!url) return {}
   try {
     const res = await fetch(url)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const raw = (await res.json()) as Record<string, unknown>
-    const table: TpTable = {}
-    for (const [k, v] of Object.entries(raw)) {
-      if (k.startsWith('_')) continue
-      if (Array.isArray(v) && v.length === 3 && v.every((n) => typeof n === 'number')) {
-        table[k] = v as V3
-      }
+    const table = toV3Table((await res.json()) as Record<string, unknown>)
+    if (Object.keys(table).length) {
+      console.info('[coords] tp 表（本地 fallback）%s · %d 点', worldId, Object.keys(table).length)
     }
-    tpCache.set(worldId, table)
     return table
   } catch (e) {
-    console.warn('[coords] tp 表加载失败', worldId, e)
+    console.warn('[coords] 本地 tp 表加载失败', worldId, e)
     return {}
   }
+}
+
+/** 加载对拍转正的 tp 表：real 先网关、失败降级本地；mock 直连本地；无对应世界返回空表 */
+export async function loadTpTable(worldId: string): Promise<TpTable> {
+  const hit = tpCache.get(worldId)
+  if (hit) return hit
+  let table: TpTable | null = null
+  if (import.meta.env.VITE_API_MODE === 'real') {
+    try {
+      table = await tpFromGateway(worldId)
+    } catch (e) {
+      console.warn('[coords] 网关 camera_poses 失败 → 降级本地 mock', e)
+    }
+  }
+  if (!table) table = await tpFromLocal(worldId)
+  if (Object.keys(table).length) tpCache.set(worldId, table)
+  return table
 }
 
 // ==== 房间归因（scene 系 XZ 平面 point-in-polygon）====
@@ -135,8 +188,8 @@ export function roomAtCloud(posCloud: V3, worldId: string, rooms: RoomPoly[]): s
 const roomCache = new Map<string, RoomPoly[]>()
 
 function sceneGraphUrl(worldId: string): string | null {
-  if (worldId === 'w_0330_840483') return '/mock/real_0330/scene_graph.json'
-  if (worldId === 'w_mock_001') return '/mock/scene_graph.json'
+  if (worldId === 'w_0330_840483') return `${ASSET_BASE}mock/real_0330/scene_graph.json`
+  if (worldId === 'w_mock_001') return `${ASSET_BASE}mock/scene_graph.json`
   return null
 }
 

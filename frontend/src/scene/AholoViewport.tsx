@@ -24,11 +24,14 @@ import { useAppStore } from '../store/useAppStore'
 const LOD_META_URL =
   import.meta.env.VITE_AHOLO_LOD_META_URL ||
   'https://holo-cos.aholo3d.cn/splat-transform/3FO4FA4U7MVJ/lod/1787836246/lod-meta.json'
-const VOXEL_META_URL = import.meta.env.VITE_AHOLO_VOXEL_META_URL || '/collision/voxel-meta.json'
+const VOXEL_META_URL =
+  import.meta.env.VITE_AHOLO_VOXEL_META_URL ||
+  `${import.meta.env.BASE_URL || '/'}collision/voxel-meta.json`
 
 /** 当前加载点云对应的业务 world_id（Agent 契约/坐标映射按它索引）。
- *  对拍转正的世界（w_0330_840483）才有 scene↔点云映射与房间归因；未登记世界恒等降级。 */
-const WORLD_ID = (import.meta.env.VITE_WORLD_ID as string | undefined) || ''
+ *  唯一来源 VITE_WORLD_ID，缺省回退 w_0330_840483（PI 决策 2：demo 统一 0330 真实场景，
+ *  与后端 GT / camera_poses / App.tsx 同一套 id；未登记世界恒等降级）。 */
+const WORLD_ID = (import.meta.env.VITE_WORLD_ID as string | undefined) || 'w_0330_840483'
 
 const EYE = 1.6
 const WALK = 2.6
