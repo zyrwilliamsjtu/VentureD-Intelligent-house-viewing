@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 
 from app.schemas.errors import GatewayError
+from app.services.understanding.output import UnderstandingOutput
 from app.services.understanding.providers import get_provider
 
 
@@ -14,7 +15,8 @@ def _coord_ok(scene: dict) -> bool:
     return coord.get("unit") == "m" and coord.get("up") == "Y"
 
 
-def get_scene(world_id: str) -> dict:
+def get_scene(world_id: str) -> UnderstandingOutput:
+    """理解层产出入口：SPEC scene_graph，供 B agent / A 前端消费。"""
     try:
         scene = get_provider().get_scene_graph(world_id)
     except NotImplementedError:

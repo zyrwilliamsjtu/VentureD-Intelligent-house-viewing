@@ -6,9 +6,9 @@
 
 - 本板块由 **PI 负责**，提供三端（A 前端 / B agent / PI 理解层）的统一后端网关。
 - **职责**：
-  - 提供 `GET /api/scene/{world_id}`（按 world_id 路由真实/手写 mock）
-  - 暴露 agent 契约接口（`chat` / `asr` / `tts` / `narration` / `tour`）——**由 B 实现，经本网关透传/聚合**
-  - 提供 `camera_poses` / tp 相关查询（供 A 的 teleport 映射）
+  - 提供 `GET /api/scene/{world_id}`（理解层产出 `scene_graph`，当前 GTProvider）
+  - 提供 `GET /api/camera_poses/{world_id}`（tp → 点云坐标映射，已实现）
+  - 暴露 agent 契约接口（`chat` / `asr` / `tts` / `narration` / `tour`）——**契约层 stub 已实现**；agent 业务逻辑由 B 接入
   - 统一错误格式、CORS、会话透传
 - **边界**：不做 agent 语义逻辑（B 的活）、不做前端渲染（A 的活）。**不越界。**
 
@@ -20,6 +20,17 @@
   仅用 GT 已知信息；但**保留 Provider 统一接口**，保证将来无缝切换真双引擎。
 - **GT 三重角色**：生产数据 / 评测真值 / 失败兜底。
 - 对外接口 `GET /api/scene/{world_id}` 不变（SPEC v2.2），理解层是内部实现。
+
+### 理解层产出（PI 核心交付物）
+- **产出对象**：`scene_graph`（SPEC v2.2 三级语义结构：`house` / `rooms[]` / `instances[]` + `coord` + `tour_path` + `topology`）。
+- **产出内容**（对应 PI 原定职责）：
+  - 三级拓扑结构（house → rooms → instances 层级 + `topology.adjacency`）
+  - 房间位置（`rooms[].polygon` + `trajectory_point_id`）
+  - 实例位置（`instances[].position` + `bbox3d` + `trajectory_point_id`）
+- **消费方**：
+  - **B 的 agent**：作为场景知识库（房间/实例/坐标/拓扑）——回答、卖点、导航依据
+  - **A 的前端**：作为图纸（小地图/标注/镜头映射）
+- **来源机制**：当前由 `GTProvider` 从 GT 数据透传；未来由 `DualEngineProvider`（理解层推理）计算产出。对外格式始终遵循 SPEC v2.2。
 
 ### 架构：Provider 统一接口
 ```
@@ -44,7 +55,7 @@ GET /api/scene/{world_id}
 - **不做**：俯视图生成、房间截图、识别/核验（留给未来双引擎）。
 
 ### 代码位置
-- `backend/app/services/understanding/`：`providers/`（base/gt/dual_engine/factory）、`room/segmenter.py`、`instance/instance_source.py`、`pipeline.py`
+- `backend/app/services/understanding/`：`output.py`（产出类型）、`providers/`（base/gt/dual_engine/factory）、`room/segmenter.py`、`instance/instance_source.py`、`pipeline.py`
 
 ### 与 SPEC 的关系
 - 对外契约（`GET /api/scene` 返回格式）由 SPEC v2.2 定义，理解层不改变它。
@@ -80,10 +91,9 @@ backend/
 ## 4. 数据流（谁调谁，白盒）
 
 ```
-A 前端 ──GET /api/scene/{world_id}──> backend 网关
-A 前端 ──POST /api/agent/chat──────> backend 网关 ──转发──> B agent
-A 前端 ──POST /api/camera/target───> backend 网关（或 A 本地查 camera_poses）
-backend ──读 mock/real_0330/scene_graph.json / mock/scene_graph.json──> 返回 scene JSON
+A 前端 ──GET /api/scene/{world_id}──> backend 理解层产出 scene_graph ──> B agent（知识库）/ A 前端（图纸）
+A 前端 ──GET /api/camera_poses/{world_id}──> backend（读 mock camera_poses.json）
+A 前端 ──POST /api/agent/chat|asr|tts|tour / GET narration──> backend 网关 stub（待转发 B agent）
 ```
 
 ## 5. 接口契约对齐
@@ -105,7 +115,8 @@ backend ──读 mock/real_0330/scene_graph.json / mock/scene_graph.json──>
 | 日期 | 变更 | 说明 |
 |---|---|---|
 | 2026-08-27 | 后端初始化 | 建立 FastAPI 骨架（main/config/routers 占位） |
-| 2026-08-28 | 理解层 L0+L1 | Provider 抽象（默认 GTProvider）+ GT 极简管线；对外 GET /api/scene 不变 |
+| 2026-08-28 | 理解层产出显式化 | `UnderstandingOutput` + README/SPEC 标明 scene_graph 为 PI 核心产出、供 B/A 消费 |
+| 2026-08-28 | camera / agent 网关 stub | `GET /api/camera_poses/{world_id}`；agent 五路由契约层 stub（SPEC §4 新增 camera_poses） |
 
 ## 8. 与本仓库其他板块的关系
 
