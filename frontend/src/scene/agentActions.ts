@@ -4,8 +4,8 @@ import { useAppStore } from '../store/useAppStore'
 
 // ==== Agent 动作执行器（SPEC §4 / docs/agent-api.md）====
 // teleport：resolveTeleportCloud（position 直用 / tp_id 查表）→ requestTeleport → 视口体素贴地瞬移
-// show_card：HUD toast 信息卡（兼容平铺 {title,lines} 与嵌套 {data:{...}} 两种载荷）
-// highlight：3D 标记待做，先 toast 承接，保证动作不丢（降级矩阵 §8）
+// show_card：HUD InfoCard（title + lines[]；兼容平铺与 data 嵌套）
+// highlight：tp_id 查点云系 camera_poses → requestHighlight → 视口 3D 光柱；无落点则 toast
 
 /** show_card 载荷兼容：PI mock 样例为 {type,data:{title,lines}}，契约正文为平铺 */
 function cardOf(a: Extract<AgentAction, { type: 'show_card' }>): { title: string; lines: string[] } {
@@ -52,10 +52,14 @@ export async function executeAgentActions(
       }
     } else if (a.type === 'show_card') {
       const { title, lines } = cardOf(a)
-      s.showToast(title, lines.length ? lines.join(' · ') : undefined)
+      s.showInfoCard(title, lines)
     } else if (a.type === 'highlight') {
       const hit = await resolveTeleportCloud(a, worldId)
-      s.showToast('已标记', hit?.label ?? a.tp_id ?? '高亮目标')
+      if (hit) {
+        s.requestHighlight(hit.position, hit.label ?? a.tp_id)
+      } else {
+        s.showToast('无法高亮', a.tp_id ? `tp_id「${a.tp_id}」不在映射表` : '动作缺 tp_id / position')
+      }
     }
   }
 }

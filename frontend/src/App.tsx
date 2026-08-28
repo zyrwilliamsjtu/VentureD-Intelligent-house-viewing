@@ -46,6 +46,7 @@ export default function App() {
     if (id === worldId) return
     stopTour()
     resetAgentSession()
+    useAppStore.getState().clearInfoCard()
     setWorldId(id)
     console.info('[world] switch → %s', id)
   }

@@ -48,11 +48,13 @@ AholoViewport（仍用此文件名，避免大范围改 import）
 | `src/scene/worlds.ts` | 5 套 `world_id` ↔ `scene_dir` ↔ listing；`splatUrlForWorld` |
 | `src/scene/coords.ts` | `CLOUD_RULES`、scene↔点云、tp 表、房间 polygon、`resolveTeleportCloud` |
 | `src/scene/voxel.ts` | splat-transform 体素查询（0330 规则级 `voxel:false`） |
-| `src/scene/agentActions.ts` | chat 动作：teleport / toast 卡 / `playTts` |
+| `src/scene/agentActions.ts` | chat 动作：teleport / InfoCard / highlight 光柱 / TTS |
 | `src/scene/narration.ts` | `room_id` 切换 → `event=enter_room` |
-| `src/scene/tourPlayer.ts` | `POST /api/agent/tour` 动线播放（步 1） |
+| `src/scene/tourPlayer.ts` | `POST /api/agent/tour` 动线播放 |
+| `src/scene/highlightMarker.ts` | highlight 光柱 Mesh |
+| `src/components/InfoCard.tsx` | show_card HUD 卡 |
 | `src/components/WalkHud.tsx` | HUD：房源 / 房间 / Agent 对话 / PTT；**不改** 3D 循环 |
-| `src/store/useAppStore.ts` | `player` / `teleportCmd` / toast / `tourActive` |
+| `src/store/useAppStore.ts` | `player` / `teleportCmd` / `highlightCmd` / `infoCard` / `tourActive` |
 
 换世界：`<AholoViewport key={worldId} />` 整树卸载，避免两套 ply 叠画。
 
@@ -114,8 +116,8 @@ AholoViewport（仍用此文件名，避免大范围改 import）
 | React StrictMode 双挂载 | dev 下 ply 可能下载两次（~2×47MB）。生产构建无此问题 |
 | Splash 文案 | 已改为「Spark 3DGS」；旧 README 写 Aholo 至本次文档更新 |
 | 文件名 `AholoViewport` | 历史包袱，未改名以免大 diff |
-| `highlight` 3D 标记 | 仍 toast 承接（对接方案步 2） |
-| `show_card` | 仍 toast，无独立信息卡 UI（步 3） |
+| `highlight` 3D 标记 | `tp_id` → camera_poses 点云落点上的陶土橙光柱（8s）；无 tp 则 toast |
+| `show_card` | HUD `InfoCard`（可关 / 6s） |
 | `GET /api/agent/narration` | 前端走 chat `event=enter_room`，未打独立 GET（步 4） |
 
 ---

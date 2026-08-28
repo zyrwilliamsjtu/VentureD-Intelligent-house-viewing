@@ -17,11 +17,11 @@
 | 3 | 五套选房 + 挂牌 | `GET /api/listings` | `worlds.ts` 芯片栏；chat 带 `listing_id` | **已接全** |
 | 4 | 问答 + PTT + 进房讲解 | `POST /chat` · `/asr`；`event=enter_room` | WalkHud + `narration.ts` + TTS 播 `tts_url` | **已接全**（chat 内 TTS；独立 TTS 多为 stub） |
 | 5 | **自主带看 tour** | `POST /api/agent/tour` → `{steps[]}` | 步 1：拉 steps → 依次 teleport + 讲解 | **步 1 接通** |
-| 6 | 动作 3D 渲染 | chat `actions.highlight` | 仅 toast | **缺口** → 步 2 |
-| 7 | 信息卡 UI | `actions.show_card` | 仅 toast | **缺口** → 步 3 |
+| 6 | 动作 3D 渲染 | chat `actions.highlight` | `tp_id` → camera_poses（点云 Z-up）→ 视口光柱标记 | **步 2 接通** |
+| 7 | 信息卡 UI | `actions.show_card` | HUD `InfoCard`（title + lines，可关 / 6s 消失） | **步 2 接通**（原 roadmap 步 3 提前做了） |
 | 8 | 独立 narration + 错误/托管 | `GET /narration`；TTS provider；ply 对象存储 | 未打 GET；ply 仅本地 `/ply` 回落 | **缺口** → 步 4–5 |
 
-已接全 4 条（语义/落点/选房/问答）。缺口 4 条（tour 播放刚接、highlight、信息卡、narration GET + 托管/降级）。
+已接全 4 条（语义/落点/选房/问答）+ 步 1 tour + 步 2 show_card/highlight。缺口：独立 narration GET、ply 对象存储。
 
 ---
 
@@ -44,23 +44,18 @@
 
 实现要点：`services/tour.ts` + `scene/tourPlayer.ts`；复用 `resolveTeleportCloud` / `requestTeleport`；带看期间跳过 `enter_room` 防双讲。
 
-### 步 2 · 动作渲染
+### 步 2 · 动作渲染（已做）
 
 | | |
 |---|---|
-| **目标** | `highlight` 在点云落点出现可见标记（sprite/环），不挡漫游 |
-| **时间** | 2–3h |
-| **验收** | 问「冰箱在哪」除 teleport 外有标记；无 tp 则仍 toast |
-| **止损** | 标记与 Z-up 对不齐 → 退回 toast，不改 coords 公式 |
+| **目标** | `highlight` 点云落点 3D 光柱；`show_card` 独立信息卡 |
+| **验收** | 0469「沙发在哪」teleport+光柱；「这套房多大」弹出 title+lines；0330「冰箱在哪」teleport+光柱 |
+| **坐标** | **不用** scene_graph `instances[].position`。Agent 只出 `tp_id`，前端 `resolveTeleportCloud` 查当前 world 的 camera_poses（已是点云 Z-up），与 teleport 同源。 |
+| **# 待确认** | 0469 **无冰箱实例**，问「冰箱多大」不会出卡（0330 有 `tp_refrigerator_582`）。沙发 attrs 常为空，卡上可能只有「没有更多信息」 |
 
 ### 步 3 · 信息卡
 
-| | |
-|---|---|
-| **目标** | `show_card` 用独立卡片（标题 + lines），不再挤 2.6s toast |
-| **时间** | 1.5–2h |
-| **验收** | 问答弹出的卡可手动关；带看 selling_points 可进卡 |
-| **止损** | 与 HUD z-index 冲突 → 只加宽 toast，不重做 WalkHud |
+已并入步 2（`InfoCard`）。本节保留作历史编号。
 
 ### 步 4 · narration GET
 

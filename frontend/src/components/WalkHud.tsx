@@ -6,6 +6,7 @@ import { PttRecorder, type Recording } from '../services/recorder'
 import { executeAgentActions, playTts } from '../scene/agentActions'
 import { useRoomNarration } from '../scene/narration'
 import { TourBar } from './TourBar'
+import { InfoCard } from './InfoCard'
 import type { House } from '../types/api'
 
 // ==== 极简漫游 HUD：房源信息 · 当前房间 · Agent 对话 · 操作提示 ====
@@ -262,6 +263,7 @@ export function WalkHud({ worldId }: { worldId: string }) {
 
       {/* 进房提示 / 信息卡 */}
       <CenterToast />
+      <InfoCard />
 
       {/* 传送准星（锁定时显示，点击视线落点瞬移） */}
       {locked && <div className="crosshair" />}

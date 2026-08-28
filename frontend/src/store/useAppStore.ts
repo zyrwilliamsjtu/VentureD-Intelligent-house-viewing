@@ -2,12 +2,17 @@ import { create } from 'zustand'
 import type { House, V3 } from '../types/api'
 
 // ==== 极简全局态：第一人称漫游 + Agent 上下文/传送命令 ====
-// AI 讲解/对话/带看已下线（代码在 _parked/，Agent 就绪后回迁）
-// 坐标系约定：player.position / teleportCmd.position 均为点云系（对拍转正：IG 原生 Z-up，米）
+// 坐标系约定：player.position / teleportCmd.position / highlightCmd.position 均为点云系（IG 原生 Z-up，米）
 
 export interface Toast {
   text: string
   sub?: string
+  key: number
+}
+
+export interface InfoCardData {
+  title: string
+  lines: string[]
   key: number
 }
 
@@ -25,6 +30,12 @@ export interface TeleportCmd {
   nonce: number
 }
 
+export interface HighlightCmd {
+  position: V3
+  label?: string
+  nonce: number
+}
+
 interface AppState {
   entered: boolean // 是否已通过开场页
   pointerLocked: boolean // 鼠标是否锁定在画布（第一人称视角激活）
@@ -35,6 +46,8 @@ interface AppState {
   toast: Toast | null
   player: PlayerContext | null // Agent 上下文（视口节流发布）
   teleportCmd: TeleportCmd | null // 视口订阅执行（nonce 变化触发）
+  highlightCmd: HighlightCmd | null // 视口订阅：点云系 3D 标记
+  infoCard: InfoCardData | null
   tourActive: boolean
   tourLabel: string | null
 
@@ -45,11 +58,16 @@ interface AppState {
   showToast: (text: string, sub?: string) => void
   setPlayer: (ctx: PlayerContext) => void
   requestTeleport: (position: V3, label?: string) => void
+  requestHighlight: (position: V3, label?: string) => void
+  showInfoCard: (title: string, lines: string[]) => void
+  clearInfoCard: () => void
   setTour: (active: boolean, label?: string | null) => void
 }
 
 let toastSeq = 0
 let tpSeq = 0
+let hlSeq = 0
+let cardSeq = 0
 
 export const useAppStore = create<AppState>()((set) => ({
   entered: false,
@@ -61,6 +79,8 @@ export const useAppStore = create<AppState>()((set) => ({
   toast: null,
   player: null,
   teleportCmd: null,
+  highlightCmd: null,
+  infoCard: null,
   tourActive: false,
   tourLabel: null,
 
@@ -71,6 +91,9 @@ export const useAppStore = create<AppState>()((set) => ({
   showToast: (text, sub) => set({ toast: { text, sub, key: ++toastSeq } }),
   setPlayer: (ctx) => set({ player: ctx }),
   requestTeleport: (position, label) => set({ teleportCmd: { position, label, nonce: ++tpSeq } }),
+  requestHighlight: (position, label) => set({ highlightCmd: { position, label, nonce: ++hlSeq } }),
+  showInfoCard: (title, lines) => set({ infoCard: { title, lines, key: ++cardSeq } }),
+  clearInfoCard: () => set({ infoCard: null }),
   setTour: (active, label = null) => set({ tourActive: active, tourLabel: active ? (label ?? null) : null }),
 }))
 

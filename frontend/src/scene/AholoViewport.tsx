@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { SparkRenderer, SplatMesh } from '@sparkjsdev/spark'
 import { loadVoxelCollision, type VoxelCollision } from './voxel'
 import { loadRoomPolys, roomAtCloud, cloudRuleFor, loadTpTable, type RoomPoly, type TpTable } from './coords'
+import { makeHighlightMarker } from './highlightMarker'
 import { useAppStore } from '../store/useAppStore'
 
 // ==== 命令式视口：Spark 3DGS + 体素碰撞 + 点击传送 + 对拍出生点 ====
@@ -380,6 +381,40 @@ export function AholoViewport({ worldId }: { worldId: string }) {
         console.info('[teleport] agent world=%s target=%o pos=%o', state.player?.world_id, cmd.position, camera.position.toArray())
       })
       cleanupFns.push(unsubTp)
+
+      // ---- Agent highlight（点云系 tp 落点；Z-up 与 teleport 同一套 camera_poses，不经 scene 实例坐标）----
+      let hlMesh: THREE.Group | null = null
+      let hlTimer: number | null = null
+      const unsubHl = useAppStore.subscribe((state, prev) => {
+        const cmd = state.highlightCmd
+        if (!cmd || cmd.nonce === prev.highlightCmd?.nonce) return
+        if (hlMesh) {
+          scene.remove(hlMesh)
+          hlMesh.traverse((o) => {
+            const m = o as THREE.Mesh
+            m.geometry?.dispose()
+            const mat = m.material
+            if (Array.isArray(mat)) mat.forEach((x) => x.dispose())
+            else mat?.dispose()
+          })
+          hlMesh = null
+        }
+        hlMesh = makeHighlightMarker(upAxis)
+        hlMesh.position.set(cmd.position[0], cmd.position[1], cmd.position[2])
+        scene.add(hlMesh)
+        if (hlTimer) window.clearTimeout(hlTimer)
+        hlTimer = window.setTimeout(() => {
+          if (hlMesh) {
+            scene.remove(hlMesh)
+            hlMesh = null
+          }
+        }, 8_000)
+        console.info('[highlight] world=%s pos=%o %s', worldId, cmd.position, cmd.label ?? '')
+      })
+      cleanupFns.push(unsubHl, () => {
+        if (hlTimer) window.clearTimeout(hlTimer)
+        if (hlMesh) scene.remove(hlMesh)
+      })
 
       // ---- V 键视角校准（z-up 联调用）：黑屏时逐个试出生候选，可见的编号告诉我 ----
       const spawnPresets: Array<{ name: string; tp?: string; dz: number; pitch: number }> = [
