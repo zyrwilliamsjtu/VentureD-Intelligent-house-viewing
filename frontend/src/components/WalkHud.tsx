@@ -13,6 +13,7 @@ import {
   unlockAudio,
 } from '../scene/agentActions'
 import { useRoomNarration } from '../scene/narration'
+import { countHudRender } from '../scene/perfProbe'
 import { TourBar } from './TourBar'
 import { WalkMinimap } from './WalkMinimap'
 import { InfoCard } from './InfoCard'
@@ -284,6 +285,7 @@ export function WalkHud({
   listing?: WorldListing
   onBackToList?: () => void
 }) {
+  countHudRender()
   const locked = useAppStore((s) => s.pointerLocked)
   const [agentOpen, setAgentOpen] = useState(false)
   const [minimap, setMinimap] = useState(false)

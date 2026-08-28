@@ -6,6 +6,7 @@ import { loadRoomPolys, roomAtCloud, cloudRuleFor, loadTpTable, type RoomPoly, t
 import { makeHighlightMarker } from './highlightMarker'
 import { useAppStore } from '../store/useAppStore'
 import { unlockAudio } from './agentActions'
+import { classifyPerf, drainHudRenders, probeGpu } from './perfProbe'
 
 // ==== 命令式视口：Spark 3DGS + 体素碰撞 + 对拍出生点 ====
 // 渲染：THREE.WebGLRenderer + SparkRenderer + SplatMesh（InteriorGS compressed ply）
@@ -39,7 +40,10 @@ const DPR_CAP = 1.5
 function webglOk(): boolean {
   try {
     const c = document.createElement('canvas')
-    return !!(c.getContext('webgl2') || c.getContext('webgl'))
+    const gl = c.getContext('webgl2') || c.getContext('webgl')
+    const ok = !!gl
+    gl?.getExtension('WEBGL_lose_context')?.loseContext()
+    return ok
   } catch {
     return false
   }
@@ -141,31 +145,55 @@ export function AholoViewport({ worldId }: { worldId: string }) {
         powerPreference: 'high-performance',
         failIfMajorPerformanceCaveat: false,
       })
+      let dprCap = DPR_CAP
       const applyView = () => {
         if (!renderer) return
         const w = Math.max(1, host.clientWidth)
         const h = Math.max(1, host.clientHeight)
-        const dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP)
+        const dpr = Math.min(window.devicePixelRatio || 1, dprCap)
         renderer.setPixelRatio(dpr)
         renderer.setSize(w, h, false)
         return { w, h, dpr }
       }
-      const view0 = applyView()
       renderer.setClearColor(0x14161c, 1)
       host.appendChild(renderer.domElement)
+      const gpu = probeGpu(renderer.getContext() as WebGLRenderingContext)
+      if (gpu.software) dprCap = 1
+      const view0 = applyView()
       console.info(
         '[boot] canvas %d×%d dpr=%s (cap=%s) powerPreference=high-performance antialias=off',
         view0?.w ?? 0,
         view0?.h ?? 0,
-        view0?.dpr ?? renderer.getPixelRatio(),
-        DPR_CAP,
+        renderer.getPixelRatio(),
+        dprCap,
       )
-      console.info('[boot] 若外置 Chrome 卡顿：设置 → 系统 → 打开「使用硬件加速」；关掉多余标签/扩展后再看 [perf] fps')
+      console.info(
+        '[boot] webgl canvases=%d vendor=%s gpu=%s software=%s',
+        gpu.canvases,
+        gpu.vendor,
+        gpu.gpu,
+        gpu.software,
+      )
+      if (gpu.software) {
+        console.warn(
+          '[boot] 分层：外部/软件光栅。请 Chrome「设置 → 系统 → 使用硬件加速」后完全退出再开。未开加速时改渲染参数无效。',
+        )
+      } else {
+        console.info('[boot] 外置 Chrome 若仍卡：看之后 [perf] 的 render vs js；HUD 磨砂已关掉以免每帧读回 WebGL')
+      }
+      const onGlLost = (e: Event) => {
+        e.preventDefault()
+        console.warn('[perf] webgl context lost')
+      }
+      const onGlRestored = () => console.warn('[perf] webgl context restored')
+      renderer.domElement.addEventListener('webglcontextlost', onGlLost)
+      renderer.domElement.addEventListener('webglcontextrestored', onGlRestored)
 
       const scene = new THREE.Scene()
       const camera = new THREE.PerspectiveCamera(72, w0 / h0, 0.05, 300)
       const spark = new SparkRenderer({ renderer })
       scene.add(spark)
+      console.info('[boot] canvases after SparkRenderer=%d', document.querySelectorAll('canvas').length)
 
       // ---- tp 表（z-up 世界出生点用；与点云同帧，对拍产物）----
       let tpReady: Promise<void> | null = null
@@ -309,7 +337,12 @@ export function AholoViewport({ worldId }: { worldId: string }) {
       let lastT = 0
       let fpsFrames = 0
       let fpsMoving = 0
-      let fpsT0 = 0
+      let accFrame = 0
+      let accRender = 0
+      let accJs = 0
+      let accCtx = 0
+      let dprDropped = false
+      const cloudPos: [number, number, number] = [0, 0, 0]
       const lookDir = new THREE.Vector3()
       const lookTarget = new THREE.Vector3()
       const camUp = new THREE.Vector3(0, upAxis === 2 ? 0 : upSign, upAxis === 2 ? 1 : 0)
@@ -338,9 +371,9 @@ export function AholoViewport({ worldId }: { worldId: string }) {
 
       const tick = () => {
         if (disposed || !renderer) return
-        const now = performance.now()
-        const dt = Math.min(0.05, lastT ? (now - lastT) / 1000 : 0.016)
-        lastT = now
+        const t0 = performance.now()
+        const dt = Math.min(0.05, lastT ? (t0 - lastT) / 1000 : 0.016)
+        lastT = t0
 
         const k = st.keys
         let ix = 0
@@ -425,12 +458,14 @@ export function AholoViewport({ worldId }: { worldId: string }) {
 
         applyLookDir()
 
-        // ---- Agent 上下文发布（节流）：位置变化小于阈值则不写 store，避免 HUD 无意义重绘 ----
+        const tCtx0 = performance.now()
         const p = camera.position
-        const ctxNow = now
-        if (worldId && ctxNow - ctxLast > CTX_INTERVAL) {
-          ctxLast = ctxNow
-          const rid = roomPolys.length ? roomAtCloud([p.x, p.y, p.z], worldId, roomPolys) : null
+        if (worldId && tCtx0 - ctxLast > CTX_INTERVAL) {
+          ctxLast = tCtx0
+          cloudPos[0] = p.x
+          cloudPos[1] = p.y
+          cloudPos[2] = p.z
+          const rid = roomPolys.length ? roomAtCloud(cloudPos, worldId, roomPolys) : null
           const prev = useAppStore.getState().player
           const dx = prev ? Math.abs(prev.position[0] - p.x) : 1
           const dy = prev ? Math.abs(prev.position[1] - p.y) : 1
@@ -445,29 +480,58 @@ export function AholoViewport({ worldId }: { worldId: string }) {
             })
           }
         }
+        const ctxMs = performance.now() - tCtx0
 
-        fpsFrames += 1
-        if (ix !== 0 || iz !== 0) fpsMoving += 1
-        if (!fpsT0) fpsT0 = now
-        else if (now - fpsT0 >= 5000) {
-          const fps = (fpsFrames * 1000) / (now - fpsT0)
-          console.info(
-            '[perf] fps=%s moving=%s%% dpr=%s',
-            fps.toFixed(1),
-            fpsFrames ? Math.round((100 * fpsMoving) / fpsFrames) : 0,
-            renderer.getPixelRatio(),
-          )
-          fpsFrames = 0
-          fpsMoving = 0
-          fpsT0 = now
-        }
-
-        // 输入已写入 yaw/pitch；本帧只提交一次矩阵
         camera.up.copy(camUp)
         lookTarget.copy(p).add(lookDir)
         camera.lookAt(lookTarget)
         camera.updateMatrixWorld()
+        const tRender0 = performance.now()
         renderer.render(scene, camera)
+        const renderMs = performance.now() - tRender0
+        const frameMs = performance.now() - t0
+        const jsMs = Math.max(0, frameMs - renderMs)
+
+        fpsFrames += 1
+        if (ix !== 0 || iz !== 0) fpsMoving += 1
+        accFrame += frameMs
+        accRender += renderMs
+        accJs += jsMs
+        accCtx += ctxMs
+        if (fpsFrames >= 60) {
+          const n = fpsFrames
+          const frame = accFrame / n
+          const render = accRender / n
+          const js = accJs / n
+          const ctx = accCtx / n
+          const hud = drainHudRenders()
+          const fps = frame > 0.1 ? 1000 / frame : 0
+          console.info(
+            '[perf] frame=%sms render=%sms js=%sms ctx=%sms fps=%s moving=%s%% dpr=%s hudRenders=%d',
+            frame.toFixed(1),
+            render.toFixed(1),
+            js.toFixed(1),
+            ctx.toFixed(2),
+            fps.toFixed(0),
+            Math.round((100 * fpsMoving) / n),
+            renderer.getPixelRatio(),
+            hud,
+          )
+          console.info('[perf] 分层: %s', classifyPerf(frame, render, js, hud, gpu.software))
+          if (!gpu.software && !dprDropped && render > 18 && dprCap > 1) {
+            dprCap = 1
+            dprDropped = true
+            applyView()
+            console.info('[perf] renderer.render 偏高 → dpr 降到 1.0（流畅优先）。# 待确认 视觉 vs 流畅')
+          }
+          fpsFrames = 0
+          fpsMoving = 0
+          accFrame = 0
+          accRender = 0
+          accJs = 0
+          accCtx = 0
+        }
+
         raf = requestAnimationFrame(tick)
       }
       raf = requestAnimationFrame(tick)
@@ -644,6 +708,8 @@ export function AholoViewport({ worldId }: { worldId: string }) {
         window.removeEventListener('keyup', onUp)
         window.removeEventListener('resize', syncView)
         window.visualViewport?.removeEventListener('resize', syncView)
+        renderer?.domElement.removeEventListener('webglcontextlost', onGlLost)
+        renderer?.domElement.removeEventListener('webglcontextrestored', onGlRestored)
         ro.disconnect()
       })
     }

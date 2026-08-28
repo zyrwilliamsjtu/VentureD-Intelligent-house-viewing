@@ -1,7 +1,6 @@
 /* ==== AI 代看房 · iOS 亮色磨砂 UI（视觉基准 ui-frost-preview.html v2）====
    只换皮肤：类名/DOM 结构/z-index 层级/pointer-events 架构与旧版完全一致。
-   性能红线：backdrop-filter 仅用于小面积 chips + agent-panel + toast + 恢复卡；
-   气泡/输入框/按钮一律不透明 fill，不 blur。帧率不足时全局把 --frost-blur 降到 16px。 */
+   性能红线：列表页可用磨砂。漫游 HUD（.walk-hud）禁止 backdrop-filter——叠在 WebGL 上会每帧读回画布，外置 Chrome 明显卡、Cursor 内嵌往往不明显。 */
 :root {
   /* 磨砂玻璃（亮色） */
   --frost-bg: rgba(255, 255, 255, 0.66);
@@ -140,6 +139,28 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 /* ---- 漫游 HUD ---- */
 .walk-hud { position: absolute; inset: 0; z-index: 20; pointer-events: none; }
 .walk-hud button, .walk-hud .mm-card { pointer-events: auto; }
+/* 漫游层：不透明面板，避免 WebGL 上的 backdrop-filter 合成（# 待确认：视觉略实、流畅优先） */
+.walk-hud .place-card,
+.walk-hud .hint-bar,
+.walk-hud .room-chip,
+.walk-hud .agent-stub,
+.walk-hud .agent-panel,
+.walk-hud .center-toast,
+.walk-hud .info-card,
+.walk-hud .back-list,
+.walk-hud .tour-btn,
+.walk-hud .resume-card,
+.walk-hud .mm-card,
+.walk-hud .house-chip {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: rgba(255, 255, 255, 0.92);
+}
+.walk-hud .resume-overlay {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: rgba(246, 245, 243, 0.88);
+}
 
 /* ---- 传送准星（白十字 + 深色描边，深浅画面都可见）---- */
 .crosshair { position: absolute; top: 50%; left: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; pointer-events: none; }

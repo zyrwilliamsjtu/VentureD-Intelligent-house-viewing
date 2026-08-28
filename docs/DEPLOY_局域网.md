@@ -59,12 +59,12 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ## 外置 Chrome 若 3D 卡顿
 
-与 Cursor 内置预览不是同一套 GPU/缩放。请：
+Cursor 内嵌预览流畅、独立 Chrome 卡，常见分层：
 
-1. Chrome → 设置 → 系统 → **使用硬件加速**（开）。
-2. 关掉无关标签和会注入页面的扩展，再进 3D。
-3. 控制台看 `[boot] ... dpr=` 与走动时 `[perf] fps=`。Windows 显示缩放 150% 时 dpr 约 1.5（代码上限 1.5）。
-4. 代码侧：`powerPreference: 'high-performance'`，`antialias: false`。**# 待确认**：未改 Spark 内部 renderer。
+1. 打开控制台。`[boot] ... gpu=... software=true` → **硬件加速没生效**：设置 → 系统 → 使用硬件加速，**完全退出 Chrome 再开**。`chrome://gpu` 里 Renderer 不应是 SwiftShader。此情况改代码无效。
+2. `[perf] 分层: GPU/Spark` 且 `render=` 很大：已关漫游磨砂；若仍高会自动 dpr=1.0。
+3. `hudRenders` 每 60 帧很大 → React；`js=` 很大 → 主线程。
+4. Performance 面板录 10–20s 走动：看 GPU / 合成 / Scripting 谁撑满。
 
 ---
 

@@ -202,7 +202,7 @@ Golden Path：问「主卧在哪」→ `teleport` + `tp_id=tp_bedroom_master`（
 | `0469` 无冰箱 | 问冰箱不会出实例卡（0330 有 `tp_refrigerator_582`） |
 | 独立 TTS | 后端 stub 常 omit `audio_url`；讲解依赖 chat/narration 的 `tts_url` |
 | scene 无门/窗 | **# 待确认**：`scene_graph` 无门/窗字段，2D 户型图只画轮廓 + 房间名，不编造开口/家具 |
-| Spark / 高 dpr 掉帧 | **# 待确认**：dpr 上限 1.5；`powerPreference: high-performance`；`antialias: false`。外置 Chrome 请开硬件加速。走动时 `[perf] fps=…`。未改 Spark renderer 内部 |
+| Spark / 外置 Chrome 卡顿 | **诊断**：Cursor 内嵌流畅、独立 Chrome 卡 → 主因多为 WebGL 上 `backdrop-filter` 每帧读回 + Spark GPU。漫游 HUD 已关磨砂；`[perf]` 每 60 帧打 `frame/render/js/ctx/hudRenders` 与分层结论。`software=true`（SwiftShader）= 硬件加速未开，改代码无效。render&gt;18ms 时 dpr 自动降到 1.0。**# 待确认** 视觉 vs 流畅 |
 
 无 `# 待合入`：narration GET、B 键、PlaceFacts、show_card、highlight、tour 均已在 main。
 
