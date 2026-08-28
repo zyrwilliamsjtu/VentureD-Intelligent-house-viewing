@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useAppStore } from '../store/useAppStore'
-import { agentChat, getSessionId, loadScene } from '../services/agent'
+import { agentChat, getSessionId } from '../services/agent'
 import { playTts } from './agentActions'
 
 // ==== 进房主动讲解（SPEC §3.1 event=enter_room / §3.4 narration）====
@@ -46,8 +46,8 @@ export function useRoomNarration(): void {
               event: 'enter_room',
             })
             if (!alive || !res.reply_text) return
-            const scene = await loadScene(p.world_id)
-            const name = scene?.rooms.find((r) => r.id === room)?.name ?? '当前房间'
+            // 房名取自 store.house（scene zones，id 与 room_id 同源）；拿不到用兜底词
+            const name = st.house?.zones.find((z) => z.id === room)?.label ?? '当前房间'
             st.showToast(name, res.reply_text)
             playTts(res.tts_url)
           } catch {

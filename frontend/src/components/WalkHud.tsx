@@ -56,8 +56,12 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
     setBusy(true)
     try {
       const player = useAppStore.getState().player
-      // 视口未启动（如 WebGL 不可用）时 player 为空，用 env 的世界 ID 兜底
-      const worldId = player?.world_id || (import.meta.env.VITE_WORLD_ID as string | undefined) || ''
+      // 视口未启动（如 WebGL 不可用）时 player 为空：优先选中房源的 worldId，再退 env
+      const worldId =
+        player?.world_id ||
+        useAppStore.getState().listing?.worldId ||
+        (import.meta.env.VITE_WORLD_ID as string | undefined) ||
+        ''
       const res = await agentChat({
         session_id: getSessionId(),
         world_id: worldId,
@@ -163,7 +167,7 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
         </button>
       </div>
       <div className="agent-list" ref={listRef}>
-        {msgs.length === 0 && <div className="agent-tip">试试：「主卧在哪」「冰箱在哪」「这套房多大」<br />也可以按住 🎙 说话</div>}
+        {msgs.length === 0 && <div className="agent-tip">试试：「介绍一下这套房」「主卧在哪」「多少钱」<br />也可以按住 🎙 说话</div>}
         {msgs.map((m, i) => (
           <div key={i} className={`msg ${m.role}`}>
             {m.text}
@@ -235,19 +239,44 @@ function CenterToast() {
 
 export function WalkHud() {
   const house = useAppStore((s) => s.house) as House | null
+  const listing = useAppStore((s) => s.listing)
+  const backToList = useAppStore((s) => s.backToList)
   const currentZone = useAppStore((s) => s.currentZone)
   const locked = useAppStore((s) => s.pointerLocked)
   const [agentOpen, setAgentOpen] = useState(false)
   const zone = house?.zones.find((z) => z.id === currentZone) ?? null
   useRoomNarration() // 进房主动讲解：room_id 切换 → enter_room → toast + TTS
 
+  // 快捷键 T：呼出/收起 Agent 面板（输入框聚焦时不抢键）
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = document.activeElement
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return
+      if (e.code === 'KeyT') {
+        e.preventDefault()
+        setAgentOpen((v) => !v)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   return (
     <div className="walk-hud">
-      {/* 左上：房源信息 */}
+      {/* 左上：返回 + 房源信息 */}
       <div className="hud-tl">
-        <div className="house-chip">
-          {house ? house.meta.title : '场景加载中…'}
-          {house && <span className="meta">{house.meta.area}㎡ · {house.meta.floor}层</span>}
+        <div className="hud-tl-row">
+          <button className="back-btn" onClick={backToList} title="返回房源列表">
+            ‹ 返回
+          </button>
+          <div className="house-chip">
+            {listing ? listing.title : house ? house.meta.title : '场景加载中…'}
+            {listing && (
+              <span className="meta">
+                {listing.area}㎡ · {listing.price}
+              </span>
+            )}
+          </div>
         </div>
         <div className="badge-placeholder">LOD 流式 · 体素碰撞 · 点击传送</div>
       </div>
@@ -270,6 +299,7 @@ export function WalkHud() {
         <span><b>鼠标</b> 视角</span>
         <span><b>点击</b> 传送</span>
         <span><b>Shift</b> 快走</span>
+        <span><b>T</b> AI 讲解</span>
         <span><b>ESC</b> 释放鼠标</span>
       </div>
 

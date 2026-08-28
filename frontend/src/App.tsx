@@ -3,14 +3,15 @@ import { useAppStore } from './store/useAppStore'
 import { getHouse } from './services/api'
 import { AholoViewport } from './scene/AholoViewport'
 import { Splash } from './components/Splash'
+import { HouseList } from './components/HouseList'
 import { WalkHud } from './components/WalkHud'
 
-// PI 决策 2（2026-08-28）：demo 统一 0330 真实场景；world_id 唯一来源 VITE_WORLD_ID
-// （.env 缺省也回退 w_0330_840483，与 3D 视口/后端 GT/camera_poses 同一套 id）
+// 页面流转：splash 品牌页 → list 房源列表 → walk 第一人称漫游（返回列表不卸载 3D）
+// world_id 唯一来源 VITE_WORLD_ID（PI 决策 2：demo 统一 0330 真实场景）
 const WORLD_ID = (import.meta.env.VITE_WORLD_ID as string | undefined) || 'w_0330_840483'
 
 export default function App() {
-  const entered = useAppStore((s) => s.entered)
+  const view = useAppStore((s) => s.view)
 
   useEffect(() => {
     let alive = true
@@ -33,8 +34,9 @@ export default function App() {
   return (
     <div className="app">
       <AholoViewport />
-      {entered && <WalkHud />}
-      {!entered && <Splash />}
+      {view === 'walk' && <WalkHud />}
+      {view === 'list' && <HouseList />}
+      {view === 'splash' && <Splash />}
     </div>
   )
 }

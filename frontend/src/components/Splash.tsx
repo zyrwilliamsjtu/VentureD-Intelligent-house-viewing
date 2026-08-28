@@ -1,41 +1,37 @@
 import { useAppStore } from '../store/useAppStore'
 
-// ==== 开场页：点击进入（同时完成 Pointer Lock 所需的用户手势）====
+// ==== 开场页：暗色编辑部风（Odin's Crow 参考）====
+// 上下等宽页眉/页脚 + 居中大衬线标题；场景数据后台预载，不阻塞开场
 export function Splash() {
-  const house = useAppStore((s) => s.house)
-  const loading = useAppStore((s) => s.houseLoading)
-  const error = useAppStore((s) => s.houseError)
-  const enter = useAppStore((s) => s.enter)
-  const showToast = useAppStore((s) => s.showToast)
-
-  const onEnter = () => {
-    enter()
-    const canvas = document.querySelector('canvas')
-    void canvas?.requestPointerLock()
-    showToast('欢迎来到示范房源', 'WASD 走动看看')
-  }
+  const enterList = useAppStore((s) => s.enterList)
 
   return (
     <div className="splash">
-      <div className="splash-card">
-        <div className="splash-kicker">AI 代看房 · VentureD</div>
-        <h1>{house ? house.meta.title : '示范房源'}</h1>
-        {house && (
-          <div className="splash-meta">
-            {house.meta.area}㎡ · {house.meta.orientation} · {house.meta.floor} 层
-          </div>
-        )}
-        <div className="splash-note">第一视角漫游 · 群核 3DGS 点云渲染（Aholo Viewer）</div>
-        {error ? (
-          <button className="splash-btn" disabled>
-            场景加载失败：{error}
+      <div className="splash-frame">
+        <div className="splash-top mono">
+          <span>AI 代看房 — VentureD</span>
+          <span>© 2026</span>
+        </div>
+
+        <div className="splash-card">
+          <div className="splash-kicker mono">3DGS 实景漫游 × AI 管家带看</div>
+          <h1>
+            足不出户
+            <br />
+            <em>实景</em>看房
+          </h1>
+          <div className="splash-meta">Preserving Spaces, Driving Trust</div>
+          <div className="splash-note">群核 3DGS 点云渲染 · MOSS 大模型语音讲解</div>
+          <button className="splash-btn" onClick={enterList}>
+            开始看房
           </button>
-        ) : (
-          <button className="splash-btn" onClick={onEnter} disabled={loading || !house}>
-            {loading || !house ? '正在生成场景…' : '进入漫游'}
-          </button>
-        )}
-        <div className="splash-hint">WASD 移动 · 鼠标视角 · Shift 快走</div>
+          <div className="splash-hint mono">10 套精选房源 · 支持语音提问</div>
+        </div>
+
+        <div className="splash-bottom mono">
+          <span>Groupcore Aholo · 3DGS</span>
+          <span>MOSS LLM · Voice</span>
+        </div>
       </div>
     </div>
   )
