@@ -26,12 +26,45 @@ export interface CloudRule {
   voxel?: boolean
 }
 
-/** 世界级对拍规则表（新场景对拍后在此登记） */
+/** 世界级对拍规则表（新场景对拍后在此登记）
+ *  tx/ty 来自各套 mock/{scene}/origin.json（与 SOURCE.md、docs/FE_房源列表联调指南 §3.5 一致）：
+ *    scene(x,y,z) → 点云 [x+tx, ty−z, y]；点云均为 InteriorGS 原生 Z-up。
+ *  禁止把 0330 的 0.573/1.087 套到其它世界。 */
 export const CLOUD_RULES: Record<string, CloudRule> = {
   w_0330_840483: {
     tx: 0.573,
     ty: 1.087,
     label: 'InteriorGS 0330_840483 · 对拍转正（75/75 实例 <1cm，锚点残差 0.0003m）',
+    up: 'z',
+    voxel: false,
+  },
+  w_0469_840829: {
+    tx: 2.839056,
+    ty: -3.219509,
+    label: 'InteriorGS 0469_840829 · origin.json ox/oz（10/10 房间、75/75 实例 <1cm）',
+    up: 'z',
+    voxel: false,
+  },
+  w_0259_840804: {
+    tx: -2.768704,
+    ty: -5.238312,
+    label: 'InteriorGS 0259_840804 · origin.json ox/oz（10/10 房间、88/88 实例 <1cm）',
+    up: 'z',
+    voxel: false,
+  },
+  w_0309_840544: {
+    tx: -3.938458,
+    ty: -0.707424,
+    // # 待确认：camera_poses 无 tp_living（厨房/主卧对拍完整）
+    label: 'InteriorGS 0309_840544 · origin.json ox/oz（10/10 房间、93/93 实例 <1cm）',
+    up: 'z',
+    voxel: false,
+  },
+  w_0836_841149: {
+    tx: 0.314266,
+    ty: -0.446865,
+    // # 待确认：camera_poses 无 tp_living（厨房/主卧对拍完整）
+    label: 'InteriorGS 0836_841149 · origin.json ox/oz（10/10 房间、86/86 实例 <1cm）',
     up: 'z',
     voxel: false,
   },
@@ -193,25 +226,58 @@ function sceneGraphUrl(worldId: string): string | null {
   return null
 }
 
-/** 加载场景语义 JSON 的房间 polygon 列表（房间归因用） */
+function roomsFromSceneGraph(sg: { rooms?: Array<{ id: string; polygon?: [number, number][] }> }): RoomPoly[] {
+  return (sg.rooms ?? [])
+    .filter((r) => Array.isArray(r.polygon) && r.polygon.length >= 3)
+    .map((r) => ({ id: r.id, polygon: r.polygon as [number, number][] }))
+}
+
+/** 网关 GET /api/scene/{world_id}（5 套真实 polygon 的主路径） */
+async function roomsFromGateway(worldId: string): Promise<RoomPoly[]> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 8_000)
+  try {
+    const res = await fetch(`${GATEWAY_BASE}/api/scene/${encodeURIComponent(worldId)}`, {
+      signal: ctrl.signal,
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const sg = (await res.json()) as { rooms?: Array<{ id: string; polygon?: [number, number][] }> }
+    return roomsFromSceneGraph(sg)
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** 加载场景语义 JSON 的房间 polygon 列表（房间归因用）
+ *  0330/mock 仍走 public（不改变既有路径）；其它 4 套无本地副本 → GET /api/scene。 */
 export async function loadRoomPolys(worldId: string): Promise<RoomPoly[]> {
   const hit = roomCache.get(worldId)
   if (hit) return hit
-  const url = sceneGraphUrl(worldId)
-  if (!url) return []
-  try {
-    const res = await fetch(url)
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const sg = (await res.json()) as { rooms?: Array<{ id: string; polygon?: [number, number][] }> }
-    const rooms = (sg.rooms ?? [])
-      .filter((r) => Array.isArray(r.polygon) && r.polygon.length >= 3)
-      .map((r) => ({ id: r.id, polygon: r.polygon as [number, number][] }))
-    roomCache.set(worldId, rooms)
-    return rooms
-  } catch (e) {
-    console.warn('[coords] scene_graph 加载失败', worldId, e)
-    return []
+  let rooms: RoomPoly[] = []
+  const localUrl = sceneGraphUrl(worldId)
+  if (localUrl) {
+    try {
+      const res = await fetch(localUrl)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      rooms = roomsFromSceneGraph(
+        (await res.json()) as { rooms?: Array<{ id: string; polygon?: [number, number][] }> },
+      )
+    } catch (e) {
+      console.warn('[coords] scene_graph 本地加载失败', worldId, e)
+    }
   }
+  if (!rooms.length) {
+    try {
+      rooms = await roomsFromGateway(worldId)
+      if (rooms.length) {
+        console.info('[coords] rooms（网关）%s · %d', worldId, rooms.length)
+      }
+    } catch (e) {
+      console.warn('[coords] 网关 scene_graph 失败', worldId, e)
+    }
+  }
+  if (rooms.length) roomCache.set(worldId, rooms)
+  return rooms
 }
 
 // ==== Agent 动作解析（teleport 优先 tp_id，其次 position）====
