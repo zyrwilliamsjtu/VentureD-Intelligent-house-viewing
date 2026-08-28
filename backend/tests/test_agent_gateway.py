@@ -71,4 +71,6 @@ def test_tour_stub() -> None:
     )
     assert resp.status_code == 200
     body = resp.json()
-    assert body["steps"] == []
+    assert isinstance(body["steps"], list)
+    assert len(body["steps"]) >= 1
+    assert body["steps"][0].get("room_id")

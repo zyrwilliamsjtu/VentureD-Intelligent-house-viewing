@@ -95,7 +95,9 @@ def test_handle_narration_missing_room_404() -> None:
 
 def test_handle_tour_stub_empty_steps() -> None:
     body = handle_tour(WORLD_0330, "s_test")
-    assert body == {"steps": []}
+    assert isinstance(body["steps"], list)
+    assert len(body["steps"]) >= 1
+    assert body["steps"][0]["index"] == 0
 
 
 def test_build_tour_simple_from_scene_graph() -> None:

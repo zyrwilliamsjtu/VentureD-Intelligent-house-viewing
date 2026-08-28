@@ -72,8 +72,9 @@ GET /api/scene/{world_id}
 
 - **拍板**：agent 由我方用 Python 做在网关内（`backend/app/services/agent/`），与理解层任务解耦并行。
 - **单一事实源**：`docs/AGENT_DEV.md`（架构、坐标铁律、事实约束、L0/L1、里程碑）。
-- **本阶段**：M1 规则版 `handle_chat` 已通；asr/tts 仍 stub；narration 简单实现。
+- **本阶段**：chat 已接方舟推理接入点（chat/completions）；TTS V3 SeedTTS2.0；ASR WebSocket 流式识别。详见 `docs/AGENT_DEV.md` §13。
 - **消费**：A 前端 `agent.ts` / `asr.ts`；演示世界 `w_0330_840483`；tp 落点用 `GET /api/camera_poses`，agent 只出 `tp_id`。
+- agent 语音/LLM 接真实 API（Provider 抽象 + stub 兜底），**key 只在 `backend/.env`、不入库**。
 
 ## 2. 技术栈与运行
 
@@ -96,7 +97,7 @@ backend/
 │   │   └── camera.py    # camera_poses / tp 查询
 │   ├── services/        # 业务逻辑（scene 路由、scene_graph 加载、world 索引）
 │   │   ├── understanding/  # 理解层：Provider 工厂 + GT 极简管线（L0+L1）
-│   │   └── agent/          # AI agent：facts/session/chat 骨架/narration/tour/asr/tts
+│   │   └── agent/          # AI agent：规则版 chat + ASR/TTS/LLM Provider
 │   ├── data/            # 数据访问（读 mock、真实 scene_graph）
 │   └── schemas/         # 目前仅 GatewayError；scene/agent 响应未用 Pydantic 校验（可选增强）
 ├── tests/               # 测试（对齐 SPEC 验收标准）
@@ -135,7 +136,12 @@ A 前端 ──POST /api/agent/chat|asr|tts|tour / GET narration──> backend 
 | 2026-08-28 | 验收 Y 项清理 | README 架构图/GT 钩子/schemas 表述对齐代码；agent stub 空可选字段 omit；SPEC §0 点云层改为 Z-up |
 | 2026-08-28 | agent 服务骨架 | 建立 `services/agent/`（facts/session/stub）+ `docs/AGENT_DEV.md`；router 改调 handle_* |
 | 2026-08-28 | M1 规则版 chat | intent/grounding/responder/actions；问主卧 → teleport `tp_bedroom_master` |
+| 2026-08-28 | M2 tour + narration | `handle_tour` 接入 `build_tour`；narration session 去重；SPEC §4.2 Z-up |
 | 2026-08-28 | 理解层重构 S0 受阻 | SpatialLM 笔记本编译失败，止损存档；demo 主线继续 GT；后续主线转 agent |
+| 2026-08-28 | agent 真实 API | ASR/TTS/LLM Provider + stub 兜底；配置见 `.env.example`（无 key） |
+| 2026-08-28 | 方舟 chat + 豆包语音 | chat 切 openai_compat（需 ep- 接入点）；volcengine TTS 真接 / ASR 骨架 |
+| 2026-08-28 | ep + TTS V3 + ASR WS | chat 接推理接入点；TTS SeedTTS2.0 V3；ASR WebSocket 真实现 |
+| 2026-08-28 | ASR 真实识别 + 格式对齐 | ffmpeg 将前端 webm/m4a 转到 pcm16k；live 转写「这栋房子的主卧在哪？」 |
 
 ## 8. 与本仓库其他板块的关系
 
