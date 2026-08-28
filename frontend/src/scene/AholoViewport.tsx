@@ -1,29 +1,16 @@
 import { useEffect, useRef } from 'react'
-import {
-  createViewer,
-  setViewerConfig,
-  PerspectiveCamera,
-  BackgroundMode,
-  Vector3,
-  Color,
-  SplatUtils,
-  type Viewer,
-  type IViewerContext,
-} from '@manycore/aholo-viewer'
+import * as THREE from 'three'
+import { SparkRenderer, SplatMesh } from '@sparkjsdev/spark'
 import { loadVoxelCollision, type VoxelCollision } from './voxel'
 import { loadRoomPolys, roomAtCloud, cloudRuleFor, loadTpTable, type RoomPoly, type TpTable } from './coords'
 import { useAppStore } from '../store/useAppStore'
 
-// ==== 群核全栈视口：LOD 流式渲染 + 体素碰撞 + 点击传送 + 自动出生点 ====
-// 渲染：@manycore/aholo-viewer 的 LodSplat（分块多级 LOD，按视锥调度）
-// 配置：官方 3DGS Preset「效果优先」（SPZ + Compressed + pack.highPrecision）
+// ==== 命令式视口：Spark 3DGS + 体素碰撞 + 点击传送 + 对拍出生点 ====
+// 渲染：THREE.WebGLRenderer + SparkRenderer + SplatMesh（InteriorGS compressed ply）
 // 碰撞：splat-transform Voxel 任务产物（public/collision/），运行时查询在 voxel.ts
 // 传送：锁定时点击 → 射线命中点瞬移（解决关门房间不可达）
 //       + store.teleportCmd（Agent tp_id/position → coords.ts 解析 → 此处执行）
 
-const LOD_META_URL =
-  import.meta.env.VITE_AHOLO_LOD_META_URL ||
-  'https://holo-cos.aholo3d.cn/splat-transform/3FO4FA4U7MVJ/lod/1787836246/lod-meta.json'
 const VOXEL_META_URL =
   import.meta.env.VITE_AHOLO_VOXEL_META_URL ||
   `${import.meta.env.BASE_URL || '/'}collision/voxel-meta.json`
@@ -32,6 +19,11 @@ const VOXEL_META_URL =
  *  唯一来源 VITE_WORLD_ID，缺省回退 w_0330_840483（PI 决策 2：demo 统一 0330 真实场景，
  *  与后端 GT / camera_poses / App.tsx 同一套 id；未登记世界恒等降级）。 */
 const WORLD_ID = (import.meta.env.VITE_WORLD_ID as string | undefined) || 'w_0330_840483'
+
+/** InteriorGS 场景目录名 = world_id 去掉 w_ 前缀（如 w_0330_840483 → 0330_840483）。
+ *  生产托管 URL 用 VITE_SPLAT_URL 覆盖。# 待确认 5 套对象存储地址 */
+const SCENE_DIR = WORLD_ID.replace(/^w_/, '')
+const SPLAT_URL = (import.meta.env.VITE_SPLAT_URL as string | undefined) || `/ply/${SCENE_DIR}.ply`
 
 const EYE = 1.6
 const WALK = 2.6
@@ -56,6 +48,10 @@ function webglOk(): boolean {
   }
 }
 
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, n))
+}
+
 export function AholoViewport() {
   const hostRef = useRef<HTMLDivElement>(null)
   const errRef = useRef<HTMLDivElement>(null)
@@ -75,8 +71,8 @@ export function AholoViewport() {
       console.info('[boot]', text)
     }
 
-    let viewer: Viewer | null = null
-    let lod: SplatUtils.LodSplat | null = null
+    let renderer: THREE.WebGLRenderer | null = null
+    let splats: SplatMesh | null = null
     let raf = 0
     let disposed = false
     const st = { yaw: 0, pitch: 0, vx: 0, vz: 0, keys: new Set<string>() }
@@ -100,10 +96,20 @@ export function AholoViewport() {
         errBox.style.display = 'flex'
         return
       }
-      viewer = createViewer('house-walk', host, {})
-      const scene = viewer.getScene()
-      const camera = new PerspectiveCamera(72, host.clientWidth / Math.max(1, host.clientHeight), 0.05, 300)
-      viewer.setCamera(camera)
+
+      const w0 = Math.max(1, host.clientWidth)
+      const h0 = Math.max(1, host.clientHeight)
+      renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false })
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+      renderer.setSize(w0, h0, false)
+      renderer.setClearColor(0x14161c, 1)
+      host.appendChild(renderer.domElement)
+      console.info('[boot] canvas %d×%d dpr=%s', w0, h0, renderer.getPixelRatio())
+
+      const scene = new THREE.Scene()
+      const camera = new THREE.PerspectiveCamera(72, w0 / h0, 0.05, 300)
+      const spark = new SparkRenderer({ renderer })
+      scene.add(spark)
 
       // ---- tp 表（z-up 世界出生点用；与点云同帧，对拍产物）----
       let tpReady: Promise<void> | null = null
@@ -171,54 +177,68 @@ export function AholoViewport() {
           .catch(() => {})
       }
 
-      // ---- LOD 流式加载（分块多级，视锥调度）----
-      setStatus('下载点云索引…')
-      const ctrl = new AbortController()
-      const metaTimer = window.setTimeout(() => ctrl.abort(), 20_000) // 卡死不再是无限黑屏
-      let lodMeta: ConstructorParameters<typeof SplatUtils.LodSplat>[0] | undefined
-      try {
-        const metaRes = await fetch(LOD_META_URL, { signal: ctrl.signal })
-        if (!metaRes.ok) throw new Error(`lod-meta 下载失败 HTTP ${metaRes.status}`)
-        lodMeta = await metaRes.json()
-      } catch (e) {
-        throw new Error(
-          e instanceof DOMException && e.name === 'AbortError'
-            ? '点云索引下载超时（20s），请检查网络后刷新'
-            : `lod-meta 下载失败：${e instanceof Error ? e.message : String(e)}`,
-        )
-      } finally {
-        window.clearTimeout(metaTimer)
-      }
-      if (!lodMeta) throw new Error('点云索引解析失败（空内容）')
-      lod = new SplatUtils.LodSplat(lodMeta, undefined, viewer as unknown as IViewerContext)
-      scene.add(lod.container)
-      lod.start()
-      setStatus('加载点云…（视网络 10–60 秒，期间画面逐块出现）')
-      void lod
-        .onFinishSchedule()
-        .then(() => setStatus(`场景就绪 · WASD 漫游${upAxis === 2 ? ' · 黑屏先按 V' : ''}`, true))
-        .catch(() => {}) // 调度完成回调失败不影响渲染
-
-      // ---- 官方 Preset「效果优先」----
-      setViewerConfig(viewer, {
-        pipeline: {
-          Background: {
-            background: { active: BackgroundMode.BasicBackground, basic: { color: new Color(0.08, 0.09, 0.12) } },
-            ground: { enabled: false },
-          },
-          Splatting: {
-            enabled: true,
-            pack: { highPrecisionEnabled: true, cameraRelativeEnabled: false },
-          },
-          TAA: { enabled: false },
+      // ---- Spark 加载 InteriorGS compressed ply（dev：Vite 只读映射数据盘）----
+      const tLoad0 = performance.now()
+      setStatus(`加载点云… ${SPLAT_URL}`)
+      splats = new SplatMesh({
+        url: SPLAT_URL,
+        onProgress: (ev) => {
+          if (!ev.lengthComputable || !ev.total) return
+          const pct = ((ev.loaded / ev.total) * 100).toFixed(0)
+          setStatus(`加载点云… ${pct}%`)
         },
+        onLoad: (mesh) => {
+          if (disposed) return
+          const box = mesh.getBoundingBox(true)
+          const size = box.getSize(new THREE.Vector3())
+          const center = box.getCenter(new THREE.Vector3())
+          camera.far = Math.max(300, size.length() * 6)
+          camera.updateProjectionMatrix()
+
+          // 水平夹进 AABB（保留眼高）；朝向盒心 = 看向室内
+          const inset = 0.45
+          const p = camera.position
+          p.setComponent(h1, clamp(p.getComponent(h1), box.min.getComponent(h1) + inset, box.max.getComponent(h1) - inset))
+          p.setComponent(h2, clamp(p.getComponent(h2), box.min.getComponent(h2) + inset, box.max.getComponent(h2) - inset))
+          const dx = center.x - p.x
+          const dy = center.y - p.y
+          const dz = center.z - p.z
+          const len = Math.hypot(dx, dy, dz) || 1
+          if (upAxis === 2) {
+            st.yaw = Math.atan2(-dx, -dy)
+            st.pitch = clamp(Math.asin(clamp(dz / len, -1, 1)), -0.35, 0.35)
+          }
+
+          const ms = Math.round(performance.now() - tLoad0)
+          const cw = renderer?.domElement.width ?? 0
+          const ch = renderer?.domElement.height ?? 0
+          console.info(
+            '[boot] splat ready numSplats=%d loadMs=%d bbox=%o cam=%o canvas=%d×%d',
+            mesh.numSplats,
+            ms,
+            { size: size.toArray(), center: center.toArray() },
+            p.toArray().map((n) => +n.toFixed(2)),
+            cw,
+            ch,
+          )
+          setStatus(`场景就绪 · ${mesh.numSplats.toLocaleString()} 高斯 · WASD 漫游${upAxis === 2 ? ' · 黑屏先按 V' : ''}`, true)
+        },
+      })
+      scene.add(splats)
+      void splats.initialized.catch((e: unknown) => {
+        if (disposed) return
+        const msg = e instanceof Error ? e.message : String(e)
+        console.error('[boot] splat init failed', e)
+        errBox.style.display = 'flex'
+        const span = errBox.querySelector('span')
+        if (span) span.textContent = `点云加载失败：${msg}`
       })
 
       // ---- 渲染 + 行走主循环 ----
       let lastT = 0
-      const look = new Vector3()
+      const look = new THREE.Vector3()
       const tick = () => {
-        if (disposed || !viewer) return
+        if (disposed || !renderer) return
         const dt = Math.min(0.05, lastT ? (performance.now() - lastT) / 1000 : 0.016)
         lastT = performance.now()
 
@@ -296,8 +316,8 @@ export function AholoViewport() {
         }
 
         camera.lookAt(look.add(p))
-        lod?.tick(camera)
-        viewer.render()
+        camera.updateMatrixWorld(true)
+        renderer.render(scene, camera)
         raf = requestAnimationFrame(tick)
       }
       raf = requestAnimationFrame(tick)
@@ -422,7 +442,15 @@ export function AholoViewport() {
       window.addEventListener('keydown', onDown)
       window.addEventListener('keyup', onUp)
 
-      const ro = new ResizeObserver(() => viewer?.resize())
+      const ro = new ResizeObserver(() => {
+        if (!renderer) return
+        const w = Math.max(1, host.clientWidth)
+        const h = Math.max(1, host.clientHeight)
+        camera.aspect = w / h
+        camera.updateProjectionMatrix()
+        renderer.setSize(w, h, false)
+        console.info('[boot] resize canvas %d×%d', w, h)
+      })
       ro.observe(host)
 
       cleanupFns.push(() => {
@@ -451,11 +479,15 @@ export function AholoViewport() {
       cancelAnimationFrame(raf)
       cleanupFns.forEach((fn) => fn())
       try {
-        lod?.destroy()
+        splats?.dispose()
       } catch {
         /* noop */
       }
-      viewer?.pause()
+      if (renderer) {
+        renderer.dispose()
+        renderer.domElement.remove()
+        renderer = null
+      }
     }
   }, [])
 
