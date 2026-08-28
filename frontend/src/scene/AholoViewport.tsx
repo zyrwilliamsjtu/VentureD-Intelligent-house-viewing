@@ -292,6 +292,13 @@ export function AholoViewport() {
         const dt = Math.min(0.05, lastT ? (performance.now() - lastT) / 1000 : 0.016)
         lastT = performance.now()
 
+        // 非漫游视图（列表页是白底全盖）：只保留空帧循环，跳过点云渲染/漫游计算。
+        // 本地 3DGS 的 fetch+解析在 boot 里独立进行，不受影响 → 进房时数据已就绪秒开。
+        if (useAppStore.getState().view !== 'walk') {
+          raf = requestAnimationFrame(tick)
+          return
+        }
+
         const k = st.keys
         let ix = 0
         let iz = 0

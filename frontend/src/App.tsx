@@ -8,6 +8,7 @@ import { HouseList } from './components/HouseList'
 import { WalkHud } from './components/WalkHud'
 
 // 页面流转：splash 品牌页 → list 房源列表 → walk 第一人称漫游（返回列表不卸载 3D）
+// 性能：splash 是纯 DOM 落地页，不挂 3D 引擎（38MB 点云不白加载）；list 挂载但不渲染（白底盖住），walk 才真正渲染。
 // scene/camera_poses/chat 的 world_id 跟随选中房源（联调指南 §4.5）；
 // 未选房时默认 0330 作背景（也是 3D 视口的 LOD 世界，PI 决策 2）。
 const DEFAULT_WORLD = (import.meta.env.VITE_WORLD_ID as string | undefined) || 'w_0330_840483'
@@ -49,7 +50,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <AholoViewport />
+      {view !== 'splash' && <AholoViewport />}
       {view === 'walk' && <WalkHud />}
       {view === 'list' && <HouseList />}
       {view === 'splash' && <Splash />}
