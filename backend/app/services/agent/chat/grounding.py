@@ -155,6 +155,30 @@ def offer_topics(graph: dict) -> str:
     return bits[0] + "，或者" + bits[1]
 
 
+def catalog_brief(graph: dict) -> str:
+    """给 LLM 路由用的短目录：只列真实存在的房间名/家具类/挂牌字段，不塞整份 JSON。"""
+    rooms = [str(r.get("name") or "") for r in facts_mod.rooms_of(graph) if r.get("name")]
+    cats: list[str] = []
+    for inst in facts_mod.instances_of(graph):
+        if not isinstance(inst, dict):
+            continue
+        zh = CATEGORY_ZH.get(str(inst.get("category") or ""), "")
+        if zh and zh not in cats:
+            cats.append(zh)
+    house = facts_mod.house_of(graph) or {}
+    lines = [
+        "房间名（仅这些）：" + "、".join(rooms[:12]),
+        "家具类别（仅这些）：" + "、".join(cats[:16]),
+    ]
+    for key, label in (("type", "户型"), ("total_area", "面积"), ("price", "价格"), ("orientation", "朝向")):
+        val = house.get(key)
+        if val is not None and not is_placeholder_value(val):
+            lines.append(f"{label}={val}")
+        else:
+            lines.append(f"{label}=数据未提供")
+    return "\n".join(lines)
+
+
 def retrieve(
     intent: Intent,
     user_text: str | None,
@@ -166,7 +190,7 @@ def retrieve(
     house = facts_mod.house_of(scene_graph) or None
     hints = offer_topics(scene_graph)
 
-    if intent in (Intent.UNKNOWN, Intent.SMALLTALK):
+    if intent in (Intent.UNKNOWN, Intent.SMALLTALK, Intent.CLARIFY):
         return _facts(missing=False, query=text, house=house, hints=hints)
 
     if intent == Intent.ENTER_ROOM:

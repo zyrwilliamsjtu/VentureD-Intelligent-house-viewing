@@ -45,6 +45,7 @@ class Intent(str, Enum):
     INSTANCE = "instance"
     ENTER_ROOM = "enter_room"
     SMALLTALK = "smalltalk"
+    CLARIFY = "clarify"
     UNKNOWN = "unknown"
 
 
@@ -99,6 +100,8 @@ def understand(
     has_attr = any(h in text for h in _ATTR_HINTS)
     has_entity = bool(room_hit or inst_hit)
 
+    if is_vague_overview(text):
+        return Intent.CLARIFY
     if has_nav:
         return Intent.NAVIGATION
     if inst_hit and has_attr:
@@ -114,6 +117,25 @@ def understand(
     if any(s in text.lower() for s in _SMALLTALK) and not has_entity:
         return Intent.SMALLTALK
     return Intent.UNKNOWN
+
+
+_VAGUE = ("怎么样", "感觉", "适不适合", "值不值", "整体印象", "整体感觉")
+_SPECIFIC = ("多大", "面积", "价格", "朝向", "户型", "几室", "多少钱", "层高", "在哪", "在哪儿")
+
+
+def is_vague_overview(text: str) -> bool:
+    """无具体指标的「房子怎么样/适不适合」→ 澄清，不硬答。"""
+    t = (text or "").strip()
+    if not t or any(k in t for k in _SPECIFIC):
+        return False
+    about_house = any(k in t for k in ("这套房", "这房子", "这屋", "房子"))
+    vague = any(k in t for k in _VAGUE) or ("适合" in t and "人" in t)
+    return about_house and vague
+
+
+def needs_llm_route(intent: Intent) -> bool:
+    """仅开放/模糊问题走 LLM 语义理解；导航/户型/实例关键词走规则快路径。"""
+    return intent == Intent.UNKNOWN
 
 
 def classify_intent(

@@ -115,7 +115,10 @@ def test_responses_fallback_when_completions_404(monkeypatch: pytest.MonkeyPatch
                     "output": [
                         {
                             "content": [
-                                {"type": "output_text", "text": "根据场景事实，这套房适合三口之家。"}
+                                {
+                                    "type": "output_text",
+                                    "text": '{"intent":"unknown","clarify":false,"confidence":0.8,"reply":"根据目录，这套房适合三口之家。"}',
+                                }
                             ]
                         }
                     ]
@@ -125,7 +128,7 @@ def test_responses_fallback_when_completions_404(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr("app.services.agent.chat.llm_provider.httpx.Client", _Client)
     sid = "s_llm_responses"
     session_store.clear(sid)
-    body = handle_chat(session_id=sid, world_id=WORLD, user_text="这套房适合什么人住")
+    body = handle_chat(session_id=sid, world_id=WORLD, user_text="帮我参谋怎么住比较合适")
     assert "三口" in body["reply_text"] or "适合" in body["reply_text"]
     assert calls["n"] == 2
     session_store.clear(sid)
@@ -133,11 +136,23 @@ def test_responses_fallback_when_completions_404(monkeypatch: pytest.MonkeyPatch
 
 def test_enhance_override_keeps_actions(monkeypatch: pytest.MonkeyPatch) -> None:
     class _Fake:
-        called = False
+        routed = False
+        enhanced = False
+
+        def route(self, user_text, catalog, history):
+            _ = catalog, history
+            type(self).routed = True
+            return {
+                "intent": "navigation",
+                "room": "主卧",
+                "confidence": 0.92,
+                "clarify": False,
+                "reply": "好的，带您去主卧看看。",
+            }
 
         def enhance(self, facts, user_text, history):
             _ = facts, history
-            type(self).called = True
+            type(self).enhanced = True
             return f"LLM改写:{user_text}"
 
     monkeypatch.setattr(
@@ -150,14 +165,54 @@ def test_enhance_override_keeps_actions(monkeypatch: pytest.MonkeyPatch) -> None
     assert "带您去主卧" in nav["reply_text"]
     assert "LLM改写" not in nav["reply_text"]
     assert nav["actions"][0]["tp_id"] == "tp_bedroom_master"
-    assert _Fake.called is False
+    assert _Fake.routed is False
+    assert _Fake.enhanced is False
 
-    sid2 = "s_llm_fake_prop"
+    sid2 = "s_llm_fake_open"
     session_store.clear(sid2)
-    prop = handle_chat(session_id=sid2, world_id=WORLD, user_text="这套房适合什么人住")
-    assert prop["reply_text"] == "LLM改写:这套房适合什么人住"
+    opened = handle_chat(session_id=sid2, world_id=WORLD, user_text="帮我参谋怎么住比较合适")
+    assert _Fake.routed is True
+    assert "带您去主卧" in opened["reply_text"]
+    assert opened["actions"][0]["tp_id"] == "tp_bedroom_master"
+    assert "position" not in opened["actions"][0]
     session_store.clear(sid)
     session_store.clear(sid2)
+
+
+def test_llm_route_drops_hallucinated_numbers(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _Fake:
+        def route(self, user_text, catalog, history):
+            _ = user_text, catalog, history
+            return {
+                "intent": "unknown",
+                "confidence": 0.9,
+                "clarify": False,
+                "reply": "学区房501万，靠近地铁。",
+            }
+
+        def enhance(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr(
+        "app.services.agent.service.get_chat_llm_provider",
+        lambda: _Fake(),
+    )
+    sid = "s_llm_hallu"
+    session_store.clear(sid)
+    body = handle_chat(session_id=sid, world_id=WORLD, user_text="帮我参谋怎么住比较合适")
+    assert "501" not in body["reply_text"]
+    assert "学区" not in body["reply_text"]
+    assert "地铁" not in body["reply_text"]
+    session_store.clear(sid)
+
+
+def test_parse_route_json_extracts_object() -> None:
+    from app.services.agent.chat.llm_provider import parse_route_json
+
+    raw = '废话```json\n{"intent":"clarify","confidence":0.4}\n```'
+    data = parse_route_json(raw)
+    assert data is not None
+    assert data["intent"] == "clarify"
 
 
 def test_system_prompt_sales_and_no_hallucination() -> None:

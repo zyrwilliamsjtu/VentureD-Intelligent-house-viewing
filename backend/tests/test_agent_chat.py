@@ -190,3 +190,20 @@ def test_navigation_no_duplicate_teleport() -> None:
     assert len(teles) == 1
     assert teles[0]["tp_id"] == "tp_bedroom_master"
 
+
+def test_clarify_vague_house() -> None:
+    body = _chat("这房子怎么样")
+    text = body["reply_text"]
+    assert "户型" in text and "价格" in text and "朝向" in text
+    assert "南" not in text
+    assert "actions" not in body
+
+
+def test_context_mentions_previous_turn() -> None:
+    sid = "s_ctx"
+    session_store.clear(sid)
+    handle_chat(session_id=sid, world_id=WORLD, user_text="主卧在哪")
+    body = handle_chat(session_id=sid, world_id=WORLD, user_text="今天天气如何")
+    assert "主卧在哪" in body["reply_text"] or "刚提到" in body["reply_text"]
+    session_store.clear(sid)
+

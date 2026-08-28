@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import re
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -11,8 +13,17 @@ from app.config import chat_provider_name, llm_api_key, llm_base_url, llm_model
 from app.services.agent._openai_http import bearer_headers, join_url
 from app.services.agent.chat.grounding import Facts, is_placeholder_value
 
-# SPEC §0：chat 30s
+_ROUTE_TIMEOUT = 12.0
 _TIMEOUT = 30.0
+_ROUTE_SYSTEM = (
+    "你是置业顾问小安的意图分类器。只根据【目录】里出现的房间名、家具类、户型字段作答，禁止编造目录没有的内容。"
+    "只输出一个 JSON 对象，不要 markdown，不要其它文字。"
+    '格式：{"intent":"navigation|property|instance|clarify|unknown","room":null或目录中的房间名,'
+    '"category":null或目录中的家具中文名,"asked_keys":[],"clarify":false,"confidence":0到1,'
+    '"reply":"简短中文话术"}。'
+    "开放问题若说不清对象：intent=clarify，reply 反问户型/价格/朝向。"
+    "reply 里的数字必须来自目录；没有的价格朝向不要编。导航 intent 的 reply 不要写坐标。"
+)
 _COMPLETIONS_PATH = "/chat/completions"
 _RESPONSES_PATH = "/responses"
 
@@ -30,6 +41,16 @@ last_chat_api: str = ""
 
 
 class ChatLLMProvider(ABC):
+    def route(
+        self,
+        user_text: str | None,
+        catalog: str,
+        history: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        """开放问题：结构化意图。失败返回 None。"""
+        _ = user_text, catalog, history
+        return None
+
     @abstractmethod
     def enhance(
         self,
@@ -134,6 +155,26 @@ def _parse_responses(data: object) -> str | None:
     return text or None
 
 
+def parse_route_json(text: str | None) -> dict[str, Any] | None:
+    """从模型输出里抠 JSON；失败返回 None。"""
+    if not text or not str(text).strip():
+        return None
+    raw = str(text).strip()
+    fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.S)
+    if fence:
+        raw = fence.group(1)
+    else:
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start >= 0 and end > start:
+            raw = raw[start : end + 1]
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
 def _try_chat_completions(
     client: httpx.Client,
     base: str,
@@ -223,6 +264,48 @@ class OpenAICompatChatLLMProvider(ChatLLMProvider):
             if text:
                 last_chat_api = "responses"
                 return text
+        return None
+
+    def route(
+        self,
+        user_text: str | None,
+        catalog: str,
+        history: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        key = llm_api_key()
+        base = llm_base_url()
+        model = llm_model()
+        if not key or not base or not model:
+            return None
+        user_block = (
+            f"用户：{(user_text or '').strip() or '（无文本）'}\n\n【目录】\n{catalog}"
+        )
+        messages: list[dict[str, str]] = [{"role": "system", "content": _ROUTE_SYSTEM}]
+        for item in (history or [])[-4:]:
+            if not isinstance(item, dict):
+                continue
+            role = item.get("role")
+            text = item.get("text")
+            if role in ("user", "assistant") and text:
+                messages.append({"role": str(role), "content": str(text)[:200]})
+        messages.append({"role": "user", "content": user_block})
+        headers = {**bearer_headers(key), "Content-Type": "application/json"}
+        global last_chat_api
+        last_chat_api = ""
+        try:
+            with httpx.Client(timeout=_ROUTE_TIMEOUT) as client:
+                text = _try_chat_completions(client, base, model, messages, headers)
+                if text:
+                    last_chat_api = "chat/completions"
+                    parsed = parse_route_json(text)
+                    if parsed:
+                        return parsed
+                text = _try_responses(client, base, model, messages, headers)
+                if text:
+                    last_chat_api = "responses"
+                    return parse_route_json(text)
+        except Exception:
+            return None
         return None
 
 
