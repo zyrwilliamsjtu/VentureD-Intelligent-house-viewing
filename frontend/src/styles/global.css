@@ -104,6 +104,11 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .resume-title { color: #f2f4ff; font-size: 19px; font-weight: 700; letter-spacing: 0.14em; margin-bottom: 8px; }
 .resume-sub { color: #8a90a8; font-size: 12.5px; letter-spacing: 0.06em; }
 
+/* ---- 加载仪表盘（黑屏期间显示每步进度，z 高于遮罩低于错误层）---- */
+.boot-status { position: absolute; left: 50%; bottom: 72px; transform: translateX(-50%); z-index: 25; pointer-events: none; font-size: 12.5px; font-weight: 600; color: #cfd6f4; background: rgba(16, 18, 28, 0.72); border: 1px solid rgba(255, 255, 255, 0.14); padding: 6px 16px; border-radius: 999px; backdrop-filter: blur(8px); animation: pulse-soft 1.6s ease-in-out infinite; transition: opacity 0.8s ease; }
+.boot-status.done { opacity: 0; animation: none; }
+@keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
 /* ---- WebGL 不可用兜底 ---- */
 /* 错误层必须压过 resume-overlay(21)/walk-hud(20)，否则黑屏原因被遮罩盖住 */
 .no-webgl { display: flex; align-items: center; justify-content: center; z-index: 30; background: #0a0b10; }

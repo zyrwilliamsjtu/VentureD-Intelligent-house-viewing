@@ -11,7 +11,7 @@ import {
   type IViewerContext,
 } from '@manycore/aholo-viewer'
 import { loadVoxelCollision, type VoxelCollision } from './voxel'
-import { loadRoomPolys, roomAtCloud, type RoomPoly } from './coords'
+import { loadRoomPolys, roomAtCloud, cloudRuleFor, type RoomPoly } from './coords'
 import { useAppStore } from '../store/useAppStore'
 
 // ==== 群核全栈视口：LOD 流式渲染 + 体素碰撞 + 点击传送 + 自动出生点 ====
@@ -56,11 +56,21 @@ function webglOk(): boolean {
 export function AholoViewport() {
   const hostRef = useRef<HTMLDivElement>(null)
   const errRef = useRef<HTMLDivElement>(null)
+  const statusRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const host = hostRef.current
     const errBox = errRef.current
+    const statusBox = statusRef.current
     if (!host || !errBox) return
+
+    /** 加载仪表盘：黑屏期间把每一步进度写在屏幕上（无需开 F12），完成 1.2s 后淡出 */
+    const setStatus = (text: string, done = false) => {
+      if (!statusBox) return
+      statusBox.textContent = text
+      statusBox.classList.toggle('done', done)
+      console.info('[boot]', text)
+    }
 
     let viewer: Viewer | null = null
     let lod: SplatUtils.LodSplat | null = null
@@ -68,22 +78,25 @@ export function AholoViewport() {
     let disposed = false
     const st = { yaw: 0, pitch: 0, vx: 0, vz: 0, keys: new Set<string>() }
     let vox: VoxelCollision | null = null
-    let upSign: 1 | -1 = -1 // 体素加载后按网格自动校正（0330 为 IG 原生 Z-up → +1）
+    // 兜底 up 轴：已登记世界（0330）为 IG 原生 Z-up(+1)，体素加载成功后仍会按网格自动校正；
+    // 未登记世界维持旧默认 -1。修复：体素加载失败时对拍世界不再掉到地板下面导致黑屏
+    let upSign: 1 | -1 = cloudRuleFor(WORLD_ID) ? 1 : -1
     let roomPolys: RoomPoly[] = [] // 房间归因 polygon（对拍世界才有；空则 room_id=null）
     let ctxLast = 0
 
     const boot = async () => {
+      setStatus('初始化渲染引擎…')
       if (!webglOk()) {
         errBox.style.display = 'flex'
         return
       }
-
       viewer = createViewer('house-walk', host, {})
       const scene = viewer.getScene()
       const camera = new PerspectiveCamera(72, host.clientWidth / Math.max(1, host.clientHeight), 0.05, 300)
       viewer.setCamera(camera)
 
       // ---- 体素碰撞（失败不阻塞渲染，降级为无碰撞漫游）----
+      setStatus('加载碰撞体…')
       try {
         vox = await loadVoxelCollision(VOXEL_META_URL)
         if (vox) {
@@ -95,9 +108,13 @@ export function AholoViewport() {
             const g = vox.meta.gridBounds
             st.yaw = Math.atan2(-(g.max[0] + g.min[0]) / 2 + spawn.x, -(g.max[2] + g.min[2]) / 2 + spawn.z)
           }
+          setStatus(`碰撞体 ✓（up=${upSign > 0 ? '+Z' : '-Y'}）`)
           console.info('[voxel] 碰撞就绪 up=%d spawn=%o', upSign, spawn)
+        } else {
+          setStatus('碰撞体 ✗（无碰撞漫游，可穿墙）')
         }
       } catch (e) {
+        setStatus('碰撞体 ✗（无碰撞漫游，可穿墙）')
         console.warn('[voxel] 加载失败，本次漫游无碰撞', e)
       }
       if (camera.position.lengthSq() < 1e-9) {
@@ -116,13 +133,32 @@ export function AholoViewport() {
       }
 
       // ---- LOD 流式加载（分块多级，视锥调度）----
-      const metaRes = await fetch(LOD_META_URL)
-      if (!metaRes.ok) throw new Error(`lod-meta 下载失败 HTTP ${metaRes.status}`)
-      const lodMeta = await metaRes.json()
+      setStatus('下载点云索引…')
+      const ctrl = new AbortController()
+      const metaTimer = window.setTimeout(() => ctrl.abort(), 20_000) // 卡死不再是无限黑屏
+      let lodMeta: ConstructorParameters<typeof SplatUtils.LodSplat>[0] | undefined
+      try {
+        const metaRes = await fetch(LOD_META_URL, { signal: ctrl.signal })
+        if (!metaRes.ok) throw new Error(`lod-meta 下载失败 HTTP ${metaRes.status}`)
+        lodMeta = await metaRes.json()
+      } catch (e) {
+        throw new Error(
+          e instanceof DOMException && e.name === 'AbortError'
+            ? '点云索引下载超时（20s），请检查网络后刷新'
+            : `lod-meta 下载失败：${e instanceof Error ? e.message : String(e)}`,
+        )
+      } finally {
+        window.clearTimeout(metaTimer)
+      }
+      if (!lodMeta) throw new Error('点云索引解析失败（空内容）')
       lod = new SplatUtils.LodSplat(lodMeta, undefined, viewer as unknown as IViewerContext)
       scene.add(lod.container)
       lod.start()
-      void lod.onFinishSchedule()
+      setStatus('加载点云…（视网络 10–60 秒，期间画面逐块出现）')
+      void lod
+        .onFinishSchedule()
+        .then(() => setStatus('场景就绪 · WASD 漫游', true))
+        .catch(() => {}) // 调度完成回调失败不影响渲染
 
       // ---- 官方 Preset「效果优先」----
       setViewerConfig(viewer, {
@@ -347,6 +383,9 @@ export function AholoViewport() {
   return (
     <>
       <div className="canvas-host" ref={hostRef} />
+      <div className="boot-status" ref={statusRef}>
+        初始化渲染引擎…
+      </div>
       <div className="canvas-host no-webgl" ref={errRef} style={{ display: 'none' }}>
         <div>
           <b>当前环境不支持 WebGL</b>
