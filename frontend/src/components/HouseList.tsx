@@ -105,7 +105,7 @@ export function HouseList() {
         </div>
         <div className="hl-city">
           <span className="hl-city-dot" />
-          上海 Shanghai · 10 套在展
+          上海 Shanghai · {LISTINGS.length} 套在展
         </div>
       </header>
 

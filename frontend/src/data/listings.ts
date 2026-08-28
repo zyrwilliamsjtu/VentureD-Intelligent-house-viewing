@@ -1,13 +1,18 @@
-// ==== 房源列表数据（v2 · 2026-08-28 队友下发 10 套 InteriorGS 真实场景）====
-// 10 套户型/面积/世界 id 全部来自真实数据集（floorplans.gen.ts 程序提取，勿手改）；
+// ==== 房源列表数据（v2.1 · 2026-08-28 精选 5 套）====
+// 户型/面积/world id 来自队友 InteriorGS 真实数据（floorplans.gen.ts 程序提取，勿手改）；
 // 挂牌信息（小区名/价格/朝向/楼层/文案）为演示营销层数据。
+// 展示 5 套（FEATURED 白名单）：0330 唯一可漫游 + 4 套价位/户型段位互补；
+// 恢复 10 套展示只需改回 Object.values(SCENE_FLOORS)。
 // 3D 漫游现状：仅 0330 完成 Aholo LOD 转码 + 后端 scene_graph（isReal=true），
-// 其余 9 套点云就绪（plyReady=true）待 LOD 转码，点击以 0330 实景演示。
+// 其余套数点云就绪（plyReady=true）待 LOD 转码，点击以 0330 实景演示。
 // 接入新场景三步：队友提供 LOD_META_URL → Listing.viewerUrl 填入 → scene/coords.ts 登记 CLOUD_RULES。
 
 import { SCENE_FLOORS } from './floorplans.gen'
 
 export type RoomPoly = { name: string; poly: [number, number][]; area?: number }
+
+/** 展示白名单（5 套：0330 可漫游 + 两居/三居/洋房/江景大平层） */
+const FEATURED = ['w_0330_840483', 'w_0309_840544', 'w_0257_840812', 'w_0469_840829', 'w_0295_840492']
 
 export interface Listing {
   id: string
@@ -116,6 +121,7 @@ const META: Record<string, { title: string; unit: number; orientation: string; f
 
 // ---- 真实数据 × 营销层合成（0330 置顶：唯一可直接漫游）----
 export const LISTINGS: Listing[] = Object.values(SCENE_FLOORS)
+  .filter((f) => FEATURED.includes(f.worldId))
   .map((f) => {
     const key = f.worldId.replace('w_', '')
     const m = META[key]

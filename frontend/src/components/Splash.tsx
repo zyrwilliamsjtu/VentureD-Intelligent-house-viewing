@@ -1,4 +1,5 @@
 import { useAppStore } from '../store/useAppStore'
+import { LISTINGS } from '../data/listings'
 
 // ==== 开场页：暗色编辑部风（Odin's Crow 参考）====
 // 上下等宽页眉/页脚 + 居中大衬线标题；场景数据后台预载，不阻塞开场
@@ -25,7 +26,7 @@ export function Splash() {
           <button className="splash-btn" onClick={enterList}>
             开始看房
           </button>
-          <div className="splash-hint mono">10 套精选房源 · 支持语音提问</div>
+          <div className="splash-hint mono">{LISTINGS.length} 套精选房源 · 支持语音提问</div>
         </div>
 
         <div className="splash-bottom mono">
