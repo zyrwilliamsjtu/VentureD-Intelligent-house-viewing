@@ -43,7 +43,7 @@ TOUR_PATH = [
     "room_bathroom_2",
 ]
 
-RULE_AREA_REPLY = "三室一厅，120.1㎡。"
+RULE_AREA_REPLY = "这套房户型是三室一厅，建面约 120.1㎡。需要的话我可以再带您看看房间。"
 _LIVE_FAILS = 0
 RUN: dict[str, object] = {"mode1": {}, "mode2": {}, "live": {}}
 
@@ -318,7 +318,7 @@ def test_mode2_hallucination_guards() -> None:
 
     _, missing = _chat("钢琴在哪", sid="s_full_piano")
     miss_text = missing.get("reply_text") or ""
-    assert "没有" in miss_text and "可靠信息" in miss_text
+    assert "没有" in miss_text and ("可靠信息" in miss_text or "暂未提供" in miss_text)
     assert "actions" not in missing
 
     _, fridge = _chat("冰箱多大", sid="s_full_fridge")
@@ -327,7 +327,7 @@ def test_mode2_hallucination_guards() -> None:
 
     _, orient = _chat("这套房朝向怎么样", sid="s_full_orient")
     orient_text = orient.get("reply_text") or ""
-    assert "数据未提供" in orient_text
+    assert "暂未提供" in orient_text or "数据未提供" in orient_text
     assert "南" not in orient_text
 
     RUN["mode2"]["guards"] = {

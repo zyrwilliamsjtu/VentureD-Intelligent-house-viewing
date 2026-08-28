@@ -25,6 +25,7 @@ class Facts(TypedDict):
     host_room: dict | None
     house: dict | None
     asked_keys: list[str]
+    hints: str
 
 
 def _facts(**kwargs: Any) -> Facts:
@@ -36,13 +37,15 @@ def _facts(**kwargs: Any) -> Facts:
         "host_room": None,
         "house": None,
         "asked_keys": [],
+        "hints": "",
     }
     base.update(kwargs)  # type: ignore[typeddict-item]
     return base
 
 
-def empty_facts(query: str = "") -> Facts:
-    return _facts(missing=True, query=query)
+def empty_facts(query: str = "", *, graph: dict | None = None) -> Facts:
+    hints = offer_topics(graph) if graph else ""
+    return _facts(missing=True, query=query, hints=hints)
 
 
 def is_placeholder_value(value: Any) -> bool:
@@ -115,6 +118,43 @@ def _asked_property_keys(text: str) -> list[str]:
     return asked
 
 
+def offer_topics(graph: dict) -> str:
+    """可答方向（仅 scene_graph 里有的名字），供引导话术与 LLM。"""
+    names: list[str] = []
+    for room in facts_mod.rooms_of(graph):
+        name = str(room.get("name") or "").strip()
+        if not name or name == "其他" or name in names:
+            continue
+        names.append(name)
+        if len(names) >= 3:
+            break
+    cats: list[str] = []
+    for inst in facts_mod.instances_of(graph):
+        if not isinstance(inst, dict):
+            continue
+        cat = str(inst.get("category") or "")
+        zh = CATEGORY_ZH.get(cat, cat)
+        if zh and zh not in cats:
+            cats.append(zh)
+        if len(cats) >= 3:
+            break
+    house = facts_mod.house_of(graph) or {}
+    bits: list[str] = []
+    if names:
+        bits.append("带您看看" + "、".join(names))
+    if house.get("type") and not is_placeholder_value(house.get("type")):
+        bits.append("介绍一下户型")
+    elif house.get("total_area") and not is_placeholder_value(house.get("total_area")):
+        bits.append("介绍一下面积")
+    if cats:
+        bits.append("问问" + "、".join(cats))
+    if not bits:
+        return "介绍一下这套房里能看到的房间"
+    if len(bits) == 1:
+        return bits[0]
+    return bits[0] + "，或者" + bits[1]
+
+
 def retrieve(
     intent: Intent,
     user_text: str | None,
@@ -124,19 +164,20 @@ def retrieve(
 ) -> Facts:
     text = (user_text or "").strip()
     house = facts_mod.house_of(scene_graph) or None
+    hints = offer_topics(scene_graph)
 
     if intent in (Intent.UNKNOWN, Intent.SMALLTALK):
-        return _facts(missing=False, query=text, house=house)
+        return _facts(missing=False, query=text, house=house, hints=hints)
 
     if intent == Intent.ENTER_ROOM:
         room = facts_mod.find_room_by_id(scene_graph, room_id) if room_id else None
         if room is None:
-            return empty_facts(room_id or text)
-        return _facts(query=text, room=room, house=house)
+            return empty_facts(room_id or text, graph=scene_graph)
+        return _facts(query=text, room=room, house=house, hints=hints)
 
     if intent == Intent.PROPERTY:
         asked = _asked_property_keys(text) or ["type", "total_area"]
-        return _facts(query=text, house=house, asked_keys=asked)
+        return _facts(query=text, house=house, asked_keys=asked, hints=hints)
 
     inst, host = find_instance_in_text(scene_graph, text)
     room = find_room_in_text(scene_graph, text)
@@ -144,18 +185,18 @@ def retrieve(
     if intent == Intent.NAVIGATION:
         inst_hit = _longest_in_text(text, instance_keywords_of(scene_graph))
         if inst is not None and inst_hit:
-            return _facts(query=text, instance=inst, host_room=host, house=house)
+            return _facts(query=text, instance=inst, host_room=host, house=house, hints=hints)
         if room is not None:
-            return _facts(query=text, room=room, house=house)
+            return _facts(query=text, room=room, house=house, hints=hints)
         if inst is not None:
-            return _facts(query=text, instance=inst, host_room=host, house=house)
+            return _facts(query=text, instance=inst, host_room=host, house=house, hints=hints)
         zh = _longest_in_text(text, list(CATEGORY_ZH.values()))
-        return empty_facts(zh or text)
+        return empty_facts(zh or text, graph=scene_graph)
 
     if intent == Intent.INSTANCE:
         if inst is None:
             zh = _longest_in_text(text, list(CATEGORY_ZH.values()))
-            return empty_facts(zh or text)
-        return _facts(query=text, instance=inst, host_room=host, house=house)
+            return empty_facts(zh or text, graph=scene_graph)
+        return _facts(query=text, instance=inst, host_room=host, house=house, hints=hints)
 
-    return empty_facts(text)
+    return empty_facts(text, graph=scene_graph)

@@ -1,15 +1,18 @@
-"""模板回复。只填 grounding 得到的字段，不从常识补全。"""
+"""模板回复。只填 grounding 得到的字段，不从常识补全。友好引导 ≠ 编造。"""
 
 from __future__ import annotations
 
-from app.services.agent.chat.grounding import Facts, is_placeholder_field, is_placeholder_value
+from app.services.agent.chat.grounding import Facts, is_placeholder_field, is_placeholder_value, offer_topics
 from app.services.agent.chat.intent import CATEGORY_ZH, Intent
 
 _SKIP_ATTR_KEYS = frozenset({"source_label"})
 
-SMALLTALK_REPLY = "您好，我是 AI 置业顾问小安，可以带您了解这套房。"
-UNKNOWN_REPLY = "我可以帮您了解这套房（房间、家具、户型）。请问您想问什么？"
-MISSING_REPLY = "这套房里没有关于「{q}」的可靠信息。"
+SMALLTALK_REPLY = "您好，我是 AI 置业顾问小安。这套房我可以带您看房间、讲户型，您想先看哪一间？"
+UNKNOWN_REPLY = (
+    "这套房我可以带您看房间和家具，也可以介绍户型、面积。"
+    "您想先看哪一间，或者问一件家具也可以。"
+)
+MISSING_REPLY = "抱歉，这套房暂时没有「{q}」的可靠信息，这项暂未提供。"
 
 
 def _zh_category(inst: dict) -> str:
@@ -32,16 +35,19 @@ def _public_attrs(inst: dict) -> dict[str, str]:
     return out
 
 
+def _guide_tail(graph: dict) -> str:
+    return f"不过我可以{offer_topics(graph)}，您看需要吗？"
+
+
 def generate(facts: Facts, intent: Intent, scene_graph: dict) -> str:
-    _ = scene_graph
     if intent == Intent.SMALLTALK:
         return SMALLTALK_REPLY
     if intent == Intent.UNKNOWN and not facts["missing"]:
-        return UNKNOWN_REPLY
+        return f"{UNKNOWN_REPLY}比如我可以{offer_topics(scene_graph)}。"
 
     if facts["missing"]:
         q = facts.get("query") or "这项"
-        return MISSING_REPLY.format(q=q)
+        return MISSING_REPLY.format(q=q) + _guide_tail(scene_graph)
 
     if intent == Intent.ENTER_ROOM:
         room = facts["room"] or {}
@@ -51,7 +57,7 @@ def generate(facts: Facts, intent: Intent, scene_graph: dict) -> str:
         points = room.get("selling_points")
         if isinstance(points, list) and points:
             return "；".join(str(p) for p in points if p)
-        return MISSING_REPLY.format(q=room.get("name") or "这个房间")
+        return MISSING_REPLY.format(q=room.get("name") or "这个房间") + _guide_tail(scene_graph)
 
     if intent == Intent.NAVIGATION:
         inst = facts["instance"]
@@ -59,33 +65,40 @@ def generate(facts: Facts, intent: Intent, scene_graph: dict) -> str:
             host = facts["host_room"] or {}
             name = _zh_category(inst)
             where = host.get("name") or "屋里"
-            return f"好的，带您去看{name}，在{where}。"
+            return f"好的，这就带您去看{where}的{name}，我帮您看一下。"
         room = facts["room"] or {}
         name = str(room.get("name") or "那里")
+        area = room.get("area")
         card = str(room.get("story_card") or "").strip()
+        lead = f"好的，这就带您去{name}"
+        if isinstance(area, (int, float)):
+            lead += f"，{name}约 {area} 平"
         if card:
-            return f"好的，带您去{name}。{card}"
-        return f"好的，带您去{name}。"
+            return f"{lead}。{card}"
+        return lead + "。"
 
     if intent == Intent.PROPERTY:
-        return _property_reply(facts)
+        return _property_reply(facts, scene_graph)
 
     if intent == Intent.INSTANCE:
         inst = facts["instance"] or {}
         name = _zh_category(inst)
+        host = facts["host_room"] or {}
+        where = str(host.get("name") or "").strip()
         attrs = _public_attrs(inst)
         tag = inst.get("tag")
         bits = [f"{k}:{v}" for k, v in attrs.items()]
         if tag and str(tag) not in bits:
             bits.insert(0, str(tag))
+        prefix = f"{where}的{name}" if where else name
         if not bits:
-            return f"这套房的{name}没有更多信息。"
-        return f"{name}：{'，'.join(bits)}。"
+            return f"{prefix}我帮您看一下，这套房没有更多尺寸或品牌信息。"
+        return f"{prefix}，我帮您看一下：{'，'.join(bits)}。"
 
-    return UNKNOWN_REPLY
+    return f"{UNKNOWN_REPLY}比如我可以{offer_topics(scene_graph)}。"
 
 
-def _property_reply(facts: Facts) -> str:
+def _property_reply(facts: Facts, scene_graph: dict) -> str:
     house = facts["house"] or {}
     asked = facts.get("asked_keys") or ["type", "total_area"]
     chunks: list[str] = []
@@ -110,16 +123,21 @@ def _property_reply(facts: Facts) -> str:
             missing_named.append(labels.get(key, key))
             continue
         if key == "total_area" and val is not None:
-            chunks.append(f"{val}㎡")
+            chunks.append(f"建面约 {val}㎡")
         elif key == "ceiling_height" and val is not None:
             chunks.append(f"层高{val}米")
+        elif key == "type" and val:
+            chunks.append(f"户型是{val}")
         elif val:
             chunks.append(str(val))
 
+    guide = _guide_tail(scene_graph)
     if chunks and not missing_named:
-        return "，".join(chunks) + "。"
+        return "这套房" + "，".join(chunks) + "。需要的话我可以再带您看看房间。"
     if chunks and missing_named:
-        return "，".join(chunks) + "。" + "、".join(missing_named) + "数据未提供。"
+        miss = "、".join(missing_named)
+        return "这套房" + "，".join(chunks) + f"。{miss}暂未提供（数据未提供）。{guide}"
     if missing_named:
-        return "、".join(missing_named) + "数据未提供。"
-    return MISSING_REPLY.format(q="户型")
+        miss = "、".join(missing_named)
+        return f"抱歉，这套房暂时没有{miss}信息，这项暂未提供（数据未提供）。{guide}"
+    return MISSING_REPLY.format(q="户型") + guide

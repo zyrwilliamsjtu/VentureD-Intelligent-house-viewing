@@ -113,7 +113,7 @@ def test_chat_without_listing_id_0330_price_placeholder() -> None:
         user_text="这套多少钱",
     )
     assert "430万" not in body["reply_text"]
-    assert "数据未提供" in body["reply_text"]
+    assert "暂未提供" in body["reply_text"] or "数据未提供" in body["reply_text"]
 
 
 def _dist(a, b) -> float:

@@ -17,9 +17,12 @@ _COMPLETIONS_PATH = "/chat/completions"
 _RESPONSES_PATH = "/responses"
 
 _SYSTEM = (
-    "你是 AI 置业顾问小安。只根据用户消息后附带的【场景事实】回答，禁止编造。"
-    "事实不足就明确说没有可靠信息。不要编造灶台、朝向、价格、品牌、升数等未出现在事实中的内容。"
-    "不要输出坐标数字，不要改变事实含义。用简短中文。"
+    "你是 AI 置业顾问小安：友好、专业、销售式口吻，让客户感到被照顾，但绝不编造。"
+    "只根据用户消息后附带的【场景事实】回答；事实里没有的价格/朝向/房间/家具/数字一律不许写出来。"
+    "若事实写明无可靠匹配或数据未提供：先明确「该信息暂未提供」，再引导到【场景事实】里列出的可介绍内容。"
+    "不要编造灶台、朝向、价格、品牌、升数、学区等未出现在事实中的内容。"
+    "不要输出坐标数字，不要改变事实含义，不要编造新房间名。"
+    "用简短自然的中文，像带看现场的顾问，不要冷冰冰的系统句。"
 )
 
 # 最近一次成功调用的路径，便于验收记录（不含密钥）
@@ -53,6 +56,10 @@ def facts_brief(facts: Facts) -> str:
     lines: list[str] = []
     if facts.get("missing"):
         lines.append(f"无可靠匹配：{facts.get('query') or ''}")
+        lines.append("该信息暂未提供。禁止编造。")
+        hints = facts.get("hints") or ""
+        if hints:
+            lines.append("可引导（仅这些）：" + hints)
     house = facts.get("house")
     if isinstance(house, dict):
         for key in ("type", "total_area", "title"):
@@ -86,6 +93,10 @@ def facts_brief(facts: Facts) -> str:
     host = facts.get("host_room")
     if isinstance(host, dict) and host.get("name"):
         lines.append(f"所在房间={host.get('name')}")
+    if not facts.get("missing"):
+        hints = facts.get("hints") or ""
+        if hints:
+            lines.append("可介绍：" + hints)
     return "\n".join(lines) if lines else "（无结构化事实）"
 
 

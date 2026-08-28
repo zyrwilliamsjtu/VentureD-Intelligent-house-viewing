@@ -79,7 +79,7 @@ def test_smalltalk() -> None:
 
 def test_unknown() -> None:
     body = _chat("今天天气如何")
-    assert "请问您想问什么" in body["reply_text"]
+    assert "请问您想问什么" in body["reply_text"] or "想先看哪一间" in body["reply_text"]
     assert "actions" not in body
 
 
@@ -99,7 +99,7 @@ def test_stove_not_invented() -> None:
 
 def test_orientation_placeholder_not_embellished() -> None:
     body = _chat("这套房朝向怎么样")
-    assert "数据未提供" in body["reply_text"]
+    assert "暂未提供" in body["reply_text"] or "数据未提供" in body["reply_text"]
     assert "南" not in body["reply_text"]
 
 
@@ -133,3 +133,60 @@ def test_unknown_world_404() -> None:
         handle_chat(session_id="s_x", world_id="w_nope", user_text="hi")
     assert exc.value.status_code == 404
     assert exc.value.code == "WORLD_NOT_FOUND"
+
+
+def test_nav_friendly_grounded_area() -> None:
+    body = _chat("主卧在哪")
+    assert "这就带您去主卧" in body["reply_text"] or "带您去主卧" in body["reply_text"]
+    assert "20.1" in body["reply_text"]
+    assert body["actions"][0]["type"] == "teleport"
+    assert body["actions"][0]["tp_id"] == "tp_bedroom_master"
+    assert "position" not in body["actions"][0]
+
+
+def test_missing_guides_not_hallucinate() -> None:
+    body = _chat("钢琴在哪")
+    text = body["reply_text"]
+    assert "暂未提供" in text
+    assert "可靠信息" in text
+    assert "您看需要吗" in text or "带您看看" in text
+    assert "施坦威" not in text
+    assert "actions" not in body
+
+
+def test_0469_no_fridge_guides() -> None:
+    body = _chat("冰箱多大", world="w_0469_840829")
+    text = body["reply_text"]
+    assert "冰箱" in text
+    assert "暂未提供" in text
+    assert "501" not in text
+    assert "升" not in text
+    assert "actions" not in body
+
+
+def test_unknown_natural_guide() -> None:
+    body = _chat("今天天气如何")
+    text = body["reply_text"]
+    assert "天气" not in text or "暂未" in text or "房间" in text
+    assert "户型" in text or "房间" in text or "家具" in text
+    assert "actions" not in body
+
+
+def test_instance_combines_teleport_highlight_card() -> None:
+    body = _chat("冰箱多大")
+    kinds = [a["type"] for a in body.get("actions") or []]
+    assert "teleport" in kinds
+    assert "highlight" in kinds
+    assert "show_card" in kinds
+    tps = [a.get("tp_id") for a in body["actions"] if a.get("tp_id")]
+    assert len(tps) == len(set(tps)) or kinds.count("teleport") == 1
+    for a in body["actions"]:
+        assert "position" not in a
+
+
+def test_navigation_no_duplicate_teleport() -> None:
+    body = _chat("主卧在哪")
+    teles = [a for a in body["actions"] if a["type"] == "teleport"]
+    assert len(teles) == 1
+    assert teles[0]["tp_id"] == "tp_bedroom_master"
+

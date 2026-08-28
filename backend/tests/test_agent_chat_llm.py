@@ -6,7 +6,7 @@ import httpx
 import pytest
 
 from app.services.agent._openai_http import join_url
-from app.services.agent.chat.llm_provider import StubChatLLMProvider, get_chat_llm_provider
+from app.services.agent.chat.llm_provider import StubChatLLMProvider, get_chat_llm_provider, _SYSTEM
 from app.services.agent.service import handle_chat
 from app.services.agent.session import store as session_store
 
@@ -158,3 +158,9 @@ def test_enhance_override_keeps_actions(monkeypatch: pytest.MonkeyPatch) -> None
     assert prop["reply_text"] == "LLM改写:这套房适合什么人住"
     session_store.clear(sid)
     session_store.clear(sid2)
+
+
+def test_system_prompt_sales_and_no_hallucination() -> None:
+    assert "暂未提供" in _SYSTEM
+    assert "编造" in _SYSTEM
+    assert "销售" in _SYSTEM or "置业顾问" in _SYSTEM

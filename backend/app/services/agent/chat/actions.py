@@ -36,7 +36,33 @@ def _highlight(tp_id: str, allowed: set[str]) -> dict[str, str] | None:
     return {"type": "highlight", "tp_id": tp_id}
 
 
+def _append(actions: list[dict[str, Any]], act: dict[str, Any] | None) -> None:
+    if not act:
+        return
+    kind = act.get("type")
+    tp = act.get("tp_id")
+    if kind in ("teleport", "highlight") and isinstance(tp, str):
+        if any(a.get("type") == kind and a.get("tp_id") == tp for a in actions):
+            return
+    if kind == "show_card" and any(a.get("type") == "show_card" for a in actions):
+        return
+    actions.append(act)
+
+
+def _instance_card(inst: dict) -> dict[str, Any]:
+    name = _zh_category(inst)
+    attrs = _public_attrs(inst)
+    lines = [f"{k}: {v}" for k, v in attrs.items()]
+    tag = inst.get("tag")
+    if tag:
+        lines.insert(0, str(tag))
+    if not lines:
+        lines = [f"这套房的{name}没有更多信息"]
+    return {"type": "show_card", "title": name, "lines": lines}
+
+
 def build(intent: Intent, facts: Facts, scene_graph: dict) -> list[dict[str, Any]]:
+    # 无法回答：只靠话术引导，不强行动作
     if facts["missing"] or intent in (Intent.ENTER_ROOM, Intent.SMALLTALK, Intent.UNKNOWN):
         return []
 
@@ -50,27 +76,19 @@ def build(intent: Intent, facts: Facts, scene_graph: dict) -> list[dict[str, Any
         if inst is not None:
             name = _zh_category(inst)
             itp = inst.get("trajectory_point_id")
+            rtp = (host or {}).get("trajectory_point_id")
+            fly = itp if isinstance(itp, str) and itp else rtp
+            if isinstance(fly, str) and fly:
+                _append(actions, _teleport(fly, f"带您去看{name}", allowed))
             if isinstance(itp, str) and itp:
-                t = _teleport(itp, f"带您去看{name}", allowed)
-                if t:
-                    actions.append(t)
-                h = _highlight(itp, allowed)
-                if h:
-                    actions.append(h)
-            else:
-                rtp = (host or {}).get("trajectory_point_id")
-                if isinstance(rtp, str) and rtp:
-                    t = _teleport(rtp, f"带您去看{name}", allowed)
-                    if t:
-                        actions.append(t)
+                _append(actions, _highlight(itp, allowed))
+            _append(actions, _instance_card(inst))
             return actions
         if room is not None:
             name = str(room.get("name") or "那里")
             rtp = room.get("trajectory_point_id")
             if isinstance(rtp, str) and rtp:
-                t = _teleport(rtp, f"带您去{name}", allowed)
-                if t:
-                    actions.append(t)
+                _append(actions, _teleport(rtp, f"带您去{name}", allowed))
         return actions
 
     if intent == Intent.PROPERTY:
@@ -98,19 +116,15 @@ def build(intent: Intent, facts: Facts, scene_graph: dict) -> list[dict[str, Any
         if inst is None:
             return []
         name = _zh_category(inst)
+        host = facts["host_room"] or {}
+        rtp = host.get("trajectory_point_id")
         itp = inst.get("trajectory_point_id")
+        fly = rtp if isinstance(rtp, str) and rtp else itp
+        if isinstance(fly, str) and fly:
+            _append(actions, _teleport(fly, f"带您去看{name}", allowed))
         if isinstance(itp, str) and itp:
-            h = _highlight(itp, allowed)
-            if h:
-                actions.append(h)
-        attrs = _public_attrs(inst)
-        lines = [f"{k}: {v}" for k, v in attrs.items()]
-        tag = inst.get("tag")
-        if tag:
-            lines.insert(0, str(tag))
-        if not lines:
-            lines = [f"这套房的{name}没有更多信息"]
-        actions.append({"type": "show_card", "title": name, "lines": lines})
+            _append(actions, _highlight(itp, allowed))
+        _append(actions, _instance_card(inst))
         return actions
 
     return []
