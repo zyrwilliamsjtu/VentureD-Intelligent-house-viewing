@@ -12,6 +12,7 @@
 |---|---|
 | 后端 / Agent 同学 | **[docs/backend-handbook.md](./docs/backend-handbook.md)**（联调三步 + 数据字典 + 坐标铁律 + 已知坑） |
 | 要实现 chat/asr 接口 | [docs/agent-api.md](./docs/agent-api.md)（Agent 契约实现版）+ 根目录 `SPEC.md` §3（唯一事实源） |
+| 想了解界面（设计语言/页面/全部文案/素材） | **[docs/ui-design.md](./docs/ui-design.md)**（UI 唯一整理稿） |
 | 承接 Agent 板块（新执行方） | 根目录 **`docs/agent-handoff.md`**（自包含需求书：接口契约/坐标铁律/数据字典/路线图/自测清单） |
 | 改 UI | **`../docs/ui-handoff.md`**（护栏说明：store 只读字段/固定类名/层级约定/体验底线）+ WORKLOG D6 |
 
