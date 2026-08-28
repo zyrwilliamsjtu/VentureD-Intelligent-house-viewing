@@ -17,12 +17,12 @@ function MiniFloorplan({ rooms, className }: { rooms: RoomPoly[]; className?: st
     // SVG y 轴向下：翻转 y 让"北"朝上
     const toPath = (poly: [number, number][]) =>
       poly.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${(x - minX).toFixed(2)},${(maxY - y).toFixed(2)}`).join(' ') + ' Z'
-    const els = rooms.map((r) => {
-      // 房名放在多边形质心（顶点平均，矩形组合够用）
+    const els = rooms.map((r, i) => {
+      // 房名可能重复（多个过道/书房），key 用 索引拼接
       const cx = r.poly.reduce((s, p) => s + p[0], 0) / r.poly.length - minX
       const cy = maxY - r.poly.reduce((s, p) => s + p[1], 0) / r.poly.length
       return (
-        <g key={r.name}>
+        <g key={`${r.name}-${i}`}>
           <path d={toPath(r.poly)} className="fp-room" />
           <text x={cx} y={cy} className="fp-name" textAnchor="middle" dominantBaseline="middle">
             {r.name}
