@@ -5,6 +5,7 @@ import { agentAsr } from '../services/asr'
 import { PttRecorder, type Recording } from '../services/recorder'
 import { executeAgentActions, playTts } from '../scene/agentActions'
 import { useRoomNarration } from '../scene/narration'
+import { TourBar } from './TourBar'
 import type { House } from '../types/api'
 
 // ==== 极简漫游 HUD：房源信息 · 当前房间 · Agent 对话 · 操作提示 ====
@@ -218,7 +219,7 @@ function CenterToast() {
     if (!toast) return
     setVisible(true)
     if (timer.current) window.clearTimeout(timer.current)
-    timer.current = window.setTimeout(() => setVisible(false), 2600)
+    timer.current = window.setTimeout(() => setVisible(false), useAppStore.getState().tourActive ? 3800 : 2600)
     return () => {
       if (timer.current) window.clearTimeout(timer.current)
     }
@@ -233,7 +234,7 @@ function CenterToast() {
   )
 }
 
-export function WalkHud() {
+export function WalkHud({ worldId }: { worldId: string }) {
   const house = useAppStore((s) => s.house) as House | null
   const currentZone = useAppStore((s) => s.currentZone)
   const locked = useAppStore((s) => s.pointerLocked)
@@ -249,7 +250,8 @@ export function WalkHud() {
           {house ? house.meta.title : '场景加载中…'}
           {house && <span className="meta">{house.meta.area}㎡ · {house.meta.floor}层</span>}
         </div>
-        <div className="badge-placeholder">LOD 流式 · 体素碰撞 · 点击传送</div>
+        <TourBar worldId={worldId} />
+        <div className="badge-placeholder">Spark 3DGS · 点击传送</div>
       </div>
 
       {/* 右上：当前房间 + Agent 对话 */}

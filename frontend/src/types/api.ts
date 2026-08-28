@@ -110,6 +110,19 @@ export interface AsrResponse {
   duration_ms?: number
 }
 
+/** SPEC §3.5 POST /api/agent/tour */
+export interface TourStep {
+  index: number
+  room_id: string
+  trajectory_point_id: string
+  narration?: string
+  selling_points?: string[]
+}
+
+export interface TourResponse {
+  steps: TourStep[]
+}
+
 export interface HistoryItem {
   role: 'user' | 'assistant'
   text: string

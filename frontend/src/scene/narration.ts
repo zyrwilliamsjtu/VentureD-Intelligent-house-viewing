@@ -24,6 +24,7 @@ export function useRoomNarration(): void {
       const room = s.player?.room_id ?? null
       if (room === (prev.player?.room_id ?? null)) return // 只关心房间切换
       if (timer) window.clearTimeout(timer)
+      if (s.tourActive) return // 自主带看自己讲，避免 enter_room 双讲
       if (!room) return // 走出房间（走廊/归因失败）：不触发
 
       // 防抖：门口晃动不算进房；期间房间又变了则作废
@@ -32,7 +33,7 @@ export function useRoomNarration(): void {
         if (!alive) return
         const st = useAppStore.getState()
         const p = st.player
-        if (!p || p.room_id !== room || narrated.has(room)) return
+        if (!p || st.tourActive || p.room_id !== room || narrated.has(room)) return
         narrated.add(room)
         void (async () => {
           try {

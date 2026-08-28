@@ -27,6 +27,15 @@ export function playTts(url?: string | null): void {
   }
 }
 
+export function stopTts(): void {
+  try {
+    audio?.pause()
+  } catch {
+    /* ignore */
+  }
+  audio = null
+}
+
 export async function executeAgentActions(
   actions: AgentAction[] | undefined | null,
   worldId: string,

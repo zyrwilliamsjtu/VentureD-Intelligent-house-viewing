@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAppStore } from './store/useAppStore'
 import { getHouse } from './services/api'
 import { resetAgentSession } from './services/agent'
+import { stopTour } from './scene/tourPlayer'
 import { AholoViewport } from './scene/AholoViewport'
 import { DEFAULT_WORLD_ID, WORLD_LISTINGS, loadListings, type WorldListing } from './scene/worlds'
 import { Splash } from './components/Splash'
@@ -43,6 +44,7 @@ export default function App() {
 
   const selectWorld = (id: string) => {
     if (id === worldId) return
+    stopTour()
     resetAgentSession()
     setWorldId(id)
     console.info('[world] switch → %s', id)
@@ -64,7 +66,7 @@ export default function App() {
           </button>
         ))}
       </div>
-      {entered && <WalkHud />}
+      {entered && <WalkHud worldId={worldId} />}
       {!entered && <Splash />}
     </div>
   )

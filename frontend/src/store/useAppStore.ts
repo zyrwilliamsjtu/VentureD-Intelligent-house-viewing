@@ -35,6 +35,8 @@ interface AppState {
   toast: Toast | null
   player: PlayerContext | null // Agent 上下文（视口节流发布）
   teleportCmd: TeleportCmd | null // 视口订阅执行（nonce 变化触发）
+  tourActive: boolean
+  tourLabel: string | null
 
   enter: () => void
   setLocked: (v: boolean) => void
@@ -43,6 +45,7 @@ interface AppState {
   showToast: (text: string, sub?: string) => void
   setPlayer: (ctx: PlayerContext) => void
   requestTeleport: (position: V3, label?: string) => void
+  setTour: (active: boolean, label?: string | null) => void
 }
 
 let toastSeq = 0
@@ -58,6 +61,8 @@ export const useAppStore = create<AppState>()((set) => ({
   toast: null,
   player: null,
   teleportCmd: null,
+  tourActive: false,
+  tourLabel: null,
 
   enter: () => set({ entered: true }),
   setLocked: (v) => set({ pointerLocked: v }),
@@ -66,6 +71,7 @@ export const useAppStore = create<AppState>()((set) => ({
   showToast: (text, sub) => set({ toast: { text, sub, key: ++toastSeq } }),
   setPlayer: (ctx) => set({ player: ctx }),
   requestTeleport: (position, label) => set({ teleportCmd: { position, label, nonce: ++tpSeq } }),
+  setTour: (active, label = null) => set({ tourActive: active, tourLabel: active ? (label ?? null) : null }),
 }))
 
 export const appStore = () => useAppStore.getState()
