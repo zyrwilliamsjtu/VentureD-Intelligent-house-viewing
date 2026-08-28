@@ -17,6 +17,10 @@ export interface CloudRule {
   tx: number
   ty: number
   label: string
+  /** 点云竖直轴：'z' = IG 原生 Z-up（0330 实测，地板 z≈0）；缺省 'y'（旧素材） */
+  up?: 'y' | 'z'
+  /** 体素碰撞帧是否与点云同帧（0330 实测不同帧，禁用防相机被推出场景） */
+  voxel?: boolean
 }
 
 /** 世界级对拍规则表（新场景对拍后在此登记） */
@@ -25,6 +29,8 @@ export const CLOUD_RULES: Record<string, CloudRule> = {
     tx: 0.573,
     ty: 1.087,
     label: 'InteriorGS 0330_840483 · 对拍转正（75/75 实例 <1cm，锚点残差 0.0003m）',
+    up: 'z',
+    voxel: false,
   },
 }
 

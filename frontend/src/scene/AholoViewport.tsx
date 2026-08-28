@@ -11,7 +11,7 @@ import {
   type IViewerContext,
 } from '@manycore/aholo-viewer'
 import { loadVoxelCollision, type VoxelCollision } from './voxel'
-import { loadRoomPolys, roomAtCloud, cloudRuleFor, type RoomPoly } from './coords'
+import { loadRoomPolys, roomAtCloud, cloudRuleFor, loadTpTable, type RoomPoly, type TpTable } from './coords'
 import { useAppStore } from '../store/useAppStore'
 
 // ==== 群核全栈视口：LOD 流式渲染 + 体素碰撞 + 点击传送 + 自动出生点 ====
@@ -77,10 +77,17 @@ export function AholoViewport() {
     let raf = 0
     let disposed = false
     const st = { yaw: 0, pitch: 0, vx: 0, vz: 0, keys: new Set<string>() }
+    const rule = cloudRuleFor(WORLD_ID)
+    // 轴向无关：竖直分量下标（y-up=1 / z-up=2），水平两轴 = 其余下标
+    const upAxis: 1 | 2 = rule?.up === 'z' ? 2 : 1
+    const h1 = 0
+    const h2 = upAxis === 1 ? 2 : 1
+    // 侧移符号：z-up 右手系叉积推导为 -1；旧 Y-up 素材保持 +1
+    const sideSign = upAxis === 2 ? -1 : SIDE_SIGN
+    const voxelEnabled = rule ? rule.voxel !== false : true
     let vox: VoxelCollision | null = null
-    // 兜底 up 轴：已登记世界（0330）为 IG 原生 Z-up(+1)，体素加载成功后仍会按网格自动校正；
-    // 未登记世界维持旧默认 -1。修复：体素加载失败时对拍世界不再掉到地板下面导致黑屏
-    let upSign: 1 | -1 = cloudRuleFor(WORLD_ID) ? 1 : -1
+    let upSign: 1 | -1 = upAxis === 2 ? 1 : -1 // y-up 时由体素网格自动校正
+    let tpTable: TpTable | null = null
     let roomPolys: RoomPoly[] = [] // 房间归因 polygon（对拍世界才有；空则 room_id=null）
     let ctxLast = 0
 
@@ -95,32 +102,61 @@ export function AholoViewport() {
       const camera = new PerspectiveCamera(72, host.clientWidth / Math.max(1, host.clientHeight), 0.05, 300)
       viewer.setCamera(camera)
 
+      // ---- tp 表（z-up 世界出生点用；与点云同帧，对拍产物）----
+      let tpReady: Promise<void> | null = null
+      if (WORLD_ID) {
+        tpReady = loadTpTable(WORLD_ID)
+          .then((t) => {
+            tpTable = t
+            if (Object.keys(t).length) console.info('[coords] tp 表就绪 %d 点', Object.keys(t).length)
+          })
+          .catch(() => {})
+      }
+
       // ---- 体素碰撞（失败不阻塞渲染，降级为无碰撞漫游）----
-      setStatus('加载碰撞体…')
-      try {
-        vox = await loadVoxelCollision(VOXEL_META_URL)
-        if (vox) {
-          upSign = vox.detectUpSign()
-          const spawn = vox.findSpawn()
-          if (spawn) {
-            camera.position.set(spawn.x, spawn.y + EYE * upSign, spawn.z)
-            // 出生朝向：面向网格中心
-            const g = vox.meta.gridBounds
-            st.yaw = Math.atan2(-(g.max[0] + g.min[0]) / 2 + spawn.x, -(g.max[2] + g.min[2]) / 2 + spawn.z)
+      // ⚠️ 0330 体素帧与点云帧不同（网格 23.8×13.8×39.6m vs 点云 ~11×10×3.7m），
+      //    启用会把相机推出场景 → 规则级禁用，待重新生成同帧体素后再开
+      if (voxelEnabled) {
+        setStatus('加载碰撞体…')
+        try {
+          vox = await loadVoxelCollision(VOXEL_META_URL)
+          if (vox) {
+            upSign = vox.detectUpSign()
+            const spawn = vox.findSpawn()
+            if (spawn && upAxis === 1) {
+              camera.position.set(spawn.x, spawn.y + EYE * upSign, spawn.z)
+              const g = vox.meta.gridBounds
+              st.yaw = Math.atan2(-(g.max[0] + g.min[0]) / 2 + spawn.x, -(g.max[2] + g.min[2]) / 2 + spawn.z)
+            }
+            setStatus(`碰撞体 ✓（up=${upSign > 0 ? '+Y' : '-Y'}）`)
+            console.info('[voxel] 碰撞就绪 up=%d spawn=%o', upSign, spawn)
+          } else {
+            setStatus('碰撞体 ✗（无碰撞漫游，可穿墙）')
           }
-          setStatus(`碰撞体 ✓（up=${upSign > 0 ? '+Z' : '-Y'}）`)
-          console.info('[voxel] 碰撞就绪 up=%d spawn=%o', upSign, spawn)
-        } else {
+        } catch (e) {
           setStatus('碰撞体 ✗（无碰撞漫游，可穿墙）')
+          console.warn('[voxel] 加载失败，本次漫游无碰撞', e)
         }
-      } catch (e) {
-        setStatus('碰撞体 ✗（无碰撞漫游，可穿墙）')
-        console.warn('[voxel] 加载失败，本次漫游无碰撞', e)
+      } else {
+        setStatus('碰撞体停用（帧不匹配）')
+      }
+
+      // ---- 出生点：z-up 世界用 tp_living（点云同帧坐标，地板 z≈0 眼高 1.5）----
+      if (upAxis === 2) {
+        await tpReady
+        const tp = tpTable?.tp_living ?? (tpTable ? Object.values(tpTable)[0] : null)
+        if (tp) {
+          camera.position.set(tp[0], tp[1], tp[2] + 1.0)
+          st.yaw = 0
+          setStatus(`出生点 tp_living ${tp.map((n) => n.toFixed(1)).join(', ')} + 眼高1.0`)
+        } else {
+          camera.position.set(0, 0, 1.5)
+        }
       }
       if (camera.position.lengthSq() < 1e-9) {
         camera.position.set(-1.5, EYE * upSign, 0)
       }
-      camera.up.set(0, upSign, 0)
+      camera.up.set(0, upAxis === 2 ? 0 : upSign, upAxis === 2 ? 1 : 0)
 
       // ---- 房间归因数据（对拍世界 polygon；加载失败不阻塞，room_id 降级 null）----
       if (WORLD_ID) {
@@ -157,7 +193,7 @@ export function AholoViewport() {
       setStatus('加载点云…（视网络 10–60 秒，期间画面逐块出现）')
       void lod
         .onFinishSchedule()
-        .then(() => setStatus('场景就绪 · WASD 漫游', true))
+        .then(() => setStatus(`场景就绪 · WASD 漫游${upAxis === 2 ? ' · 黑屏先按 V' : ''}`, true))
         .catch(() => {}) // 调度完成回调失败不影响渲染
 
       // ---- 官方 Preset「效果优先」----
@@ -191,29 +227,30 @@ export function AholoViewport() {
         if (k.has('KeyA') || k.has('ArrowLeft')) ix -= 1
         if (k.has('KeyD') || k.has('ArrowRight')) ix += 1
         const speed = k.has('ShiftLeft') || k.has('ShiftRight') ? RUN : WALK
-        let tvx = 0
-        let tvz = 0
+        let tv1 = 0
+        let tv2 = 0
         if (ix !== 0 || iz !== 0) {
           const len = Math.hypot(ix, iz)
           ix /= len
           iz /= len
-          const fx = -Math.sin(st.yaw)
-          const fz = -Math.cos(st.yaw)
-          tvx = (fx * -iz + -fz * ix * SIDE_SIGN) * speed
-          tvz = (fz * -iz + fx * ix * SIDE_SIGN) * speed
+          // 水平前向/右向（轴向无关：分量 1/2 = h1/h2 两水平轴）
+          const f1 = -Math.sin(st.yaw)
+          const f2 = -Math.cos(st.yaw)
+          tv1 = (f1 * -iz + -f2 * ix * sideSign) * speed
+          tv2 = (f2 * -iz + f1 * ix * sideSign) * speed
         }
         const blend = 1 - Math.exp(-ACCEL * dt)
-        st.vx += (tvx - st.vx) * blend
-        st.vz += (tvz - st.vz) * blend
+        st.vx += (tv1 - st.vx) * blend
+        st.vz += (tv2 - st.vz) * blend
         if (Math.abs(st.vx) < 0.005) st.vx = 0
         if (Math.abs(st.vz) < 0.005) st.vz = 0
 
         const p = camera.position
-        p.x += st.vx * dt
-        p.z += st.vz * dt
+        p.setComponent(h1, p.getComponent(h1) + st.vx * dt)
+        p.setComponent(h2, p.getComponent(h2) + st.vz * dt)
 
-        // 胶囊碰撞：脚部/头部两球推出（迭代 2 轮）
-        if (vox) {
+        // 胶囊碰撞 + 贴地（仅 y-up 体素同帧世界；0330 体素帧不匹配已停用）
+        if (vox && upAxis === 1) {
           const feetY = p.y - EYE * upSign
           for (let it = 0; it < 2; it++) {
             const lo = vox.resolveSphere(p.x, feetY + 0.3 * upSign, p.z, CAPSULE_R)
@@ -234,11 +271,14 @@ export function AholoViewport() {
           }
         }
 
-        look.set(
-          -Math.sin(st.yaw) * Math.cos(st.pitch),
-          upSign * Math.sin(st.pitch),
-          -Math.cos(st.yaw) * Math.cos(st.pitch),
-        )
+        // 视线向量（轴向无关）
+        const lc = Math.cos(st.pitch)
+        const ls = Math.sin(st.pitch)
+        if (upAxis === 2) {
+          look.set(-Math.sin(st.yaw) * lc, -Math.cos(st.yaw) * lc, ls)
+        } else {
+          look.set(-Math.sin(st.yaw) * lc, upSign * ls, -Math.cos(st.yaw) * lc)
+        }
 
         // ---- Agent 上下文发布（节流）：眼位/视线取点云原生坐标，房间按对拍映射归因 ----
         const ctxNow = performance.now()
@@ -262,8 +302,15 @@ export function AholoViewport() {
       // ---- 点击传送（锁定状态下）----
       const onCanvasClick = () => {
         const c = host.querySelector('canvas')
-        if (!c || document.pointerLockElement !== c || !vox) return
+        if (!c || document.pointerLockElement !== c) return
         const p = camera.position
+        if (!vox) {
+          // 无体素（0330 帧不匹配停用）：沿视线水平冲刺 2.2m
+          p.setComponent(h1, p.getComponent(h1) - Math.sin(st.yaw) * 2.2)
+          p.setComponent(h2, p.getComponent(h2) - Math.cos(st.yaw) * 2.2)
+          return
+        }
+        if (upAxis === 2) return
         const fx = -Math.sin(st.yaw) * Math.cos(st.pitch)
         const fy = upSign * Math.sin(st.pitch)
         const fz = -Math.cos(st.yaw) * Math.cos(st.pitch)
@@ -298,19 +345,47 @@ export function AholoViewport() {
       const unsubTp = useAppStore.subscribe((state, prev) => {
         const cmd = state.teleportCmd
         if (!cmd || cmd.nonce === prev.teleportCmd?.nonce) return
-        const [tx, , tz] = cmd.position
-        let ty = cmd.position[1]
-        if (vox) {
-          const g = vox.raycast(tx, ty + 1.5 * upSign, tz, 0, -upSign, 0, 3)
-          if (g) ty = g.y + EYE * upSign
+        const [tx, ty, tz] = cmd.position
+        if (upAxis === 2) {
+          // z-up 点云系：tp 落点 + 眼高 1.0（与出生点同约定）
+          camera.position.set(tx, ty, tz + 1.0)
+        } else {
+          let sy = ty
+          if (vox) {
+            const g = vox.raycast(tx, sy + 1.5 * upSign, tz, 0, -upSign, 0, 3)
+            if (g) sy = g.y + EYE * upSign
+          }
+          camera.position.set(tx, sy, tz)
         }
-        camera.position.set(tx, ty, tz)
         st.vx = 0
         st.vz = 0
         useAppStore.getState().showToast(cmd.label ? `已传送 · ${cmd.label}` : '已传送')
-        console.info('[teleport] agent world=%s target=%o resolved_y=%s', state.player?.world_id, cmd.position, ty)
+        console.info('[teleport] agent world=%s target=%o pos=%o', state.player?.world_id, cmd.position, camera.position.toArray())
       })
       cleanupFns.push(unsubTp)
+
+      // ---- V 键视角校准（z-up 联调用）：黑屏时逐个试出生候选，可见的编号告诉我 ----
+      const spawnPresets: Array<{ name: string; tp?: string; dz: number; pitch: number }> = [
+        { name: 'A 客厅·眼高1.0', tp: 'tp_living', dz: 1.0, pitch: 0 },
+        { name: 'B 客厅·眼高1.5', tp: 'tp_living', dz: 1.5, pitch: 0 },
+        { name: 'C 客厅·眼高2.2·俯视', tp: 'tp_living', dz: 2.2, pitch: -0.5 },
+        { name: 'D 厨房·眼高1.0', tp: 'tp_kitchen', dz: 1.0, pitch: 0 },
+        { name: 'E 场景中心·眼高1.5', dz: 1.5, pitch: 0 },
+      ]
+      let presetIdx = 0
+      const cycleSpawn = () => {
+        if (!tpTable) return
+        const ps = spawnPresets[presetIdx % spawnPresets.length]
+        presetIdx++
+        const tp = ps.tp ? tpTable[ps.tp] : null
+        if (tp) camera.position.set(tp[0], tp[1], tp[2] + ps.dz)
+        else camera.position.set(0, 0, ps.dz)
+        st.pitch = ps.pitch
+        st.vx = 0
+        st.vz = 0
+        useAppStore.getState().showToast('视角校准', `${ps.name} · 能看到房间就记住编号`)
+        console.info('[calibrate] %s pos=%o', ps.name, camera.position.toArray().map((n) => +n.toFixed(2)))
+      }
 
       // ---- 键鼠 ----
       const canvas = () => host.querySelector('canvas')
@@ -338,6 +413,7 @@ export function AholoViewport() {
       const onDown = (e: KeyboardEvent) => {
         st.keys.add(e.code)
         if (e.code.startsWith('Arrow')) e.preventDefault()
+        if (e.code === 'KeyV' && upAxis === 2 && useAppStore.getState().entered) cycleSpawn()
       }
       const onUp = (e: KeyboardEvent) => st.keys.delete(e.code)
       window.addEventListener('keydown', onDown)
