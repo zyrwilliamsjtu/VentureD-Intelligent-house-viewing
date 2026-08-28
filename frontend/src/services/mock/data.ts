@@ -77,50 +77,64 @@ export interface RepoTimeline {
 
 const BASE = import.meta.env.BASE_URL || '/'
 
+export interface RepoScene {
+  scene: RepoSceneGraph
+  poses: RepoCameraPoses
+  /** 0330 真实场景无 timeline（PL 带看脚本仅 w_mock_001 有），可能为 null */
+  timeline: RepoTimeline | null
+}
+
+const scenePromises = new Map<string, Promise<RepoScene>>()
+
+/** world → public/mock 子目录：0330 真实场景在 real_0330/，根目录为 w_mock_001 */
+export function mockSubdir(worldId: string): string {
+  return worldId === 'w_0330_840483' ? 'real_0330/' : ''
+}
+
 async function fetchJson<T>(name: string): Promise<T> {
   const r = await fetch(`${BASE}mock/${name}`)
   if (!r.ok) throw new Error(`mock/${name} 加载失败 HTTP ${r.status}`)
   return (await r.json()) as T
 }
 
-export interface RepoScene {
-  scene: RepoSceneGraph
-  poses: RepoCameraPoses
-  timeline: RepoTimeline
-}
-
-let scenePromise: Promise<RepoScene> | null = null
-
-/** 拉取仓库三件套（并行，带缓存） */
-export function loadRepoScene(): Promise<RepoScene> {
-  if (!scenePromise) {
-    scenePromise = Promise.all([
-      fetchJson<RepoSceneGraph>('scene_graph.json'),
-      fetchJson<RepoCameraPoses>('camera_poses.json'),
-      fetchJson<RepoTimeline>('timeline.json'),
+/** 拉取仓库三件套（并行，按 world 缓存；timeline 缺失置 null 不算失败） */
+export function loadRepoScene(worldId: string = REPO_HOUSE_ID): Promise<RepoScene> {
+  let p = scenePromises.get(worldId)
+  if (!p) {
+    const sub = mockSubdir(worldId)
+    p = Promise.all([
+      fetchJson<RepoSceneGraph>(`${sub}scene_graph.json`),
+      fetchJson<RepoCameraPoses>(`${sub}camera_poses.json`),
+      // timeline 仅根目录 mock 有；0330 缺失是正常形态（降级 null，调用方自判）
+      fetchJson<RepoTimeline>(`${sub}timeline.json`).catch(() => null),
     ]).then(([scene, poses, timeline]) => ({ scene, poses, timeline }))
+    scenePromises.set(worldId, p)
   }
-  return scenePromise
+  return p
 }
 
-let cachedHouse: House | null = null
+const houseCacheByWorld = new Map<string, House>()
 
-/** 仓库 scene_graph → 前端 House（HUD / Agent 上下文用） */
-export async function loadRepoHouse(): Promise<House> {
-  if (cachedHouse) return cachedHouse
-  const { scene, poses } = await loadRepoScene()
+/** 仓库 scene_graph → 前端 House（HUD / Agent 上下文用）。
+ *  poses 可空（网关 /api/scene 拿到的 scene 无随附机位时 zone.camera 自然缺省）；
+ *  兼容两种 pose 形态：根目录 {position,look_at} 与 0330 纯 V3（后者无机位朝向，跳过）。 */
+export function houseFromSceneGraph(scene: RepoSceneGraph, poses?: RepoCameraPoses): House {
+  const zonePose = (tpId?: string): { pos: V3; target: V3 } | undefined => {
+    if (!tpId || !poses) return undefined
+    const tp = poses[tpId] as Partial<{ position: V3; look_at: V3 }> | V3 | undefined
+    // 仅根目录 {position, look_at} 形态有机位；0330 纯 V3 表无朝向，跳过
+    if (!tp || Array.isArray(tp) || !tp.position || !tp.look_at) return undefined
+    return { pos: tp.position, target: tp.look_at }
+  }
 
-  const zones: Zone[] = scene.rooms.map((r) => {
-    const tp = r.trajectory_point_id ? poses[r.trajectory_point_id] : undefined
-    return {
-      id: r.id,
-      label: r.name,
-      area_m2: r.area,
-      polygon: r.polygon,
-      camera: tp ? { pos: tp.position, target: tp.look_at } : undefined,
-      story_card: r.story_card,
-    }
-  })
+  const zones: Zone[] = scene.rooms.map((r) => ({
+    id: r.id,
+    label: r.name,
+    area_m2: r.area,
+    polygon: r.polygon,
+    camera: zonePose(r.trajectory_point_id),
+    story_card: r.story_card,
+  }))
 
   const objects: HouseObject[] = scene.rooms.flatMap((r) =>
     r.instances.map((i) => ({
@@ -144,7 +158,7 @@ export async function loadRepoHouse(): Promise<House> {
   }
   const ceiling = Number(scene.house.facts?.ceiling_height) || 2.8
 
-  cachedHouse = {
+  return {
     id: scene.world_id,
     meta: {
       title: scene.house.title,
@@ -164,10 +178,22 @@ export async function loadRepoHouse(): Promise<House> {
     objects,
     tour_path: scene.tour_path,
   }
-  return cachedHouse
 }
 
-/** 已加载的 House（未加载返回 null）——旧 mock 问答模块用 */
+let lastHouse: House | null = null
+
+/** 本地 mock 数据加载入口（按 world 缓存）；HUD/Agent 语义兜底数据源 */
+export async function loadRepoHouse(worldId: string = REPO_HOUSE_ID): Promise<House> {
+  const hit = houseCacheByWorld.get(worldId)
+  if (hit) return hit
+  const { scene, poses } = await loadRepoScene(worldId)
+  const h = houseFromSceneGraph(scene, poses)
+  houseCacheByWorld.set(worldId, h)
+  lastHouse = h
+  return h
+}
+
+/** 最近一次加载的 House（未加载返回 null）——旧 mock 问答模块用 */
 export function getLoadedHouse(): House | null {
-  return cachedHouse
+  return lastHouse
 }

@@ -233,3 +233,23 @@ npm run build                    # 必过
 | 2026-08-28 | 阶段 10 交接文档：`docs/backend-handbook.md`（联调三步+数据字典+坐标铁律+已知坑）+ `docs/agent-api.md` 入库，README 加文档导航；待办 #2 标已办 | 本次提交 |
 | 2026-08-28 | 阶段 12/13：语音按钮（PTT→ASR→自动发送）上线 + 修 resume-overlay 遮挡 AI 入口 | 本次提交 |
 | 2026-08-28 | 阶段 14/15：进房主动讲解（enter_room→toast+TTS）+ Pages 部署 workflow + UI 护栏文档 | 本次提交 |
+
+### 阶段 13 · 黑屏根因修复：坐标系错位（2026-08-28 深夜）
+**症状**：加载仪表盘到"场景就绪"但持续黑屏。**根因**：① 点云为 IG 原生 Z-up（coords.ts 头注已写明，层高落在 Z 轴），而视口相机/重力/碰撞全部按 Y 轴当竖直轴 → 相机横躺；② 体素网格帧与点云帧不同（23.8×13.8×39.6m vs ~11×10×3.7m），voxel 出生点把相机放到点云区域外。**修复**：相机改轴向无关（规则表 `up:'z'`），出生点改用 tp_living（与点云同帧的对拍产物）+ 眼高 1.0；0330 体素规则级停用（`voxel:false`），点击传送降级为视线冲刺 2.2m；Agent 传送按 z 轴 +1.0 落位；新增 **V 键视角校准**循环 5 个出生候选（A–E），现场定了哪个能见再固化。旧 Y-up 素材路径行为不变。
+
+### 阶段 17 · PI 三决策落实：主链路统一 + world_id 统一 + tp 表走网关（2026-08-28 下午）
+**背景**：PI《前端联调决策通知（1143）》三项已定决策。**顺带修掉一个真 bug**：`App.tsx` 写死 `HOUSE_ID='w_mock_001'`，与 3D 场景（0330 世界）错位——HUD/Agent 语义数据加载的是 w_mock_001 的 scene_graph，real 模式下还会先打一发不存在的 `/api/houses/w_mock_001`（后端无此路由，404 后降级）。
+1. **决策 1（废弃 realApi 旧路径）**：`api.ts` 重写，主链路 = `agent.ts`（`/api/agent/chat`、`/api/agent/asr`）+ `GET /api/scene/{world_id}`（real 路径，10s 超时，world_id 回显校验）；`realApi.ts` 头部打"遗留代码"标记，主链路零引用（全仓 grep 验证：仅 api.ts 曾引用，已摘除）。
+2. **决策 2（world_id 统一 w_0330_840483，P0）**：`App.tsx` / `AholoViewport.tsx` 统一 `(VITE_WORLD_ID || 'w_0330_840483')`；`.env.example` 默认值同步。`mock/data.ts` 按 world 参数化（0330 → `public/mock/real_0330/`，根目录仍 w_mock_001），抽出 `houseFromSceneGraph(scene, poses?)` 供网关/本地两路复用；0330 无 `timeline.json` → timeline 可空（`loadRepoScene` catch 置 null，`mockGetTour` 空表降级）；兼容两种 pose 形态（根目录 `{position,look_at}` / 0330 纯 V3，后者无机位朝向 → zone.camera 缺省）。
+3. **决策 3（camera_poses 走网关，P1）**：`coords.ts` `loadTpTable` 改两级：real 先 `GET /api/camera_poses/{world_id}`（响应 `{world_id, poses}`，5s 超时，空表视为失败）→ 失败降级本地 `public/mock/real_0330/camera_poses.json`（同一份对拍产物）；mock 模式直连本地。控制台可见来源标注（`tp 表（网关）` / `tp 表（本地 fallback）`）。
+4. **数据漂移修复（联调时实测发现）**：本地 fallback 副本与仓库正本不一致——10 个房间级 tp 点 z 值旧版 1.5 / 正版 0.5（PI `4cf31a7` 已转正仓库正本，前端副本停留在 `d0eb8ce` 未同步）。旧副本会让出生点落在 **z=2.5m**（眼高约定 +1.0 后几乎贴 2.8m 层高天花板，加剧黑屏/贴顶）。已同步副本与正本一致（`tp_living=[0.061,0.934,0.5]` → 出生眼高 1.5m 归位）。scene_graph 两边逐字段比对一致，无需同步。
+5. **Pages 子路径 404 修复（黑屏又一根因）**：`coords.ts` / `AholoViewport.tsx` 原写死绝对路径 `/mock/...`、`/collision/...`，GitHub Pages 部署在 `/<repo>/` 子路径下全部 404 → tp 表加载不到 → 出生点退化。已改 `import.meta.env.BASE_URL` 相对拼接（与 `agent.ts` 同策略），子路径部署可命中。
+6. **交付状态警告**：本沙箱 `dev/frontend` 一度领先 `origin/dev/frontend` **10 个提交**（含阶段 13 黑屏根因修复三连 `777a5ab`/`9f52aad`/`c63ce44`）——即线上/队友本地从未拿到黑屏修复。本次连同三决策修复一并出 bundle，**收到后必须 fetch+merge+push**，勿再积压。
+**验证**：`npm run build`（tsc + vite）✓；沙箱内起后端 + vite dev（proxy `/api`）实测：`GET /api/camera_poses/w_0330_840483` 返回 85 点（含 tp_living）、`GET /api/scene/w_0330_840483` 返回 10 房间 scene_graph（coord Y/m），与前端解析形状逐字段吻合；本地 fallback 文件同步后 HTTP 200 且 tp_living 已转正。
+
+
+### 阶段 18 · 架构决策：砍 TS agent，MOSS 三件套并入 PI 网关（2026-08-28 下午）
+**实测依据**：`dev-agent` 分支（agent/ 目录，TS）拉取实测为空壳——chat/asr/tts 全部 handler 写死（问"冰箱在哪"也回"带您去主卧"）、无 world_id 校验（invalid_world 返回 200）、ASR/TTS 假实现、提交信息虚标"CodeBuddy SDK + MOSS 双路"（代码零痕迹）。同期实测 PI 网关（`411b332`）全链路可用：chat 规则版 grounding 真定位（冰箱→`tp_refrigerator_582`+highlight）、tour 10 房间、narration 去重、camera_poses 85 点、25 单测全绿、错误契约正确。**决策（方案 A）**：agent 能力（MOSS LLM/ASR/TTS）并入 PI 的 Python 网关（插入点：`chat/responder.generate` 分层降级、`asr/service.py`、`tts/service.py`），规则版流水线保留为 LLM 故障兜底；`dev-agent` 分支不合并留档。作业书：`/workspace/pi-brief-moss-integration.md`（用户转交 PI）。另发现 `dev-backend` 的 SPEC §4.2 已把坐标约定修正为 IG 原生 Z-up、agent 只输出 tp_id——与前端 `coords.ts` 对拍结论一致，坐标系争议了结。待办：前端 bundle 重推（黑屏修复 `c63ce44`/`9baa3d3` 仍未上 origin）→ dev/frontend 合 main → dev-backend 合 main。
+
+### 阶段 19 · UI 重设计落地：iOS 亮色磨砂（2026-08-28 傍晚）
+UI AI 外包一轮跑偏（交付了无关产品的营销落地页），改为前端侧直接落地：视觉基准 `ui-frost-preview.html` v2（亮色磨砂 + iOS 字阶 + Apple 字色 #1D1D1F/#6E6E73/#AEAEB2 + 陶土橙 #C4613C）。实现方式：**只重写 `global.css` 一个文件**，类名/DOM/z-index 层级（hud-tr 23 > agent-panel 22 > resume-overlay 21 > walk-hud 20，boot-status 25 / no-webgl 30）/pointer-events 架构与旧版逐项一致，组件 TSX 零改动（voice-btn 三态类名、boot-status.done、agent-stub.live 等 JS 引用全部保留）。性能约束：backdrop-filter 仅用于 chips/agent-panel/toast/恢复卡（小面积），气泡输入框按钮用不透明 --frost-fill；blur 26px 不参与动画；`@supports` 降级不透明面板。帧率不足时全局把 --frost-blur 降 16px 即可。旧 --glass/--glass-border 变量保留别名映射，防外部依赖。
