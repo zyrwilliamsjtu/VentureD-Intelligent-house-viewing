@@ -65,6 +65,9 @@
 
 前端进页面第一个请求；渲染分区、标注、Agent 知识库全部依赖它。幂等可缓存。
 
+> `GET /api/scene/{world_id}` 返回的 scene_graph 由理解层 Provider 提供：当前默认 `GTProvider`（读 `mock/real_0330/scene_graph.json`）；未来可切换 `DualEngineProvider`（理解层推理）。对外格式始终遵循本契约。
+
+
 ### 2.1 结构要点（完整示例见 mock/scene_graph.json）
 
 ```json

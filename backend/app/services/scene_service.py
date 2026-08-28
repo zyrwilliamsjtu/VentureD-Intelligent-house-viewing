@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import json
 
-from app.data.scene_store import load_scene_graph
 from app.schemas.errors import GatewayError
+from app.services.understanding.providers import get_provider
 
 
 def _coord_ok(scene: dict) -> bool:
@@ -16,7 +16,9 @@ def _coord_ok(scene: dict) -> bool:
 
 def get_scene(world_id: str) -> dict:
     try:
-        scene = load_scene_graph(world_id)
+        scene = get_provider().get_scene_graph(world_id)
+    except NotImplementedError:
+        raise GatewayError(500, "SCENE_GRAPH_EMPTY", "场景语义数据为空") from None
     except (OSError, ValueError, json.JSONDecodeError):
         raise GatewayError(500, "SCENE_GRAPH_EMPTY", "场景语义数据为空") from None
     if scene is None:

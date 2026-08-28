@@ -29,3 +29,9 @@ _load_dotenv()
 def cors_origins() -> list[str]:
     raw = os.environ.get("CORS_ORIGINS", "http://localhost:5173")
     return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def understanding_provider() -> str:
+    """Scene-graph source: gt (default) or dual_engine (stub)."""
+    raw = os.environ.get("UNDERSTANDING_PROVIDER", "gt").strip()
+    return raw.lower() if raw else "gt"

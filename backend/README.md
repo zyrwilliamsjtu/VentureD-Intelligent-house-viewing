@@ -12,48 +12,43 @@
   - 统一错误格式、CORS、会话透传
 - **边界**：不做 agent 语义逻辑（B 的活）、不做前端渲染（A 的活）。**不越界。**
 
-## 1.5 理解层架构（PI 板块核心）
+## 1.5 理解层架构（PI 板块核心 · 最简方案：GT Provider 为主，双引擎为后续）
 
-### 定位
-- 目标场景**仅 0330**（InteriorGS `0330_840483`）；**不做未知场景、不做现场生成**。
-- 目标：在 0330 上跑通"俯视图划房 → 逐房识别"的理解 pipeline，产出与 GT 对比验证的 scene_graph。
-- **GT 三重角色**：生产数据（demo 主线）/ 评测真值 / 失败兜底。
+### 定位（决策记录：2026-08-28）
+- 目标场景**仅 0330**；不做未知场景、不做现场生成。
+- **最简方案（PI 拍板）**：理解层砍掉 VLM / CLIP / 房间截图 / 双通道核验 / 俯视图几何划分，
+  仅用 GT 已知信息；但**保留 Provider 统一接口**，保证将来无缝切换真双引擎。
+- **GT 三重角色**：生产数据 / 评测真值 / 失败兜底。
+- 对外接口 `GET /api/scene/{world_id}` 不变（SPEC v2.2），理解层是内部实现。
 
-### Pipeline（单场景，俯视图先行）
-
+### 架构：Provider 统一接口
 ```
-0330 3DGS(ply) + 相机位姿
-  → ① 生成俯视图（top-down 占用图，仿 occupancy.png）
-  → ② 俯视图房间划分与定位（墙/门 → 房间 polygon + 中心）
-  → ③ 逐房间渲染取图（每房 1-2 张）
-  → ④ 双引擎识别（VLM 语义主 + CLIP 定位辅）
-  → ⑤ 3D 投影定位（2D 框 → 3D 坐标）
-  → ⑥ scene_graph 组装（SPEC v2.2）
-  → ⑦ 评测/回退（与 GT 对比）
+GET /api/scene/{world_id}
+  → scene_service.get_scene_graph(world_id)
+  → SceneUnderstandingProvider（统一接口）
+      ├─ GTProvider（当前默认，读 mock/real_0330）
+      └─ DualEngineProvider（未来占位 Stub）
+  → pipeline：房间划分(GT) → 实例(GT) → scene_graph 组装
+  → SPEC v2.2 scene_graph → B / A
 ```
+- Provider 工厂按 `UNDERSTANDING_PROVIDER` 环境变量路由（默认 `gt`）。
+- 换双引擎 = 新增 provider 实现 + 改配置，下游 B/A 无感。
 
-### 双引擎
-- 引擎 B（VLM）：识别房间图 → 房间/物体语义（主）
-- 引擎 A（CLIP/GroundingDINO）：检测物体 2D 框 → 3D（辅）
-- 冲突处理：语义以 VLM 为准，坐标以检测为准
-- 实现：CLIP 部分借鉴开源项目（待选型，HOV-SG/ConceptGraphs 系）
+### GT 极简 pipeline（当前生效）
+```
+读 GT 场景数据（mock/real_0330/scene_graph.json + labels/structure）
+  → 房间划分（segmenter.py：直接用 GT rooms polygon）
+  → 实例（instance_source.py：直接读 GT labels，59→20 映射）
+  → scene_graph 组装（pipeline.py：房间+实例+coord+tour_path+topology）
+```
+- **不做**：俯视图生成、房间截图、识别/核验（留给未来双引擎）。
 
-### 评测与回退（核心）
-- 与 GT（`mock/real_0330/scene_graph.json` + 本地 `occupancy.png`/`structure.json`）对比：
-  房间划分一致 / 实例一致 / 坐标误差 / 耗时 / 稳定
-- 达标 → 用理解层结果；不达标/超时/失败 → 用 GT
-- `GET /api/scene` 默认返回 GT；理解层作为"实时理解演示"（达标时展示）
+### 代码位置
+- `backend/app/services/understanding/`：`providers/`（base/gt/dual_engine/factory）、`room/segmenter.py`、`instance/instance_source.py`、`pipeline.py`
 
-### 上下游
-- 上游：0330 ply（本地，不入库）+ 相机位姿
-- 下游：scene_graph → `GET /api/scene` → B/A；评测报告 → 路演
-
-### 依赖（待确认）
-- 点云投影工具链（生成俯视图）
-- 俯视图房间划分（开源/手工辅助）
-- 渲染取图（Aholo 渲染器 / 3DGS 渲染库）
-- VLM 资源（多模态大模型 key / 本地模型）
-- CLIP / 开放词汇开源选型
+### 与 SPEC 的关系
+- 对外契约（`GET /api/scene` 返回格式）由 SPEC v2.2 定义，理解层不改变它。
+- scene_graph 的数据来源（GT provider / 未来理解层）属内部实现。
 
 ## 2. 技术栈与运行
 
@@ -75,6 +70,7 @@ backend/
 │   │   ├── agent.py     # agent 契约透传（chat/asr/tts/narration/tour）
 │   │   └── camera.py    # camera_poses / tp 查询
 │   ├── services/        # 业务逻辑（scene 路由、scene_graph 加载、world 索引）
+│   │   └── understanding/  # 理解层：Provider 工厂 + GT 极简管线（L0+L1）
 │   ├── data/            # 数据访问（读 mock、真实 scene_graph）
 │   └── schemas/         # Pydantic 模型（对齐 SPEC 字段）
 ├── tests/               # 测试（对齐 SPEC 验收标准）
@@ -109,7 +105,7 @@ backend ──读 mock/real_0330/scene_graph.json / mock/scene_graph.json──>
 | 日期 | 变更 | 说明 |
 |---|---|---|
 | 2026-08-27 | 后端初始化 | 建立 FastAPI 骨架（main/config/routers 占位） |
-| 2026-08-27 | GET /api/scene/{world_id} | 按 world_id 路由 mock / real_0330，coord 校验 |
+| 2026-08-28 | 理解层 L0+L1 | Provider 抽象（默认 GTProvider）+ GT 极简管线；对外 GET /api/scene 不变 |
 
 ## 8. 与本仓库其他板块的关系
 
