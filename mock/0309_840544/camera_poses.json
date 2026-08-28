@@ -1,5 +1,11 @@
 {
   "_note": "0309_840544 坐标对拍：scene→点云 X=x+-3.938458, Y=-0.707424−z, Z=y（本场景 house_center，禁止套用 0330）。",
+  "_tp_living_source": "无独立客厅（SOURCE.md：开间按规则标成厨房，26.3平含沙发）。tp_living 复用已对拍房间锚点 tp_kitchen，坐标相同，非编造。",
+  "tp_living": [
+    -0.658,
+    -0.125,
+    0.5
+  ],
   "tp_bedroom_3": [
     -3.778,
     -3.79,
