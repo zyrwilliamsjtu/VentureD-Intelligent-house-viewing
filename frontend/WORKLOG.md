@@ -2,7 +2,7 @@
 
 > **目的：白盒化。** 任何 AI 或人接管前，先读本文档 + `frontend/README.md`。
 > 维护规则：每完成一个阶段/做出一个关键决策，追加一节；不删旧记录，只标记作废。
-> 最后更新：2026-08-28 · 维护人：前端（@XT0018R）· 协作 AI：TRAE
+> 最后更新：2026-08-28 · 维护人：前端 · Spark 迁移 + tour 步 1
 
 ---
 
@@ -27,16 +27,17 @@ AI 代看房（48H 黑客松）：第一人称 3DGS 点云漫游 + Agent 语音�
 
 | 项 | 状态 |
 |---|---|
-| 分支 | `dev/frontend`（基于 origin/main 718547c 新建） |
-| 最新 commit | `frontend: 第一人称漫游全量落地（…）` 48 文件 9617 行 |
-| 构建 | `npm run build` ✓（tsc + vite 均过） |
+| 分支 | `feat/frontend-spark`（Spark + CLOUD_RULES 5 套 + tour 步 1） |
+| 渲染 | ✓ **THREE 0.180 + Spark 2.1**（LodSplat 已弃，见 D7） |
+| 构建 | `npx tsc --noEmit` / `npm run build` |
 | 漫游 | ✓ WASD + 鼠标视角（Pointer Lock）+ Shift 快走 |
-| 渲染 | ✓ Aholo Viewer LodSplat 分块 LOD 流式 |
 | 碰撞 | ✓ 体素胶囊推出 + 贴地（`public/collision/`） |
 | 点击传送 | ✓ 视线落点瞬移（关门房间可达） |
 | Agent 传送链 | ✓ `teleportCmd` → 体素贴地 → 瞬移（mock 已实测触发） |
 | 坐标映射 | ✓ 对拍转正（见 D3） |
-| 房间归因 | ✓ polygon point-in-polygon → `room_id` |
+| 房间归因 | ✓ 5 套 CLOUD_RULES + polygon（非 0330 走网关 scene） |
+| 自主带看 | ✓ `POST /api/agent/tour` 播放器（可停止） |
+| 卡点 | ply 对象存储 **# 待确认**；highlight/信息卡仍 toast；0309/0836 无 tp_living |
 | Agent 对话 | ✓ **已接线**（mock 模式 7/7 步浏览器实测通过；`VITE_API_MODE=real` 切后端） |
 | **语音输入（PTT）** | ✓ **已上线**（按住说话 → asr → 自动发送；mock 轮换预设问题；沙箱实测降级路径，录音全流程待真机） |
 | show_card / highlight | ✓ toast 承接（show_card 兼容平铺/嵌套两种载荷） |
@@ -133,6 +134,9 @@ scene(x,y,z) → 点云:  [ x + 0.573, 1.087 − z, y ]
 
 ### D6 · UI/逻辑解耦（UI 可随意重做）
 UI 只从 store 读状态，逻辑只往 store 写。重做 UI 只要新 HUD 继续读 `useAppStore` 同批字段，3D 视口/坐标/传送一行不动。约定：Agent 接线逻辑放 `services/`，`WalkHud.tsx` 只留触发函数，缩小与后端队友的合并冲突面。
+
+### D7 · 渲染层迁移 Spark（2026-08-28）
+**结论**：放弃 `@manycore/aholo-viewer` LodSplat（4 轮黑屏，`proxies=0`）。主视口改为命令式 `THREE.WebGLRenderer` + `@sparkjsdev/spark@2.1.0` 的 `SparkRenderer`/`SplatMesh`。three **钉死 0.180.0**（Spark 2.1 要求 ≥0.180），不把 splat 挂进 R3F Canvas。交互（WASD / Pointer Lock / `teleportCmd` / coords / 房间归因 / V 键）保留。ply 不入库：dev `/ply/{scene}.ply` 只读映射；生产 `VITE_SPLAT_URL_*` 三级回落。5 套 `CLOUD_RULES` 用各套 `origin.json`，0330 的 0.573/1.087 **未改**。事实源：`frontend/docs/RENDER_ARCH.md`。
 
 ---
 
@@ -253,3 +257,9 @@ npm run build                    # 必过
 
 ### 阶段 19 · UI 重设计落地：iOS 亮色磨砂（2026-08-28 傍晚）
 UI AI 外包一轮跑偏（交付了无关产品的营销落地页），改为前端侧直接落地：视觉基准 `ui-frost-preview.html` v2（亮色磨砂 + iOS 字阶 + Apple 字色 #1D1D1F/#6E6E73/#AEAEB2 + 陶土橙 #C4613C）。实现方式：**只重写 `global.css` 一个文件**，类名/DOM/z-index 层级（hud-tr 23 > agent-panel 22 > resume-overlay 21 > walk-hud 20，boot-status 25 / no-webgl 30）/pointer-events 架构与旧版逐项一致，组件 TSX 零改动（voice-btn 三态类名、boot-status.done、agent-stub.live 等 JS 引用全部保留）。性能约束：backdrop-filter 仅用于 chips/agent-panel/toast/恢复卡（小面积），气泡输入框按钮用不透明 --frost-fill；blur 26px 不参与动画；`@supports` 降级不透明面板。帧率不足时全局把 --frost-blur 降 16px 即可。旧 --glass/--glass-border 变量保留别名映射，防外部依赖。
+
+### 阶段 20 · 渲染层迁移 Spark + 5 套 CLOUD_RULES（2026-08-28 夜）
+LodSplat 黑屏后改 Spark（D7）。`worlds.ts` 5 套 ply 切换；`CLOUD_RULES` 补 0469/0259/0309/0836（origin.json，0330 未改）；`loadRoomPolys` 非 0330 走网关；ply `VITE_SPLAT_URL_*` 骨架 + 本地 `/ply` 回落。文档：`frontend/docs/RENDER_ARCH.md`。
+
+### 阶段 21 · 步 1 自主带看 + 对接 roadmap（2026-08-28 夜）
+`POST /api/agent/tour` → `tourPlayer` 依次 teleport + toast/TTS；可停止；换世界停播并用新 steps。带看中跳过 `enter_room` 防双讲。失败降级：scene `tour_path` 本地拼 steps，再失败 toast「带看暂不可用」。roadmap：`docs/FE_后端对接方案.md`。
