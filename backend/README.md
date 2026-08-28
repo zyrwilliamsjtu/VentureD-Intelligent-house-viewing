@@ -4,13 +4,13 @@
 
 ## 1. 定位与边界
 
-- 本板块由 **PI 负责**，提供三端（A 前端 / B agent / PI 理解层）的统一后端网关。
+- 本板块由 **PI 负责**，提供三端（A 前端 / Agent 语义 / PI 理解层）的统一后端网关。
 - **职责**：
   - 提供 `GET /api/scene/{world_id}`（理解层产出 `scene_graph`，当前 GTProvider）
   - 提供 `GET /api/camera_poses/{world_id}`（tp → 点云坐标映射，已实现）
-  - 暴露 agent 契约接口（`chat` / `asr` / `tts` / `narration` / `tour`）——**契约层 stub 已实现**；agent 业务逻辑由 B 接入
+  - 提供 **agent 语义服务（开发中）**：SPEC v2.2 的 `chat` / `asr` / `tts` / `narration` / `tour`（`backend/app/services/agent/`，L0 规则版铺路中；详见 `docs/AGENT_DEV.md`）
   - 统一错误格式、CORS、会话透传
-- **边界**：不做 agent 语义逻辑（B 的活）、不做前端渲染（A 的活）。**不越界。**
+- **边界**：不做前端渲染（A 的活）。根目录 `agent/`（队友 Node 实现）**不合并不改**。**不越界。**
 
 ## 1.5 理解层架构（PI 板块核心 · 最简方案：GT Provider 为主，双引擎为后续）
 
@@ -28,7 +28,7 @@
   - 房间位置（`rooms[].polygon` + `trajectory_point_id`）
   - 实例位置（`instances[].position` + `bbox3d` + `trajectory_point_id`）
 - **消费方**：
-  - **B 的 agent**：作为场景知识库（房间/实例/坐标/拓扑）——回答、卖点、导航依据
+  - **Agent 语义服务**（`services/agent/`）：作为场景知识库（房间/实例/坐标/拓扑）
   - **A 的前端**：作为图纸（小地图/标注/镜头映射）
 - **来源机制**：当前由 `GTProvider` 从 GT 数据透传；未来由 `DualEngineProvider`（理解层推理）计算产出。对外格式始终遵循 SPEC v2.2。
 
@@ -62,6 +62,19 @@ GET /api/scene/{world_id}
 - 对外契约（`GET /api/scene` 返回格式）由 SPEC v2.2 定义，理解层不改变它。
 - scene_graph 的数据来源（GT provider / 未来理解层）属内部实现。
 
+### 理解层重构（进行中）
+- 理解层当前为"GT 兜底为主"。**SpatialLM（S0）部署验证受阻**，降级为可选加分；详见 **`docs/REFACTOR_PLAN.md`**。
+- 完整重构计划、阶段状态、变更/踩坑记录见 `docs/REFACTOR_PLAN.md`（单一事实源）。
+- 每完成一个阶段：更新 `docs/REFACTOR_PLAN.md`（标 ✅）+ 本文件对应章节。
+- 原则：一次只换一个步骤；每步有验收（vs GT）+ 回退；**demo 主线永不依赖理解层**。后续开发主线 = **AI agent（M1 规则版 chat）**，S0 不再阻塞。
+
+## 1.6 AI agent 语义服务（PI 开发 · 网关内模块）
+
+- **拍板**：agent 由我方用 Python 做在网关内（`backend/app/services/agent/`），与理解层任务解耦并行。
+- **单一事实源**：`docs/AGENT_DEV.md`（架构、坐标铁律、事实约束、L0/L1、里程碑）。
+- **本阶段**：M1 规则版 `handle_chat` 已通；asr/tts 仍 stub；narration 简单实现。
+- **消费**：A 前端 `agent.ts` / `asr.ts`；演示世界 `w_0330_840483`；tp 落点用 `GET /api/camera_poses`，agent 只出 `tp_id`。
+
 ## 2. 技术栈与运行
 
 - 语言/框架：Python + FastAPI
@@ -79,10 +92,11 @@ backend/
 │   ├── config.py        # 配置加载（.env）
 │   ├── routers/         # 各接口路由
 │   │   ├── scene.py     # GET /api/scene/{world_id}
-│   │   ├── agent.py     # agent 契约透传（chat/asr/tts/narration/tour）
+│   │   ├── agent.py     # agent 契约路由 → services.agent.handle_*
 │   │   └── camera.py    # camera_poses / tp 查询
 │   ├── services/        # 业务逻辑（scene 路由、scene_graph 加载、world 索引）
-│   │   └── understanding/  # 理解层：Provider 工厂 + GT 极简管线（L0+L1）
+│   │   ├── understanding/  # 理解层：Provider 工厂 + GT 极简管线（L0+L1）
+│   │   └── agent/          # AI agent：facts/session/chat 骨架/narration/tour/asr/tts
 │   ├── data/            # 数据访问（读 mock、真实 scene_graph）
 │   └── schemas/         # 目前仅 GatewayError；scene/agent 响应未用 Pydantic 校验（可选增强）
 ├── tests/               # 测试（对齐 SPEC 验收标准）
@@ -92,9 +106,9 @@ backend/
 ## 4. 数据流（谁调谁，白盒）
 
 ```
-A 前端 ──GET /api/scene/{world_id}──> backend 理解层产出 scene_graph ──> B agent（知识库）/ A 前端（图纸）
+A 前端 ──GET /api/scene/{world_id}──> backend 理解层产出 scene_graph ──> agent 知识库 / A 前端（图纸）
 A 前端 ──GET /api/camera_poses/{world_id}──> backend（读 mock camera_poses.json）
-A 前端 ──POST /api/agent/chat|asr|tts|tour / GET narration──> backend 网关 stub（待转发 B agent）
+A 前端 ──POST /api/agent/chat|asr|tts|tour / GET narration──> backend agent 语义服务（开发中，见 docs/AGENT_DEV.md）
 ```
 
 ## 5. 接口契约对齐
@@ -119,10 +133,15 @@ A 前端 ──POST /api/agent/chat|asr|tts|tour / GET narration──> backend 
 | 2026-08-28 | 理解层产出显式化 | `UnderstandingOutput` + README/SPEC 标明 scene_graph 为 PI 核心产出、供 B/A 消费 |
 | 2026-08-28 | camera / agent 网关 stub | `GET /api/camera_poses/{world_id}`；agent 五路由契约层 stub（SPEC §4 新增 camera_poses） |
 | 2026-08-28 | 验收 Y 项清理 | README 架构图/GT 钩子/schemas 表述对齐代码；agent stub 空可选字段 omit；SPEC §0 点云层改为 Z-up |
+| 2026-08-28 | agent 服务骨架 | 建立 `services/agent/`（facts/session/stub）+ `docs/AGENT_DEV.md`；router 改调 handle_* |
+| 2026-08-28 | M1 规则版 chat | intent/grounding/responder/actions；问主卧 → teleport `tp_bedroom_master` |
+| 2026-08-28 | 理解层重构 S0 受阻 | SpatialLM 笔记本编译失败，止损存档；demo 主线继续 GT；后续主线转 agent |
 
 ## 8. 与本仓库其他板块的关系
 
 - `mock/`：场景数据来源（手写 + real_0330）
 - `SPEC.md`：接口契约
 - `docs/GIT_WORKFLOW.md`：Git 推送规则（backend 同样遵守）
-- B 的 agent / A 的前端：通过本网关对接，不直接互连
+- `docs/AGENT_DEV.md`：AI agent 开发文档
+- AI agent：网关内 `services/agent/`（PI）；根目录 `agent/` 不合并
+- A 的前端：通过本网关对接，不直接连 agent 实现
