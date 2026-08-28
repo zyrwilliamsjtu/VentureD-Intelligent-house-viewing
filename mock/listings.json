@@ -6,7 +6,8 @@
   "listings": [
     {
       "id": "listing_0330_840483",
-      "title": "InteriorGS 0330 · 三室一厅",
+      "community": "翡翠云邸",
+      "title": "翡翠云邸",
       "layout": "三室一厅",
       "area": 120.1,
       "orientation": "南向",
@@ -21,7 +22,8 @@
     },
     {
       "id": "listing_0469_840829",
-      "title": "InteriorGS 0469 · 四室一厅",
+      "community": "星河湾",
+      "title": "星河湾",
       "layout": "四室一厅",
       "area": 135.9,
       "orientation": "南向",
@@ -36,7 +38,8 @@
     },
     {
       "id": "listing_0259_840804",
-      "title": "InteriorGS 0259 · 三室一厅",
+      "community": "翠湖天地",
+      "title": "翠湖天地",
       "layout": "三室一厅",
       "area": 135.9,
       "orientation": "南北",
@@ -51,7 +54,8 @@
     },
     {
       "id": "listing_0309_840544",
-      "title": "InteriorGS 0309 · 三室一厅",
+      "community": "玉兰公馆",
+      "title": "玉兰公馆",
       "layout": "三室一厅",
       "area": 85.9,
       "orientation": "东南",
@@ -66,7 +70,8 @@
     },
     {
       "id": "listing_0836_841149",
-      "title": "InteriorGS 0836 · 三室一厅",
+      "community": "云栖雅苑",
+      "title": "云栖雅苑",
       "layout": "三室一厅",
       "area": 92.9,
       "orientation": "南向",
