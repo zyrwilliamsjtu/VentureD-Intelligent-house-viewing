@@ -28,7 +28,7 @@
 | 层 | 单位 | Up 轴 | 使用者 |
 |---|---|---|---|
 | **scene JSON / agent 契约层** | 米 | Y-up，房屋中心原点，X/Z 地面平面，右手系 | B 的 agent 读场景、生成话术与动作 |
-| **点云坐标系（玩家/传送）** | 米 | **-Y up** | A 的玩家位置、`teleport`/`highlight` 落点 |
+| **点云坐标系（玩家/传送）** | 米 | 0330 ply 为 IG 原生 Z-up（实测，见附录 A）；具体映射以附录 A 为准 | A 的玩家位置、`teleport`/`highlight` 落点 |
 
 - **转换只发生在 A 本地的一处映射层**（或由 PI 提供 tp→点云坐标映射表）；B 不感知点云坐标。
 - **对拍完成前**：`room_id` 恒为 `null`；B 不做坐标级归因；teleport 降级（见 §4.3）。
@@ -64,6 +64,12 @@
 ## 2. 数据契约：`GET /api/scene/{world_id}` — 三级语义 JSON（P0 · PI 提供）
 
 前端进页面第一个请求；渲染分区、标注、Agent 知识库全部依赖它。幂等可缓存。
+
+> **产出定位**：本接口返回的 `scene_graph` 是**理解层的核心产出**（三级语义结构：house / rooms / instances + 坐标 + topology），由 PI 后端提供。
+> - 供 **B 的 agent** 作为场景知识库（房间/实例位置/拓扑）
+> - 供 **A 的前端**作为图纸（小地图/标注/镜头映射）
+> - 当前由 GTProvider 提供（数据来自 `mock/real_0330/scene_graph.json`）；未来可切换 DualEngineProvider。对外格式始终遵循本契约。
+
 
 ### 2.1 结构要点（完整示例见 mock/scene_graph.json）
 
@@ -224,6 +230,27 @@
 
 - 对拍未完成 → B 只输出 `tp_id` 或纯文本（`actions` 可空）；A 用 `tp_id` 查映射表执行，或仅显示文字。
 - `highlight`/`show_card` 未实现 → 前端忽略该 action，不影响回答展示。
+
+### 4.4 `GET /api/camera_poses/{world_id}`（P0 · PI 提供）
+
+A 查询 `tp_id` → **点云坐标**映射，供 `teleport` / `highlight` 落点。只读。
+
+**请求**：path `world_id`（与 scene 相同：`w_0330_840483` / `w_mock_001`）
+
+**响应 200**：
+
+```json
+{ "world_id": "w_0330_840483", "poses": { "tp_living": [0.061, 0.934, 0.5] } }
+```
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `world_id` | string | 回显请求的世界 id |
+| `poses` | object | `tp_id` → `[x,y,z]`（点云坐标系，米；0330 为 IG 原生 Z-up，见附录 A） |
+
+未知 `world_id` → 404 `{ "code": "WORLD_NOT_FOUND", "message": "世界不存在" }`。
+
+**数据源**：`mock/real_0330/camera_poses.json`（0330 对拍转正版）；手写 mock 为 `mock/camera_poses.json`（开发基线，勿套用 0330 公式）。
 
 ---
 

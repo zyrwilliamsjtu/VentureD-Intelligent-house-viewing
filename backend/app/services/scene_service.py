@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import json
 
-from app.data.scene_store import load_scene_graph
 from app.schemas.errors import GatewayError
+from app.services.understanding.output import UnderstandingOutput
+from app.services.understanding.providers import get_provider
 
 
 def _coord_ok(scene: dict) -> bool:
@@ -14,9 +15,12 @@ def _coord_ok(scene: dict) -> bool:
     return coord.get("unit") == "m" and coord.get("up") == "Y"
 
 
-def get_scene(world_id: str) -> dict:
+def get_scene(world_id: str) -> UnderstandingOutput:
+    """理解层产出入口：SPEC scene_graph，供 B agent / A 前端消费。"""
     try:
-        scene = load_scene_graph(world_id)
+        scene = get_provider().get_scene_graph(world_id)
+    except NotImplementedError:
+        raise GatewayError(500, "SCENE_GRAPH_EMPTY", "场景语义数据为空") from None
     except (OSError, ValueError, json.JSONDecodeError):
         raise GatewayError(500, "SCENE_GRAPH_EMPTY", "场景语义数据为空") from None
     if scene is None:
