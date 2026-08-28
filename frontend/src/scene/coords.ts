@@ -307,3 +307,60 @@ export async function resolveTeleportCloud(
   }
   return null
 }
+
+/** 实例 tp：`tp_sofa_417`；房间级：`tp_living` / `tp_bedroom_master` */
+export function isInstanceTpId(tpId: string | undefined | null): boolean {
+  return !!tpId && /^tp_[a-z]+(?:_[a-z]+)*_\d+$/.test(tpId)
+}
+
+function roomCentroidScene(poly: [number, number][]): V3 | null {
+  if (!poly.length) return null
+  let sx = 0
+  let sz = 0
+  for (const [x, z] of poly) {
+    sx += x
+    sz += z
+  }
+  const n = poly.length
+  return [sx / n, 0, sz / n]
+}
+
+/**
+ * 实例观察位：沿「实例 → 房间中心」退 2m，站姿 z=0.5（与房间锚点同档）。
+ * 观察位不在该房间 polygon 内 → 落到房间中心，仍 lookAt 实例。
+ */
+export async function resolveObserveCloud(
+  instanceTp: string,
+  worldId: string,
+): Promise<{ stand: V3; lookAt: V3; fallback: boolean } | null> {
+  const table = await loadTpTable(worldId)
+  const inst = table[instanceTp]
+  if (!inst) return null
+  const rooms = await loadRoomPolys(worldId)
+  const roomId = roomAtCloud(inst, worldId, rooms)
+  const host = rooms.find((r) => r.id === roomId)
+  const centerScene = host ? roomCentroidScene(host.polygon) : null
+  const center = centerScene ? sceneToCloud(centerScene, worldId) : null
+  const lookAt: V3 = inst
+  const dist = 2.0
+  let stand: V3 = [inst[0], inst[1], 0.5]
+  let fallback = true
+  if (center) {
+    const dx = center[0] - inst[0]
+    const dy = center[1] - inst[1]
+    const len = Math.hypot(dx, dy)
+    if (len > 0.08) {
+      stand = [r3(inst[0] - (dx / len) * dist), r3(inst[1] - (dy / len) * dist), 0.5]
+      fallback = false
+    }
+  }
+  if (roomId && !fallback) {
+    const inside = roomAtCloud(stand, worldId, rooms) === roomId
+    if (!inside) fallback = true
+  }
+  if (fallback) {
+    if (center) stand = [r3(center[0]), r3(center[1]), 0.5]
+    else stand = [inst[0], inst[1], 0.5]
+  }
+  return { stand, lookAt, fallback }
+}

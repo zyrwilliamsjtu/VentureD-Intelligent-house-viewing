@@ -3,7 +3,7 @@ import { useAppStore } from '../store/useAppStore'
 import { agentChat, getSessionId } from '../services/agent'
 import { agentAsr } from '../services/asr'
 import { PttRecorder, type Recording } from '../services/recorder'
-import { executeAgentActions, playTts } from '../scene/agentActions'
+import { executeAgentActions, playReplyVoice } from '../scene/agentActions'
 import { useRoomNarration } from '../scene/narration'
 import { TourBar } from './TourBar'
 import { InfoCard } from './InfoCard'
@@ -73,7 +73,7 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
       })
       setMsgs((m) => [...m, { role: 'assistant', text: res.reply_text }])
       await executeAgentActions(res.actions, worldId)
-      playTts(res.tts_url)
+      playReplyVoice(res.reply_text, res.tts_url)
     } catch (e) {
       const msg = e instanceof Error ? e.message : '网络错误'
       setMsgs((m) => [...m, { role: 'assistant', text: `Agent 暂不可用：${msg}` }])

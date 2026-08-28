@@ -422,17 +422,34 @@ export function AholoViewport({ worldId }: { worldId: string }) {
           y1 = sy
         }
         const from = camera.position
-        const dh1 = x1 - from.x
-        const dh2 = upAxis === 2 ? y1 - from.y : z1 - from.z
         let yaw1 = st.yaw
-        if (Math.hypot(dh1, dh2) > 0.2) {
-          yaw1 = Math.atan2(-dh1, -dh2)
+        let pitch1 = 0
+        const look = cmd.lookAt
+        if (look && look.length === 3) {
+          const ldx = look[0] - x1
+          const ldy = look[1] - y1
+          const ldz = look[2] - z1
+          if (upAxis === 2) {
+            const horiz = Math.hypot(ldx, ldy)
+            if (horiz > 0.05) yaw1 = Math.atan2(-ldx, -ldy)
+            pitch1 = clamp(Math.atan2(ldz, Math.max(horiz, 0.05)), -PITCH_LIMIT, PITCH_LIMIT)
+          } else {
+            const horiz = Math.hypot(ldx, ldz)
+            if (horiz > 0.05) yaw1 = Math.atan2(-ldx, -ldz)
+            pitch1 = clamp(Math.atan2(upSign * ldy, Math.max(horiz, 0.05)), -PITCH_LIMIT, PITCH_LIMIT)
+          }
+        } else {
+          const dh1 = x1 - from.x
+          const dh2 = upAxis === 2 ? y1 - from.y : z1 - from.z
+          if (Math.hypot(dh1, dh2) > 0.2) {
+            yaw1 = Math.atan2(-dh1, -dh2)
+          }
         }
         fly = {
           x0: from.x, y0: from.y, z0: from.z,
           x1, y1, z1,
           yaw0: st.yaw, yaw1,
-          pitch0: st.pitch, pitch1: 0,
+          pitch0: st.pitch, pitch1,
           t0: performance.now(),
         }
         st.vx = 0
