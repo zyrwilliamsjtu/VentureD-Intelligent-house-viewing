@@ -21,7 +21,7 @@
 │ （只打网关）     │ ◄────────────────── │  └─ agent 语义服务            │
 └─────────────────┘                      └──────────────────────────────┘
         │                                              │
-        │ ply 本地 /ply 或 VITE_SPLAT_*                │ mock/{scene}/ GT JSON
+        │ ply 同域 /ply 或 VITE_SPLAT_*                │ mock/{scene}/ GT JSON
         ▼                                              ▼
   InteriorGS compressed ply                    scene_graph + camera_poses
                                                + listings.json
@@ -132,12 +132,13 @@
 | 理解层重构 / SpatialLM | [`REFACTOR_PLAN.md`](./REFACTOR_PLAN.md) |
 | 前端视口 / HUD / 8 接口用法 | [`frontend/docs/FRONTEND_ARCH.md`](../frontend/docs/FRONTEND_ARCH.md) |
 | 后端边界 / 测试 / 里程碑 | [`backend/README.md`](../backend/README.md) |
+| 局域网部署（P1） | [`DEPLOY_局域网.md`](./DEPLOY_局域网.md) |
 
 ---
 
 ## 一条 demo 路径
 
-1. **进入** — `cd frontend && npm run dev`；`cd backend && uvicorn app.main:app --reload`。前端 `.env.local`：`VITE_API_MODE=real`（联调网关）。
+1. **进入** — 开发：`cd frontend && npm run dev` + `cd backend && uvicorn app.main:app --reload`。局域网给他人看：先 `frontend` 里 `npm run build`，再 `uvicorn ... --host 0.0.0.0 --port 8000`（见 [`DEPLOY_局域网.md`](./DEPLOY_局域网.md)）。前端联调网关：`VITE_API_MODE=real`。
 2. **Splash** — 品牌「小驻看房」/ inNest，点「进入看房」。`# 待合入 feat/agent-ux`
 3. **HouseList** — `GET /api/listings`，卡片显示楼盘名 + 编号；可点 **问问小驻** 说需求 → 推荐 1 套 → 查看详情。
 4. **详情弹窗** — 点卡片或推荐结果：2D 户型图（真实 polygon 墙体/功能配色，居中；不画家具；无门窗数据不编造）+ 挂牌介绍 + 房间清单；点「进入3D空间」才进漫游。

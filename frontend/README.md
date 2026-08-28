@@ -26,7 +26,7 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-默认 **mock 模式**：无需后端即可 WASD 漫游。出画走 **THREE 0.180 + Spark 2.1**（命令式 rAF，**不挂 R3F**）。开发 ply：`/ply/{scene}.ply`（Vite 只读映射数据盘，禁止 ply 入库）。生产配 `VITE_SPLAT_URL_*`（见 FRONTEND_ARCH）。
+默认 **mock 模式**：无需后端即可 WASD 漫游。出画走 **THREE 0.180 + Spark 2.1**（命令式 rAF，**不挂 R3F**）。开发 ply：`/ply/{scene}.ply`（Vite 只读映射数据盘，禁止 ply 入库）。局域网把 `npm run build` 交给 FastAPI 托管，同域 `/ply`；对象存储见 FRONTEND_ARCH（**# 待确认**）。步骤：[`../docs/DEPLOY_局域网.md`](../docs/DEPLOY_局域网.md)。
 
 `.env.local`（不入库）：
 

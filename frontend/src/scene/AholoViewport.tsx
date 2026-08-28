@@ -33,7 +33,7 @@ const SIDE_SIGN = 1
 // 玩家上下文发布节流（Agent chat 请求字段）
 const CTX_INTERVAL = 200
 const CTX_POS_EPS = 0.04
-/** # 待确认：Spark 在 dpr=2 时持续走动易掉帧；1.5 为清晰度/帧率折中，未改 renderer 内部 */
+/** # 待确认：Spark 在 dpr=2 时持续走动易掉帧；1.5 为清晰度/帧率折中。外置 Chrome 若 Windows 缩放 150% 即约 1.5，已触顶。未改 Spark renderer 内部 */
 const DPR_CAP = 1.5
 
 function webglOk(): boolean {
@@ -135,12 +135,32 @@ export function AholoViewport({ worldId }: { worldId: string }) {
 
       const w0 = Math.max(1, host.clientWidth)
       const h0 = Math.max(1, host.clientHeight)
-      renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false })
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, DPR_CAP))
-      renderer.setSize(w0, h0, false)
+      renderer = new THREE.WebGLRenderer({
+        antialias: false,
+        alpha: false,
+        powerPreference: 'high-performance',
+        failIfMajorPerformanceCaveat: false,
+      })
+      const applyView = () => {
+        if (!renderer) return
+        const w = Math.max(1, host.clientWidth)
+        const h = Math.max(1, host.clientHeight)
+        const dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP)
+        renderer.setPixelRatio(dpr)
+        renderer.setSize(w, h, false)
+        return { w, h, dpr }
+      }
+      const view0 = applyView()
       renderer.setClearColor(0x14161c, 1)
       host.appendChild(renderer.domElement)
-      console.info('[boot] canvas %d×%d dpr=%s', w0, h0, renderer.getPixelRatio())
+      console.info(
+        '[boot] canvas %d×%d dpr=%s (cap=%s) powerPreference=high-performance antialias=off',
+        view0?.w ?? 0,
+        view0?.h ?? 0,
+        view0?.dpr ?? renderer.getPixelRatio(),
+        DPR_CAP,
+      )
+      console.info('[boot] 若外置 Chrome 卡顿：设置 → 系统 → 打开「使用硬件加速」；关掉多余标签/扩展后再看 [perf] fps')
 
       const scene = new THREE.Scene()
       const camera = new THREE.PerspectiveCamera(72, w0 / h0, 0.05, 300)
@@ -605,15 +625,16 @@ export function AholoViewport({ worldId }: { worldId: string }) {
       window.addEventListener('keydown', onDown)
       window.addEventListener('keyup', onUp)
 
-      const ro = new ResizeObserver(() => {
-        if (!renderer) return
-        const w = Math.max(1, host.clientWidth)
-        const h = Math.max(1, host.clientHeight)
-        camera.aspect = w / h
+      const syncView = () => {
+        const v = applyView()
+        if (!v) return
+        camera.aspect = v.w / v.h
         camera.updateProjectionMatrix()
-        renderer.setSize(w, h, false)
-      })
+      }
+      const ro = new ResizeObserver(syncView)
       ro.observe(host)
+      window.addEventListener('resize', syncView)
+      window.visualViewport?.addEventListener('resize', syncView)
 
       cleanupFns.push(() => {
         host.removeEventListener('click', onHostClickLock)
@@ -621,6 +642,8 @@ export function AholoViewport({ worldId }: { worldId: string }) {
         document.removeEventListener('mousemove', onMove)
         window.removeEventListener('keydown', onDown)
         window.removeEventListener('keyup', onUp)
+        window.removeEventListener('resize', syncView)
+        window.visualViewport?.removeEventListener('resize', syncView)
         ro.disconnect()
       })
     }

@@ -130,6 +130,20 @@ def tts_output_dir() -> Path:
     return path
 
 
+def ply_scenes_dir() -> Path | None:
+    """InteriorGS 数据盘 scenes 目录（只读映射 /ply/{scene}.ply）。不存在则 ply 接口 404。"""
+    raw = _opt("PLY_SCENES_DIR") or r"E:\科研\ventureD_data\interiorgs\scenes"
+    path = Path(raw)
+    return path if path.is_dir() else None
+
+
+def frontend_dist_dir() -> Path | None:
+    """局域网托管用的前端构建产物。缺 index.html 则不挂 SPA。"""
+    raw = _opt("FRONTEND_DIST") or str(REPO_ROOT / "frontend" / "dist")
+    path = Path(raw)
+    return path if (path / "index.html").is_file() else None
+
+
 def asr_provider_name() -> str:
     return (_opt("ASR_PROVIDER", "stub") or "stub").lower()
 

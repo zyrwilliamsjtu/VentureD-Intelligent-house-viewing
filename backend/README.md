@@ -13,9 +13,10 @@
   - `GET /api/listings` — 挂牌列表（`mock/listings.json`；可选查询 `layout` / `price_min` / `price_max` / `q`，无参返回全部；失败 500，前端硬编码兜底）
   - **agent 语义服务**：SPEC v2.3 的 `chat` / `asr` / `tts` / `narration` / `tour` / **`recommend`（只增）**（`backend/app/services/agent/`；chat 可选 `listing_id`）
   - 统一错误 `{code,message}`、CORS、会话透传
-- **边界**：不做前端渲染（A）。根目录 `agent/`（队友 Node）**不合并不改**。Spark / ply 托管是前端的事，不进本板块、不进 SPEC。
+  - **局域网 P1**：可选托管 `frontend/dist`（`/`）+ 只读 `/ply/{scene}.ply` 映射数据盘（不改契约、ply 不入库）
+- **边界**：不做前端渲染逻辑（A）。根目录 `agent/`（队友 Node）**不合并不改**。公网对象存储 ply 为 **P2 # 待确认**。
 
-健康检查：`GET /health`（无 `/api` 前缀）。
+健康检查：`GET /health`（无 `/api` 前缀）。局域网一进程启动见 [`docs/DEPLOY_局域网.md`](../docs/DEPLOY_局域网.md)。
 
 ## 1.5 理解层（GT Provider 为主，双引擎为后续）
 
@@ -100,7 +101,7 @@ TTS： volcengine V3 HTTP Chunked（超时 15s）+ 同文本缓存 → {}（omit
 backend/
 ├── README.md            # 本文档（板块唯一总览）
 ├── app/
-│   ├── main.py          # FastAPI 入口 + 路由注册 + GET /health
+│   ├── main.py          # FastAPI 入口 + /health + /ply + 可选 SPA dist
 │   ├── config.py
 │   ├── routers/
 │   │   ├── scene.py     # GET /api/scene/{world_id}
@@ -123,6 +124,8 @@ A 前端 ──GET /api/listings──> mock/listings.json
 A 前端 ──GET /api/scene/{world_id}──> 理解层 GT ──> agent 知识库 / 前端图纸
 A 前端 ──GET /api/camera_poses/{world_id}──> mock camera_poses.json
 A 前端 ──POST chat|asr|tts|tour|recommend / GET narration──> services.agent
+A 浏览器 ──GET /ply/{scene}.ply──> 数据盘 3dgs_compressed.ply（局域网托管）
+A 浏览器 ──GET /──> frontend/dist（需先 npm run build）
 ```
 
 ## 5. 接口契约对齐
@@ -188,6 +191,7 @@ A 前端 ──POST chat|asr|tts|tour|recommend / GET narration──> services.
 | 2026-08-28 | 文档升格 | 本文改为板块唯一总览；链 AGENT_DEV / REFACTOR_PLAN |
 | 2026-08-29 | listings 筛选 | `GET /api/listings` 可选 `layout`/`price_min`/`price_max`/`q`（只增；无参兼容） |
 | 2026-08-29 | 楼盘名 + code | listings `title` 改为楼盘名；只增 `code`（0330 等编号） |
+| 2026-08-29 | 局域网托管 | `GET /ply/{scene}.ply` 只读数据盘；可选 mount `frontend/dist` |
 
 ## 10. 与其他板块
 

@@ -147,9 +147,9 @@ AholoViewport（文件名历史包袱，避免大范围改 import）
 
 1. `VITE_SPLAT_URL_{world_id}`（Vite 只内联静态出现的 `VITE_*`，必须逐套写出）
 2. `VITE_SPLAT_BASE` + `/{scene_dir}/3dgs_compressed.ply`
-3. 开发默认：`/ply/{scene_dir}.ply`（`vite.config.ts` 中间件只读映射数据盘，**禁止复制 ply 入库**）
+3. 开发默认：`/ply/{scene_dir}.ply`（dev：`vite.config.ts` 中间件；**局域网生产**：FastAPI `GET /ply/{scene}.ply` 只读数据盘，见 [`docs/DEPLOY_局域网.md`](../../docs/DEPLOY_局域网.md)）。**禁止复制 ply 入库**
 
-`.env.example` 只列变量名。**# 待确认**：对象存储 bucket / 权限 / 实际上传（未提供则生产 URL 为空，本地 `/ply` 仍可用）。
+`.env.example` / `.env.production` 只列变量名。**# 待确认**：对象存储 bucket / 权限 / 实际上传（未提供则生产仍走同域 `/ply`）。
 
 ---
 
@@ -162,7 +162,7 @@ AholoViewport（文件名历史包袱，避免大范围改 import）
 | **TourBar** | 「开始带看」→ `startTour`；进行中显示房间名。失败 toast「带看暂不可用」。 |
 | **B 键** | `keydown` `KeyB` 切换带看（忽略输入框）。Pointer Lock 时点不到左上按钮，用键盘兜底。 |
 | **M 键** | 打开/关闭 2D 俯瞰图（去房间名；橙点 = `player` 点云坐标经 `cloudToScene` 投影）。Esc / 关闭可退。不阻塞 WASD。未打开时不订阅 `player`。 |
-| **WalkHud** | 对话气泡 + 打字 + PTT；右上角入口文案「小驻AI·询问」；底栏两行弱存在感（默认 opacity ~0.4，悬停变清晰）；进房 toast 由 `narration.ts` 调 `showToast`。 |
+| **WalkHud** | 对话气泡 + 打字 + PTT；右上角入口文案「小驻AI·询问」；底栏两行键位**固定清晰**（无悬停才显示）；进房 toast 由 `narration.ts` 调 `showToast`。 |
 | **加载浮窗** | `.boot-status`：0→100% 后 `onLoad`/`initialized` 置完成并在约 1.2s 后 `display:none`。失败层可「重试 / 关闭」，不无限转圈。 |
 
 带看期间 `tourActive`：跳过进房 narration，避免与 tour 步骤双讲。切到下一步时 **强制飞入该步 tp**（忽略 WASD，不可取消过渡）；**到位后** 才上屏短句 / 播 `speech`。当前房介绍期间仍可自由走动。TTS stub 按文本时长推进，不卡死。
@@ -202,7 +202,7 @@ Golden Path：问「主卧在哪」→ `teleport` + `tp_id=tp_bedroom_master`（
 | `0469` 无冰箱 | 问冰箱不会出实例卡（0330 有 `tp_refrigerator_582`） |
 | 独立 TTS | 后端 stub 常 omit `audio_url`；讲解依赖 chat/narration 的 `tts_url` |
 | scene 无门/窗 | **# 待确认**：`scene_graph` 无门/窗字段，2D 户型图只画轮廓 + 房间名，不编造开口/家具 |
-| Spark / 高 dpr 掉帧 | **# 待确认**：视口 dpr 上限 1.5；走动时控制台每 5s `[perf] fps=…`。未改 Spark renderer 内部 |
+| Spark / 高 dpr 掉帧 | **# 待确认**：dpr 上限 1.5；`powerPreference: high-performance`；`antialias: false`。外置 Chrome 请开硬件加速。走动时 `[perf] fps=…`。未改 Spark renderer 内部 |
 
 无 `# 待合入`：narration GET、B 键、PlaceFacts、show_card、highlight、tour 均已在 main。
 
@@ -214,6 +214,7 @@ Golden Path：问「主卧在哪」→ `teleport` + `tp_id=tp_bedroom_master`（
 |------|------|
 | 根目录 [`SPEC.md`](../../SPEC.md) | 接口唯一事实源 |
 | [`../../docs/PROJECT_OVERVIEW.md`](../../docs/PROJECT_OVERVIEW.md) | 项目一页总览 |
+| [`../../docs/DEPLOY_局域网.md`](../../docs/DEPLOY_局域网.md) | P1：build + uvicorn 0.0.0.0 给局域网他人打开 |
 | [`../../docs/FE_后端对接方案.md`](../../docs/FE_后端对接方案.md) | 对接 roadmap（步 4 已合 main） |
 | [`../../docs/FE_房源列表联调指南.md`](../../docs/FE_房源列表联调指南.md) | 5 套偏移表 |
 | [`backend/README.md`](../../backend/README.md) | 后端唯一总览 |
