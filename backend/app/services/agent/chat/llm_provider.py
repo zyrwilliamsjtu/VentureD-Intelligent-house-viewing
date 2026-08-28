@@ -63,6 +63,12 @@ def facts_brief(facts: Facts) -> str:
             val = house.get(key)
             if is_placeholder_value(val):
                 lines.append(f"house.{key}=数据未提供")
+            elif val is not None and str(val).strip():
+                lines.append(f"house.{key}={val}")
+        facts_blob = house.get("facts") if isinstance(house.get("facts"), dict) else {}
+        highlight = facts_blob.get("highlight") if isinstance(facts_blob, dict) else None
+        if highlight and not is_placeholder_value(highlight):
+            lines.append(f"house.highlight={highlight}")
     room = facts.get("room")
     if isinstance(room, dict):
         lines.append(

@@ -52,8 +52,10 @@ def handle_chat(
     grounded = retrieve(intent, user_text, graph, room_id=room_id or sess.get("current_room"))
     reply = generate(grounded, intent, graph)
     actions = build_actions(intent, grounded, graph)
-    # 导航话术必须与 teleport 一致；LLM 改写会变成「无法判断在哪」却仍瞬移
-    if intent != Intent.NAVIGATION:
+    # 导航话术必须与 teleport 一致；挂牌价必须与 listings 一致，禁止 LLM 改写成「没有价格」
+    asked = grounded.get("asked_keys") or []
+    lock_rule = intent == Intent.NAVIGATION or (intent == Intent.PROPERTY and "price" in asked)
+    if not lock_rule:
         try:
             enhanced = get_chat_llm_provider().enhance(
                 grounded,

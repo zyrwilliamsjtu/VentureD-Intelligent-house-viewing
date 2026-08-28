@@ -158,3 +158,53 @@ def test_enhance_override_keeps_actions(monkeypatch: pytest.MonkeyPatch) -> None
     assert prop["reply_text"] == "LLM改写:这套房适合什么人住"
     session_store.clear(sid)
     session_store.clear(sid2)
+
+
+def test_facts_brief_includes_real_price() -> None:
+    from app.services.agent.chat.llm_provider import facts_brief
+
+    brief = facts_brief(
+        {
+            "missing": False,
+            "query": "",
+            "room": None,
+            "instance": None,
+            "host_room": None,
+            "house": {
+                "type": "四室一厅",
+                "total_area": 135.9,
+                "price": "490万",
+                "orientation": "南向",
+                "floor": "8/18",
+            },
+            "asked_keys": ["price"],
+        }
+    )
+    assert "house.price=490万" in brief
+    assert "house.orientation=南向" in brief
+    assert "数据未提供" not in brief
+
+
+def test_price_question_not_rewritten_by_llm(monkeypatch: pytest.MonkeyPatch) -> None:
+    """挂牌价问答锁规则版，避免 LLM 说「没有价格」。"""
+
+    class _Fake:
+        def enhance(self, facts, user_text, history):
+            _ = facts, user_text, history
+            return "没有价格相关信息。"
+
+    monkeypatch.setattr(
+        "app.services.agent.service.get_chat_llm_provider",
+        lambda: _Fake(),
+    )
+    sid = "s_llm_price_lock"
+    session_store.clear(sid)
+    body = handle_chat(
+        session_id=sid,
+        world_id="w_0469_840829",
+        listing_id="listing_0469_840829",
+        user_text="这套多少钱",
+    )
+    assert "490万" in body["reply_text"]
+    assert "没有价格" not in body["reply_text"]
+    session_store.clear(sid)
