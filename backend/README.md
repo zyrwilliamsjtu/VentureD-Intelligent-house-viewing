@@ -1,157 +1,194 @@
 # Backend 开发技术文档（PI 后端板块）
 
-> 本文件是 backend 板块的**单一事实源**。任何代码结构、接口、数据流的变更，先更新本文件、再改代码。
+> 本文件是 backend 板块的**唯一总览**。项目一页见 [`docs/PROJECT_OVERVIEW.md`](../docs/PROJECT_OVERVIEW.md)；接口字段以根目录 [`SPEC.md`](../SPEC.md) 为准。  
+> 实现细节（不在本文展开）：[`docs/AGENT_DEV.md`](../docs/AGENT_DEV.md) · [`docs/REFACTOR_PLAN.md`](../docs/REFACTOR_PLAN.md) · [`docs/REPO_STRUCTURE.md`](../docs/REPO_STRUCTURE.md)。  
+> 任何代码结构、接口、数据流的变更：先更新本文件与 SPEC（若动契约）、再改代码。
 
 ## 1. 定位与边界
 
-- 本板块由 **PI 负责**，提供三端（A 前端 / Agent 语义 / PI 理解层）的统一后端网关。
+- 本板块由 **PI 负责**，提供三端统一后端网关。
 - **职责**：
-  - 提供 `GET /api/scene/{world_id}`（理解层产出 `scene_graph`，当前 GTProvider；**5 套真实世界** + 手写 mock）
-  - 提供 `GET /api/camera_poses/{world_id}`（tp → 点云坐标映射）
-  - 提供 `GET /api/listings`（挂牌列表，数据源 `mock/listings.json`；失败 500，前端硬编码兜底）
-  - 提供 **agent 语义服务**：SPEC v2.3 的 `chat` / `asr` / `tts` / `narration` / `tour`（`backend/app/services/agent/`；chat 可选 `listing_id`；详见 `docs/AGENT_DEV.md`）
-  - 统一错误格式、CORS、会话透传
-- **边界**：不做前端渲染（A 的活）。根目录 `agent/`（队友 Node 实现）**不合并不改**。**不越界。**
+  - `GET /api/scene/{world_id}` — 理解层产出 `scene_graph`（当前 GTProvider；**5 套真实世界** + 手写 mock）
+  - `GET /api/camera_poses/{world_id}` — `tp_id` → 点云坐标
+  - `GET /api/listings` — 挂牌列表（`mock/listings.json`；失败 500，前端硬编码兜底）
+  - **agent 语义服务**：SPEC v2.3 的 `chat` / `asr` / `tts` / `narration` / `tour`（`backend/app/services/agent/`；chat 可选 `listing_id`）
+  - 统一错误 `{code,message}`、CORS、会话透传
+- **边界**：不做前端渲染（A）。根目录 `agent/`（队友 Node）**不合并不改**。Spark / ply 托管是前端的事，不进本板块、不进 SPEC。
 
-## 1.5 理解层架构（PI 板块核心 · 最简方案：GT Provider 为主，双引擎为后续）
+健康检查：`GET /health`（无 `/api` 前缀）。
+
+## 1.5 理解层（GT Provider 为主，双引擎为后续）
 
 ### 定位（决策记录：2026-08-28）
-- 目标场景为 **5 套真实 InteriorGS**（`w_0330_840483` 及 `w_0469_840829` / `w_0259_840804` / `w_0309_840544` / `w_0836_841149`）+ 手写 `w_mock_001`；未知 world 仍 404。不做现场生成。
-- **最简方案（PI 拍板）**：理解层砍掉 VLM / CLIP / 房间截图 / 双通道核验 / 俯视图几何划分，
-  仅用 GT 已知信息；但**保留 Provider 统一接口**，保证将来无缝切换真双引擎。
+
+- 目标场景：**5 套真实 InteriorGS** + 手写 `w_mock_001`；未知 world → 404。不做现场生成。
+- **最简方案（PI 拍板）**：砍掉 VLM / CLIP / 房间截图 / 双通道核验 / 俯视图几何划分，仅用 GT；**保留 Provider 接口**便于将来换双引擎。
 - **GT 三重角色**：生产数据 / 评测真值 / 失败兜底。
-- 对外接口 `GET /api/scene/{world_id}` 不变（SPEC v2.2），理解层是内部实现。
+- 对外 `GET /api/scene/{world_id}` 不变；理解层是内部实现。
 
-### 理解层产出（PI 核心交付物）
-- **产出对象**：`scene_graph`（SPEC v2.2 三级语义结构：`house` / `rooms[]` / `instances[]` + `coord` + `tour_path` + `topology`）。
-- **产出内容**（对应 PI 原定职责）：
-  - 三级拓扑结构（house → rooms → instances 层级 + `topology.adjacency`）
-  - 房间位置（`rooms[].polygon` + `trajectory_point_id`）
-  - 实例位置（`instances[].position` + `bbox3d` + `trajectory_point_id`）
-- **消费方**：
-  - **Agent 语义服务**（`services/agent/`）：作为场景知识库（房间/实例/坐标/拓扑）
-  - **A 的前端**：作为图纸（小地图/标注/镜头映射）
-- **来源机制**：当前由 `GTProvider` 从 GT 数据透传；未来由 `DualEngineProvider`（理解层推理）计算产出。对外格式始终遵循 SPEC v2.2。
+### 产出
 
-### 架构：Provider 统一接口
+`scene_graph`（SPEC 三级：`house` / `rooms[]` / `instances[]` + `coord` + `tour_path` + `topology`）。
+
+消费：agent 知识库；前端图纸（polygon / 标注）。当前 `GTProvider` 透传 mock JSON；`DualEngineProvider` 为占位。工厂：`UNDERSTANDING_PROVIDER`（默认 `gt`）。
+
+### 极简 pipeline
+
 ```
-GET /api/scene/{world_id}
-  → scene_service.get_scene(world_id)
-  → provider.get_scene_graph()
-  → SceneUnderstandingProvider（统一接口）
-      ├─ GTProvider（当前默认，按 world_id 读 mock/real_0330 或 mock/{scene_id}）
-      └─ DualEngineProvider（未来占位 Stub）
-  → pipeline：房间划分(GT) → 实例(GT) → scene_graph 组装
-  → SPEC v2.2 scene_graph → B / A
+读 GT（mock/real_0330 或 mock/{scene_id}）
+  → 房间划分（GT rooms polygon）
+  → 实例已在 GT 内（钩子只收集）
+  → 组装 coord + tour_path + topology
 ```
-- Provider 工厂按 `UNDERSTANDING_PROVIDER` 环境变量路由（默认 `gt`）。
-- 换双引擎 = 新增 provider 实现 + 改配置，下游 B/A 无感。
 
-### GT 极简 pipeline（当前生效）
+代码：`backend/app/services/understanding/`。
+
+### 重构状态
+
+SpatialLM **S0 受阻**（flash-attn 编译 OOM），降级为可选加分；demo **永不依赖**理解层真引擎。阶段账本：`docs/REFACTOR_PLAN.md`。后续主线 = agent。
+
+## 1.6 AI agent（网关内模块）
+
+- **拍板**：Python 做在网关内 `backend/app/services/agent/`，与理解层解耦。
+- **本阶段**：chat 接方舟推理接入点（`chat/completions`）；ASR 豆包 WebSocket；TTS 豆包 V3 SeedTTS2.0。细节与变量名见 `docs/AGENT_DEV.md` §13。
+- **铁律**：只出 scene 已有 `tp_id`；**不输出 `position`**；不翻轴。挂牌问答走 `listing_id`（优先于 scene_graph `house` 占位）。
+- key **只在 `backend/.env`、不入库**。
+
+### 真实 API + 降级链（demo 不挂）
+
 ```
-读 GT 场景数据（mock/real_0330/scene_graph.json + labels/structure）
-  → 房间划分（segmenter.py：直接用 GT rooms polygon）
-  → 实例已在 GT scene_graph 内；GTInstanceSource 钩子只收集、不重算（映射已在 GT JSON 完成）
-  → scene_graph 组装（pipeline.py：房间+实例+coord+tour_path+topology）
+chat：规则版始终先跑 → 方舟 chat/completions（失败则 responses）成功才替换 reply_text
+      失败/未配置 → 保持规则版；actions 仍由规则版产出
+
+ASR： volcengine WebSocket（ffmpeg → pcm16k，超时 10s）→ stub {text:"", duration_ms:0}
+
+TTS： volcengine V3 HTTP Chunked（超时 15s）+ 同文本缓存 → {}（omit audio_url）
 ```
-- **不做**：俯视图生成、房间截图、识别/核验（留给未来双引擎）。
 
-### 代码位置
-- `backend/app/services/understanding/`：`output.py`（产出类型）、`providers/`（base/gt/dual_engine/factory）、`room/segmenter.py`、`instance/instance_source.py`、`pipeline.py`
+热切换：改 `.env` 的 `*_PROVIDER` 后重启 uvicorn。pytest 默认 stub，避免 CI 打外网；真实冒烟需 `AGENT_LIVE_VOICE=1`。
 
-### 与 SPEC 的关系
-- 对外契约（`GET /api/scene` 返回格式）由 SPEC v2.2 定义，理解层不改变它。
-- scene_graph 的数据来源（GT provider / 未来理解层）属内部实现。
+## 1.7 五套 world 表
 
-### 理解层重构（进行中）
-- 理解层当前为"GT 兜底为主"。**SpatialLM（S0）部署验证受阻**，降级为可选加分；详见 **`docs/REFACTOR_PLAN.md`**。
-- 完整重构计划、阶段状态、变更/踩坑记录见 `docs/REFACTOR_PLAN.md`（单一事实源）。
-- 每完成一个阶段：更新 `docs/REFACTOR_PLAN.md`（标 ✅）+ 本文件对应章节。
-- 原则：一次只换一个步骤；每步有验收（vs GT）+ 回退；**demo 主线永不依赖理解层**。后续开发主线 = **AI agent（M1 规则版 chat）**，S0 不再阻塞。
+| scene_id | world_id | GT 目录 | listing_id |
+|----------|----------|---------|------------|
+| `0330_840483` | `w_0330_840483` | `mock/real_0330/` | `listing_0330_840483` |
+| `0469_840829` | `w_0469_840829` | `mock/0469_840829/` | `listing_0469_840829` |
+| `0259_840804` | `w_0259_840804` | `mock/0259_840804/` | `listing_0259_840804` |
+| `0309_840544` | `w_0309_840544` | `mock/0309_840544/` | `listing_0309_840544` |
+| `0836_841149` | `w_0836_841149` | `mock/0836_841149/` | `listing_0836_841149` |
 
-## 1.6 AI agent 语义服务（PI 开发 · 网关内模块）
+另：`w_mock_001` ← `mock/scene_graph.json`（开发基线，无真实挂牌则 chat 可不带 `listing_id`）。未知 id → `WORLD_NOT_FOUND`。
 
-- **拍板**：agent 由我方用 Python 做在网关内（`backend/app/services/agent/`），与理解层任务解耦并行。
-- **单一事实源**：`docs/AGENT_DEV.md`（架构、坐标铁律、事实约束、L0/L1、里程碑）。
-- **本阶段**：chat 已接方舟推理接入点（chat/completions）；TTS V3 SeedTTS2.0；ASR WebSocket 流式识别。详见 `docs/AGENT_DEV.md` §13。
-- **消费**：A 前端 `agent.ts` / `asr.ts`；演示世界为 5 套真实 `world_id`；tp 落点用 `GET /api/camera_poses`，agent 只出 `tp_id`。挂牌问答走 `listing_id`（优先于 scene_graph `house` 占位）。
-- agent 语音/LLM 接真实 API（Provider 抽象 + stub 兜底），**key 只在 `backend/.env`、不入库**。
+偏移**逐场景**标定，禁止套用 0330 的 0.573/1.087。点云 **Z-up**（SPEC 附录 A）。
+
+**# 待确认（数据事实，未编造）**：`0309`/`0836` 无 `tp_living`；`0469` 无冰箱实例。
 
 ## 2. 技术栈与运行
 
 - 语言/框架：Python + FastAPI
 - 入口：`app/main.py`
-- 配置：`.env`（API Key 等，**不入库**）
-- 运行：`uvicorn app.main:app --reload`
+- 配置：`.env`（**不入库**）；样例 `.env.example` 只列变量名
+- 运行：`uvicorn app.main:app --reload`（仓库根或 `backend/` 视 PYTHONPATH；以现有开发习惯为准）
 
-## 3. 目录结构（白盒约定）
+## 3. 目录结构
 
 ```
 backend/
-├── README.md            # 本文档
+├── README.md            # 本文档（板块唯一总览）
 ├── app/
-│   ├── main.py          # FastAPI 入口 + 路由注册
-│   ├── config.py        # 配置加载（.env）
-│   ├── routers/         # 各接口路由
+│   ├── main.py          # FastAPI 入口 + 路由注册 + GET /health
+│   ├── config.py
+│   ├── routers/
 │   │   ├── scene.py     # GET /api/scene/{world_id}
 │   │   ├── listings.py  # GET /api/listings
-│   │   ├── agent.py     # agent 契约路由 → services.agent.handle_*
-│   │   └── camera.py    # camera_poses / tp 查询
-│   ├── services/        # 业务逻辑（scene 路由、scene_graph 加载、world 索引）
-│   │   ├── understanding/  # 理解层：Provider 工厂 + GT 极简管线（L0+L1）
-│   │   └── agent/          # AI agent：规则版 chat + ASR/TTS/LLM Provider
-│   ├── data/            # 数据访问（读 mock、真实 scene_graph）
-│   └── schemas/         # 目前仅 GatewayError；scene/agent 响应未用 Pydantic 校验（可选增强）
-├── tests/               # 测试（对齐 SPEC 验收标准）
+│   │   ├── agent.py     # chat|asr|tts|narration|tour
+│   │   └── camera.py    # camera_poses
+│   ├── services/
+│   │   ├── understanding/  # Provider + GT 管线
+│   │   └── agent/          # 规则版 chat + ASR/TTS/LLM Provider
+│   ├── data/            # 读 mock
+│   └── schemas/         # GatewayError；scene/agent 响应未用 Pydantic 校验（可选增强）
+├── tests/
 └── requirements.txt
 ```
 
-## 4. 数据流（谁调谁，白盒）
+## 4. 数据流
 
 ```
-A 前端 ──GET /api/listings──> backend（读 mock/listings.json）
-A 前端 ──GET /api/scene/{world_id}──> backend 理解层产出 scene_graph ──> agent 知识库 / A 前端（图纸）
-A 前端 ──GET /api/camera_poses/{world_id}──> backend（读 mock camera_poses.json）
-A 前端 ──POST /api/agent/chat|asr|tts|tour / GET narration──> backend agent 语义服务（见 docs/AGENT_DEV.md）
+A 前端 ──GET /api/listings──> mock/listings.json
+A 前端 ──GET /api/scene/{world_id}──> 理解层 GT ──> agent 知识库 / 前端图纸
+A 前端 ──GET /api/camera_poses/{world_id}──> mock camera_poses.json
+A 前端 ──POST chat|asr|tts|tour / GET narration──> services.agent
 ```
 
 ## 5. 接口契约对齐
 
-- **以 `SPEC.md` 为唯一接口事实源**。backend 的所有路由、字段、错误码必须与 SPEC v2.3 完全一致。
-- 新增/修改接口：先改 SPEC → 通知全员 → 再改代码（走变更流程）。
+- **以 `SPEC.md` 为唯一接口事实源**。路由、字段、错误码必须与 v2.3 一致。
+- 新增/修改接口：先改 SPEC → 通知全员 → 再改代码。
+- 渲染实现（Spark）不进 SPEC。
 
-## 6. 白盒化约定（重要）
+## 6. 白盒化约定
 
-1. **每次改动可解释**：每个提交说明"改了什么、为什么"。
-2. **不写黑盒逻辑**：复杂逻辑要有注释、函数名自解释。
-3. **不留死代码**：删除或注释掉的代码不长期留存。
-4. **敏感信息零入库**：API Key、token 只在 `.env`，绝不 commit。
-5. **测试对齐验收**：每个接口至少一个测试，对齐 SPEC 验收标准（如 coord 断言、错误码）。
-6. **变更留痕**：重大变更在本文件"变更记录"节登记。
+1. 每次改动可解释。
+2. 不写黑盒逻辑。
+3. 不留死代码。
+4. 敏感信息零入库。
+5. 测试对齐 SPEC 验收（coord、错误码）。
+6. 重大变更在本文件「变更记录」登记。
 
-## 7. 变更记录
+## 7. 测试现状
+
+`backend/tests/`（pytest + FastAPI TestClient；默认不打外网）：
+
+| 文件 | 覆盖 |
+|------|------|
+| `test_scene.py` / `test_camera.py` / `test_listings_multiworld.py` | 场景 / tp 表 / 5 套 listings |
+| `test_understanding.py` | GT Provider 管线 |
+| `test_agent_gateway.py` / `test_agent_service.py` / `test_agent_chat.py` | 契约层 + 规则版 chat |
+| `test_agent_chat_llm.py` | 方舟路径（可 mock） |
+| `test_agent_asr.py` / `test_asr_volcengine.py` | ASR；live 用例需 `AGENT_LIVE_VOICE=1` |
+| `test_agent_tts.py` / `test_tts_volcengine.py` | TTS；live 同上 |
+| `test_agent_tour_narration.py` | tour `steps[]` + narration 去重 |
+| `acceptance/test_backend_acceptance.py` | L1 契约 + L2 数据 |
+| `acceptance/test_agent_full_link.py` | agent 全链路（可 skip 无 key） |
+
+跑：`cd backend && python -m pytest tests/ -q`。不把 live 语音当 CI 必过。本文不虚构某一时刻的 passed 条数。
+
+## 8. 里程碑
+
+| ID | 内容 | 状态 |
+|----|------|------|
+| 理解层 GT | 5 套 scene_graph 经网关可取 | ✅ |
+| SpatialLM S0 | 部署验证 | 🔴 受阻（见 REFACTOR_PLAN） |
+| M0 | agent 骨架 + stub | ✅ |
+| M1 | 规则版 chat（intent → grounding → actions） | ✅ |
+| M2 | narration 去重 + `handle_tour` / `build_tour` | ✅ |
+| M3 | router 与契约测试 | ✅ |
+| P0 ASR | 豆包 WS 真识别（ffmpeg→pcm16k） | ✅ |
+| P1 TTS | V3 SeedTTS2.0 | ⏳ 已冒烟；独立接口常 `{}` |
+| P2 chat LLM | 方舟 ep `chat/completions` | ⏳ 失败回规则版 |
+
+前端消费（main 已接，不在本目录改）：tour 播放、show_card、highlight、narration GET、B 键。见 `frontend/docs/FRONTEND_ARCH.md`。
+
+## 9. 变更记录
 
 | 日期 | 变更 | 说明 |
 |---|---|---|
-| 2026-08-27 | 后端初始化 | 建立 FastAPI 骨架（main/config/routers 占位） |
-| 2026-08-28 | 理解层产出显式化 | `UnderstandingOutput` + README/SPEC 标明 scene_graph 为 PI 核心产出、供 B/A 消费 |
-| 2026-08-28 | camera / agent 网关 stub | `GET /api/camera_poses/{world_id}`；agent 五路由契约层 stub（SPEC §4 新增 camera_poses） |
-| 2026-08-28 | 验收 Y 项清理 | README 架构图/GT 钩子/schemas 表述对齐代码；agent stub 空可选字段 omit；SPEC §0 点云层改为 Z-up |
-| 2026-08-28 | agent 服务骨架 | 建立 `services/agent/`（facts/session/stub）+ `docs/AGENT_DEV.md`；router 改调 handle_* |
-| 2026-08-28 | M1 规则版 chat | intent/grounding/responder/actions；问主卧 → teleport `tp_bedroom_master` |
-| 2026-08-28 | M2 tour + narration | `handle_tour` 接入 `build_tour`；narration session 去重；SPEC §4.2 Z-up |
-| 2026-08-28 | 理解层重构 S0 受阻 | SpatialLM 笔记本编译失败，止损存档；demo 主线继续 GT；后续主线转 agent |
-| 2026-08-28 | agent 真实 API | ASR/TTS/LLM Provider + stub 兜底；配置见 `.env.example`（无 key） |
-| 2026-08-28 | 方舟 chat + 豆包语音 | chat 切 openai_compat（需 ep- 接入点）；volcengine TTS 真接 / ASR 骨架 |
-| 2026-08-28 | ep + TTS V3 + ASR WS | chat 接推理接入点；TTS SeedTTS2.0 V3；ASR WebSocket 真实现 |
-| 2026-08-28 | ASR 真实识别 + 格式对齐 | ffmpeg 将前端 webm/m4a 转到 pcm16k；live 转写「这栋房子的主卧在哪？」 |
-| 2026-08-28 | 多世界 + listings | 5 套真实 world 索引；`GET /api/listings`；chat `listing_id` 挂牌优先；SPEC v2.3 |
+| 2026-08-27 | 后端初始化 | FastAPI 骨架 |
+| 2026-08-28 | 理解层产出显式化 | scene_graph 为 PI 核心产出 |
+| 2026-08-28 | camera / agent 网关 | camera_poses；agent 五路由 |
+| 2026-08-28 | M1–M2 agent | 规则版 chat；tour + narration |
+| 2026-08-28 | S0 受阻 | SpatialLM 止损；demo 继续 GT |
+| 2026-08-28 | 真实 API | 方舟 chat + 豆包 ASR/TTS + stub |
+| 2026-08-28 | 多世界 + listings | 5 套索引；`listing_id`；SPEC v2.3 |
+| 2026-08-28 | 文档升格 | 本文改为板块唯一总览；链 AGENT_DEV / REFACTOR_PLAN |
 
-## 8. 与本仓库其他板块的关系
+## 10. 与其他板块
 
-- `mock/`：场景数据来源（手写 + real_0330 + 4 套 `{scene_id}/` + `listings.json`）
-- `SPEC.md`：接口契约
-- `docs/GIT_WORKFLOW.md`：Git 推送规则（backend 同样遵守）
-- `docs/AGENT_DEV.md`：AI agent 开发文档
-- AI agent：网关内 `services/agent/`（PI）；根目录 `agent/` 不合并
-- A 的前端：通过本网关对接，不直接连 agent 实现
+- `mock/`：GT 与 listings
+- `SPEC.md`：接口契约（字段语义）
+- `docs/GIT_WORKFLOW.md`：Git
+- `docs/AGENT_DEV.md`：agent 实现 / 凭证变量 / live 测试
+- `docs/REFACTOR_PLAN.md`：理解层阶段账本
+- `docs/REPO_STRUCTURE.md`：仓库目录地图（参考；可能落后）
+- 前端：只经本网关；架构见 `frontend/docs/FRONTEND_ARCH.md`

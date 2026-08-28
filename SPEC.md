@@ -23,15 +23,15 @@
 
 ### 坐标体系（两层）
 
-> 前端第一人称漫游在 A 本地（Aholo Viewer + 3DGS 点云）运行，**无 RenderCloud 云端渲染层**。两套坐标必须对拍对齐；对拍完成前，跨坐标系数值**禁止混算**。
+> 前端第一人称漫游在 A 本地（视口 + 3DGS 点云）运行，**无 RenderCloud 云端渲染层**。两套坐标必须对拍对齐；跨坐标系数值**禁止混算**。渲染实现细节不在本契约内。
 
 | 层 | 单位 | Up 轴 | 使用者 |
 |---|---|---|---|
 | **scene JSON / agent 契约层** | 米 | Y-up，房屋中心原点，X/Z 地面平面，右手系 | B 的 agent 读场景、生成话术与动作 |
-| **点云坐标系（玩家/传送）** | 米 | 0330 ply 为 IG 原生 Z-up（实测，见附录 A）；具体映射以附录 A 为准 | A 的玩家位置、`teleport`/`highlight` 落点 |
+| **点云坐标系（玩家/传送）** | 米 | InteriorGS 原生 **Z-up**（实测，见附录 A）；平移量逐场景，禁止套用 0330 数值 | A 的玩家位置、`teleport`/`highlight` 落点 |
 
 - **转换只发生在 A 本地的一处映射层**（或由 PI 提供 tp→点云坐标映射表）；B 不感知点云坐标。
-- **对拍完成前**：`room_id` 恒为 `null`；B 不做坐标级归因；teleport 降级（见 §4.3）。
+- **5 套真实世界已对拍**（附录 A）：前端按 polygon 归因并透传 `room_id`；未登记世界仍为 `null`。B 不感知点云、不做跨坐标系混算。
 - **对拍任务见附录 A**。
 
 ---
@@ -198,7 +198,7 @@
 | `audio` | file | 否 | 录音（webm/opus 或 mp4，≤15s）；**前端直接传音频，不做文字处理**；与 `user_text` 二选一，同时存在以 `user_text` 为准 |
 | `player_position` | number[3] | 可选 | 玩家眼位。`player_position` / `player_facing` 为点云系（**IG 原生 Z-up**，米；实测见附录 A），agent 可忽略或仅日志，不用于坐标计算。 |
 | `player_facing` | number[3] | 可选 | 视线方向单位向量（同坐标系；agent 可忽略，不用于坐标计算） |
-| `room_id` | string | 可选 | 当前房间；**对拍完成前恒为 null**，房间归因由 Agent 用位置粗处理或省略 |
+| `room_id` | string | 可选 | 当前房间。**5 套真实世界前端已归因并透传**；未登记世界可为 null。Agent 可用来选讲解房间，不用于点云坐标计算 |
 | `listing_id` | string | 可选 | 当前挂牌 id（与 `GET /api/listings` 的 `id` 对齐）。**有则挂牌信息优先**（价格/面积/朝向/楼层/卖点）；`null` 或省略则 scene_graph 兜底。**listings 与 scene_graph 冲突以 listing 为准**（防幻觉） |
 | `event` | string | 可选 | `button_press`（主动问）/ `enter_room`（进房主动讲，配合 §3.4） |
 
@@ -209,7 +209,7 @@
   "reply_text": "主卧约 15 平，1.8 米大床加整墙衣柜都放得下。",
   "tts_url": "https://xxx/audio/abc123.mp3",
   "actions": [
-    { "type": "teleport", "tp_id": "tp_master", "position": [4.3,-1.6,2.8], "label": "带您去主卧" }
+    { "type": "teleport", "tp_id": "tp_bedroom_master", "label": "带您去主卧" }
   ]
 }
 ```
@@ -241,31 +241,32 @@
 - 查询参数：`world_id`、`room_id` 必填；`session_id` 可选（去重）；**`listing_id` 可选**（有则会话可挂当前挂牌，讲解正文仍以房间 `story_card` 为准）
 - 响应：`{ "reply_text": "这是24平朝南客厅…", "tts_url": "..." }`
 - 没有对应内容时返回 404，前端静默跳过
+- **前端用法（main）**：进房优先打本接口；404/失败再回落 chat `event=enter_room`
 - 无此接口前端用本地 mock 讲解词，不阻塞
 
-### 3.5 `POST /api/agent/tour`（P1 · 可选，保留兼容）
+### 3.5 `POST /api/agent/tour`（P1 · 已实现）
 
-一次性返回整条带看动线 `steps[]`（含 `room_id`/`trajectory_point_id`/`narration`/`selling_points`）。**主动讲解以 §3.4 `narration` + `event=enter_room` 为主**；`tour` 是否实现由 B 决定，不阻塞主线。
+一次性返回整条带看动线 `steps[]`（含 `room_id`/`trajectory_point_id`/`narration`/`selling_points`）。网关 `handle_tour` / `build_tour` 已接入；前端「开始带看」播放。进房主动讲解仍走 §3.4 `narration`（失败可回落 `event=enter_room`），与 tour 步骤互不替代。
 
 ### 3.6 agent 契约共同约定
 
 - **会话**：`session_id` 前端生成透传，B 按它维护上下文
 - **回答必须基于 scene JSON 的 `attrs`/`facts`/`selling_points`/`house` 事实，不编造冲突信息**；问不存在的实例 → 明确说无可靠信息，不猜
 - **有 `listing_id` 时**：价格 / 面积 / 朝向 / 楼层 / 挂牌卖点以 listing 为准；与 scene_graph `house` 冲突时 **listing 赢**
-- **坐标系边界**：B 只读 scene JSON（Y-up），**不感知点云坐标**；对拍完成前 B 不做坐标级归因（`room_id` 恒 null、不输出 `position` 型 teleport）
+- **坐标系边界**：B 只读 scene JSON（Y-up），**不感知点云坐标**。5 套已对拍，前端透传 `room_id`；B **当前只出 `tp_id`，不输出 `position` 型坐标**（落点由 A 查 `camera_poses`）
 - 职责链：**B 决定"讲什么/去哪个语义锚点"，A 负责把动作落到点云坐标（本地映射或 PI 映射表）**
 
 ---
 
 ## 4. 导航与动作（取代原相机契约）
 
-### 4.1 `actions` 动作系统（A 前端已/将支持）
+### 4.1 `actions` 动作系统（A 前端已支持）
 
 | type | 载荷 | 前端行为 | 状态 |
 |---|---|---|---|
-| `teleport` | `position:[x,y,z]`（点云坐标）或 `tp_id`（语义锚点） | 玩家瞬移过去（带淡入） | 传送功能即将上线 |
-| `highlight` | `position:[x,y,z]` 或 `tp_id` | 在该位置放高亮标记 | 占位，待做 |
-| `show_card` | `{ title, lines[] }` | HUD 弹信息卡 | 占位，待做 |
+| `teleport` | `position:[x,y,z]`（点云坐标）或 `tp_id`（语义锚点） | 玩家瞬移过去（带淡入） | **已实现**（当前 agent 只出 `tp_id`） |
+| `highlight` | `position:[x,y,z]` 或 `tp_id` | 在该位置放高亮标记 | **已实现**（点云系光柱；无落点则 toast） |
+| `show_card` | `{ title, lines[] }` | HUD 弹信息卡 | **已实现**（InfoCard，可关 / 数秒消失） |
 
 ### 4.2 载荷约定
 
@@ -275,8 +276,8 @@
 
 ### 4.3 降级
 
-- 对拍未完成 → B 只输出 `tp_id` 或纯文本（`actions` 可空）；A 用 `tp_id` 查映射表执行，或仅显示文字。
-- `highlight`/`show_card` 未实现 → 前端忽略该 action，不影响回答展示。
+- 映射表缺失或 `tp_id` 不在表中 → 纯文本回答；A 不瞬移（toast 提示）。
+- `highlight` / `show_card` **已实现**；无落点或载荷空则 toast / 不弹卡，**不影响** `reply_text` 展示。
 
 ### 4.4 `GET /api/camera_poses/{world_id}`（P0 · PI 提供）
 
@@ -361,21 +362,23 @@ A 查询 `tp_id` → **点云坐标**映射，供 `teleport` / `highlight` 落�
 | `asr` | 打字输入框 |
 | `tts` / `tts_url` | 前端本地 TTS 或静音气泡 |
 | `actions.teleport` | 纯文本回答 |
-| `actions.highlight` / `show_card` | 忽略该 action |
-| `narration` | 前端本地 mock 讲解词 |
-| `tour` | 由 `narration` + `enter_room` 替代 |
-| 坐标对拍未完成 | B 不输出坐标，纯文本 + `tp_id` 降级 |
+| `actions.highlight` / `show_card` | **已实现**；失败则 toast，回答仍展示 |
+| `narration` | 前端 GET 失败则 chat `enter_room`；再失败则跳过讲解 |
+| `tour` | **`POST /api/agent/tour` 已接**；失败 toast「带看暂不可用」，不改用 enter_room 冒充整条动线 |
+| 某世界未对拍 / 未登记 | B 仍只出 `tp_id`；该世界 `room_id` 可为 null |
 
 ---
 
 ## 9. 待拍板遗留项
 
-| # | 待拍板项 | 当前默认 |
+| # | 项 | 当前状态 |
 |---|---|---|
-| 1 | `tour` 是否实现 | 可选（P1），主动讲解以 narration 为主 |
-| 2 | 语音链路真实接入（MOSS ASR/TTS） | 按 A 意见：ASR P0、前端直传后端；**真实服务取决于后端是否持有可用 key**；无 key 则 stub + 前端降级 |
-| 3 | **坐标对拍（scene Y-up ↔ 点云 -Y up）** | **待 A 实测**，完成前 `room_id` 恒 null、B 不输出坐标 |
-| 4 | `tp_id` → 点云坐标映射表由谁提供 | 默认 PI 提供（`mock/camera_poses.json` 或映射表） |
+| 1 | `tour` | **已实现**（`POST /api/agent/tour` + 前端播放 / B 键） |
+| 2 | 语音链路真实接入 | ASR：豆包 WS 已通；TTS：V3 已冒烟、独立接口常 omit `audio_url`。无 key 则 stub + 前端降级。原「MOSS」供应商名作废 |
+| 3 | **坐标对拍（scene Y-up ↔ 点云 Z-up）** | **5 套真实世界已对拍**（附录 A）；前端归因 `room_id`。未登记世界 `room_id` 仍 null。B 不输出点云 `position` |
+| 4 | `tp_id` → 点云坐标映射表由谁提供 | **已由 PI 提供**（`GET /api/camera_poses/{world_id}` / 各 `mock/.../camera_poses.json`） |
+
+§7 **会话隔离**「world 与 session 已绑不一致是否 400」仍为 **待确认**；当前实现按新 world **覆盖写入**。此项涉及错误码行为，**本轮不改契约**。
 
 ---
 ## 附录 A：坐标映射（已对拍转正 · **逐场景标定**）
@@ -409,10 +412,11 @@ z = 1.087 − Y_pc
 
 **应用**：
 - A 前端：`teleport(tp_id)` 查 `mock/real_0330/camera_poses.json`（fixed 转正版）；或按正向公式从 scene 坐标计算。**ply 加载后 viewer 无需任何旋转变换**（原生 Z-up 直接显示）。
-- B Agent：对拍已完成，可输出 `position` 型动作（`tp_id` 或 `position` 均可）。
+- B Agent：对拍已完成；**当前实现只出 `tp_id`**，点云落点由 A 查 `camera_poses`（与 §4.2 优先 `tp_id` 一致）。契约仍允许 `position` 字段，本轮不删。
 
 ---
 
 **版本历史**：
 - v2.1 → v2.2（抛弃 RenderCloud 轨道、坐标系改两层并新增点云层、agent 契约按 chat/actions/asr/tts/narration 重构、语音按 A 意见、删除附录 B、Golden Path 与降级矩阵更新）。
 - v2.2 → v2.3（`GET /api/listings`；chat/narration 可选 `listing_id`；5 套真实世界；snake_case / 会话隔离方案 A / 逐场景坐标铁律写入 §7）。
+- v2.3 状态对齐 main（2026-08-28）：§9 坐标改为 Z-up 且 5 套已对拍；§4.1/§8 tour·highlight·show_card 标已实现；§3.1 示例改为 `tp_bedroom_master` 且只出 `tp_id`。**未改字段语义、未改 §7 会话 400 行为**。

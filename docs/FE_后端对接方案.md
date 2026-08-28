@@ -1,14 +1,14 @@
 # 前端 × 后端对接方案（roadmap）
 
-> **性质**：后端管线已冻结阶段下，前端如何把网关能力接到视口/HUD。不改 SPEC / agent / 后端实现。  
-> **日期**：2026-08-28 · 前端分支 `feat/frontend-spark`  
-> **渲染事实源**：`frontend/docs/RENDER_ARCH.md`
+> **性质**：对接 roadmap（历史编号步 1–5）。**前端唯一文档**改为 [`../frontend/docs/FRONTEND_ARCH.md`](../frontend/docs/FRONTEND_ARCH.md)；项目总览 [`PROJECT_OVERVIEW.md`](./PROJECT_OVERVIEW.md)。  
+> **日期**：2026-08-28 · 对照 main `e10f7d7`（步 1–4 已合；步 5 ply 托管 **# 待确认** bucket）  
+> **不改** SPEC 字段 / agent / 后端实现。
 
 ---
 
 ## 1. 现状盘点（8 条能力）
 
-后端网关（`GET /api/scene` · `camera_poses` · `listings` + SPEC §3 五接口）已经能演示。前端命令式 Spark 视口 + 5 套切换已跑通。缺口在**播放层**，不是再造语义。
+后端网关（`GET /api/scene` · `camera_poses` · `listings` + SPEC §3 五接口）已经能演示。前端命令式 Spark 视口 + 5 套切换已跑通。播放层步 1–4 已合 main；剩余见下表步 5。
 
 | # | 能力 | 后端 | 前端 | 结论 |
 |---|---|---|---|---|
@@ -16,12 +16,12 @@
 | 2 | 落点表 / teleport | `GET /api/camera_poses/{world_id}` | `loadTpTable` → `teleportCmd` | **已接全** |
 | 3 | 五套选房 + 挂牌 | `GET /api/listings` | `worlds.ts` 芯片栏；chat 带 `listing_id` | **已接全** |
 | 4 | 问答 + PTT + 进房讲解 | `POST /chat` · `/asr`；`event=enter_room` | WalkHud + `narration.ts` + TTS 播 `tts_url` | **已接全**（chat 内 TTS；独立 TTS 多为 stub） |
-| 5 | **自主带看 tour** | `POST /api/agent/tour` → `{steps[]}` | 步 1：拉 steps → 依次 teleport + 讲解 | **步 1 接通** |
-| 6 | 动作 3D 渲染 | chat `actions.highlight` | `tp_id` → camera_poses（点云 Z-up）→ 视口光柱标记 | **步 2 接通** |
-| 7 | 信息卡 UI | `actions.show_card` | HUD `InfoCard`（title + lines，可关 / 6s 消失） | **步 2 接通**（原 roadmap 步 3 提前做了） |
-| 8 | 独立 narration + 错误/托管 | `GET /narration`；TTS provider；ply 对象存储 | 未打 GET；ply 仅本地 `/ply` 回落 | **缺口** → 步 4–5 |
+| 5 | **自主带看 tour** | `POST /api/agent/tour` → `{steps[]}` | 拉 steps → 依次 teleport + 讲解；**B 键**开关 | **已合 main** |
+| 6 | 动作 3D 渲染 | chat `actions.highlight` | `tp_id` → camera_poses（点云 Z-up）→ 视口光柱标记 | **已合 main** |
+| 7 | 信息卡 UI | `actions.show_card` | HUD `InfoCard`（title + lines，可关 / 6s 消失） | **已合 main** |
+| 8 | 独立 narration + 错误/托管 | `GET /narration`；TTS provider；ply 对象存储 | 进房优先 GET，404 回落 `enter_room`；ply 本地 `/ply` | **步 4 已合 main**；步 5 bucket **# 待确认** |
 
-已接全 4 条（语义/落点/选房/问答）+ 步 1 tour + 步 2 show_card/highlight。缺口：独立 narration GET、ply 对象存储。
+步 1–4 已在 main。剩余缺口只有生产 ply 对象存储（骨架已在，未上传）。
 
 ---
 
@@ -59,12 +59,12 @@
 
 ### 步 4 · narration GET
 
+**状态（main `80f4c76`）**：已合。进房优先 GET；404/失败回落 `enter_room`；带看中跳过。
+
 | | |
 |---|---|
 | **目标** | 进房优先 `GET /api/agent/narration`；失败再回 chat `enter_room` |
-| **时间** | 1–2h |
 | **验收** | 0469 进厨房有讲解；404 静默；session 去重不刷屏 |
-| **止损** | GET 与 chat 文案不一致 → 保持现 chat 路径，GET 标 **# 待确认** |
 
 ### 步 5 · 错误/降级 + ply 托管
 

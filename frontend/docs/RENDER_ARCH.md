@@ -1,7 +1,8 @@
 # 前端渲染架构（RENDER_ARCH）
 
-> **性质**：渲染层单一事实源。接口字段仍以根目录 `SPEC.md` 为准；本文只记**实际跑通**的视口、坐标、世界与 ply。  
-> **日期**：2026-08-28 · 分支 `feat/frontend-spark`  
+> **已并入 [`FRONTEND_ARCH.md`](./FRONTEND_ARCH.md)**（前端唯一文档）。本文保留作渲染层对照，不再作为入口。  
+> **性质**：渲染层旧稿。接口字段仍以根目录 `SPEC.md` 为准。  
+> **日期**：2026-08-28 · 原分支 `feat/frontend-spark`（已合 main）  
 > **不可违反**：命令式 3D（不挂 R3F Canvas）；不改 agent/后端/SPEC；ply 不入库。
 
 ---

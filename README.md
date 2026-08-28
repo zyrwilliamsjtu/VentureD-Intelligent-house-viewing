@@ -1,5 +1,7 @@
 # 驻 · AI 置业顾问
 
+> **一页总览**：[`docs/PROJECT_OVERVIEW.md`](./docs/PROJECT_OVERVIEW.md) · 前端 [`frontend/docs/FRONTEND_ARCH.md`](./frontend/docs/FRONTEND_ARCH.md) · 后端 [`backend/README.md`](./backend/README.md) · 契约 [`SPEC.md`](./SPEC.md)
+
 输入一句话或一段视频生成/重建一套房，AI 置业顾问带客户在 3D 房里走、随时被提问、主动讲卖点，一键分享给客户。
 
 ## 目录结构

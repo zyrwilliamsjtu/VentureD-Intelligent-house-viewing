@@ -1,6 +1,7 @@
 # AI Agent 开发文档（AGENT_DEV）
 
-> **性质**：本文件是 **PI 开发的 AI agent** 的**单一事实源**。接口字段仍以根目录 `SPEC.md` v2.3 为准；本文件管架构、坐标铁律、事实约束、分层与里程碑。
+> **板块总览改读 [`backend/README.md`](../backend/README.md)**；项目一页 [`PROJECT_OVERVIEW.md`](./PROJECT_OVERVIEW.md)。  
+> **性质**：agent **实现细节**（架构、坐标铁律、事实约束、分层、真实 API）。接口字段仍以根目录 `SPEC.md` v2.3 为准。
 > **位置**：`backend/app/services/agent/`（Python / FastAPI **网关内模块**），与理解层（`services/understanding/`）**解耦并行**。
 > **不合并**：根目录 `agent/` 为队友 Node 实现，**不动、不合入本模块**。
 
@@ -128,7 +129,7 @@ PI 已定（2026-08-28）：
 | `frontend/src/services/agent.ts` | `POST /api/agent/chat`（JSON，30s） |
 | `frontend/src/services/asr.ts` | `POST /api/agent/asr`（multipart `audio`，10s） |
 | `frontend/src/services/recorder.ts` | PTT 只录音、不打网关；见 §13 格式对照 |
-| `frontend/src/scene/narration.ts` | chat `event=enter_room` 为主；可选 `GET /api/agent/narration`（可带 `session_id` 去重；不带则每次都讲） |
+| `frontend/src/scene/narration.ts` | main 已改为：**优先 GET `/api/agent/narration`**，404/失败回落 chat `event=enter_room`；可带 `session_id` 去重；带看中跳过 |
 
 
 `VITE_API_MODE=real` 且 `VITE_API_BASE` 空 = 同源 `/api`（Vite 代理 8000）。  

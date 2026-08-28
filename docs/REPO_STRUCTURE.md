@@ -1,9 +1,7 @@
 # 仓库结构文档（REPO_STRUCTURE）
 
-> **性质**：全队共享的仓库地图。看「目录干什么、关键文件在哪、文档从哪读、前后端在哪对接」。
-> **起草**：`dev-backend`（本文件）；合入 `main` 待 PI review。
-> **前端事实源**：`main` 提交 `b2cec81`（从 `origin/dev/frontend` 合入 42 个新增文件，排除 `_parked/`）。下文前端描述**只依据该提交上的实际文件**，不臆测未入库代码。
-> **后端 / mock / 根文件**：以当前 `dev-backend` 与根目录 README / `backend/README.md` / `SPEC.md` 汇总。
+> **高层总览改读 [`PROJECT_OVERVIEW.md`](./PROJECT_OVERVIEW.md)**。前端唯一文档 [`frontend/docs/FRONTEND_ARCH.md`](../frontend/docs/FRONTEND_ARCH.md)；后端唯一总览 [`backend/README.md`](../backend/README.md)。  
+> **性质**：目录地图（参考）。部分段落仍描述早期 main（如 Aholo / agent 目录尚空），**以三份唯一文档 + `SPEC.md` 为准**，本文不臆测补全。
 > **标注**：不确定处写 **待确认**，不自行判断。
 
 ---
