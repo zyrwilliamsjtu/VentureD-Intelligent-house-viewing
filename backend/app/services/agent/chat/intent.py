@@ -34,7 +34,7 @@ CATEGORY_ZH: dict[str, str] = {
 ZH_TO_CATEGORY: dict[str, str] = {zh: cat for cat, zh in CATEGORY_ZH.items()}
 
 _NAV_HINTS = ("在哪", "在哪儿", "带我去", "去看看", "怎么去", "位置", "带我")
-_PROP_HINTS = ("户型", "面积", "几室", "朝向", "价格", "楼层", "层高", "多少平", "总价", "这套房", "建面")
+_PROP_HINTS = ("户型", "面积", "几室", "朝向", "价格", "楼层", "层高", "多少平", "总价", "这套房", "建面", "多少钱")
 _ATTR_HINTS = ("多大", "是什么", "什么牌子", "什么品牌", "容量")
 _SMALLTALK = ("你好", "您好", "谢谢", "在吗", "嗨", "早上好", "hello", "hi")
 

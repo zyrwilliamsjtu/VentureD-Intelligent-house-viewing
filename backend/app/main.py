@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import BACKEND_ROOT, cors_origins, tts_output_dir
-from app.routers import agent, camera, scene
+from app.routers import agent, camera, listings, scene
 from app.schemas.errors import GatewayError
 
 app = FastAPI(title="VentureD Backend Gateway", version="0.1.0")
@@ -21,6 +21,7 @@ app.add_middleware(
 )
 
 app.include_router(scene.router)
+app.include_router(listings.router)
 app.include_router(agent.router)
 app.include_router(camera.router)
 

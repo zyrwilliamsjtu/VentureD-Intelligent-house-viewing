@@ -1,6 +1,6 @@
 # AI Agent 开发文档（AGENT_DEV）
 
-> **性质**：本文件是 **PI 开发的 AI agent** 的**单一事实源**。接口字段仍以根目录 `SPEC.md` v2.2 为准；本文件管架构、坐标铁律、事实约束、分层与里程碑。
+> **性质**：本文件是 **PI 开发的 AI agent** 的**单一事实源**。接口字段仍以根目录 `SPEC.md` v2.3 为准；本文件管架构、坐标铁律、事实约束、分层与里程碑。
 > **位置**：`backend/app/services/agent/`（Python / FastAPI **网关内模块**），与理解层（`services/understanding/`）**解耦并行**。
 > **不合并**：根目录 `agent/` 为队友 Node 实现，**不动、不合入本模块**。
 
@@ -8,7 +8,7 @@
 
 ## 1. 定位
 
-PI 在网关内实现 SPEC v2.2 五接口：
+PI 在网关内实现 SPEC v2.3 五接口 + 挂牌列表由网关 `GET /api/listings` 提供：
 
 | 接口 | 本阶段 | 目标 |
 |------|--------|------|
@@ -53,6 +53,7 @@ app.services.agent.service             # handle_chat / asr / tts / narration / t
 3. **不输出 `position` 型 teleport/highlight**（点云系由前端用网关 `GET /api/camera_poses/{world_id}` 或本地表换算）。
 4. **不翻轴、不混算** scene 与点云。点云 Z-up 映射只存在于 A 的 `coords.ts` / PI 的 camera_poses 表。
 5. `player_position` 若出现在请求里：可忽略或仅日志；**不要拿它去乘旋转矩阵**。坐标系以 SPEC 附录 A 为准（点云 **Z-up**）。
+6. **逐场景坐标**：0330 的 0.573/1.087 **禁止**套到其它 world；agent 仍只出 `tp_id`，落点表按 `world_id` 读对应 `camera_poses.json`。
 
 ---
 
@@ -61,21 +62,42 @@ app.services.agent.service             # handle_chat / asr / tts / narration / t
 - 只陈述 **当前 world 的 scene_graph 里有的** `house` / `rooms` / `instances` / `selling_points` / `story_card` / `attrs`。
 - 问不存在的物体或房间：**明确说没有可靠信息**，不猜、不从常识补。
 - **0330 无 `stove`（灶台）** 实例；厨房不要讲灶台配置。
-- `house.orientation` / `floor` / `price` 及部分 tags 在 0330 为 **「待对拍」占位**（见 `mock/real_0330/scene_graph.json` `_notes`）：**不要深加工成卖点**；被问到就说数据未提供。
+- `house.orientation` / `floor` / `price` 及部分 tags 在 scene_graph 中常为 **「待对拍」占位**：**不要深加工成卖点**；无 `listing_id` 时被问到就说数据未提供。
+- **有 `listing_id`**：价格 / 面积 / 朝向 / 楼层 / 挂牌卖点以 listing 为准；与 scene_graph 冲突时 **listing 赢**。
 - `confidence` 仅内部参考，不向用户报模型分数。
 
 ---
 
-## 5. 接口契约速查（SPEC v2.2 §3）
+## 4.1 多世界 + listing_id
+
+| scene_id | world_id | scene_graph / poses | listing_id |
+|----------|----------|---------------------|------------|
+| `0330_840483` | `w_0330_840483` | `mock/real_0330/` | `listing_0330_840483` |
+| `0469_840829` | `w_0469_840829` | `mock/0469_840829/` | `listing_0469_840829` |
+| `0259_840804` | `w_0259_840804` | `mock/0259_840804/` | `listing_0259_840804` |
+| `0309_840544` | `w_0309_840544` | `mock/0309_840544/` | `listing_0309_840544` |
+| `0836_841149` | `w_0836_841149` | `mock/0836_841149/` | `listing_0836_841149` |
+
+手写 mock：`w_mock_001`（`mock/scene_graph.json`），无真实挂牌则 chat 不带 `listing_id`。
+
+**事实源优先级**：`listing` 挂牌（价格/朝向/楼层/面积/卖点）> `scene_graph.house` > 明确说没有。`facts.load(world_id)` 对 5 套通用（同一 `scene_store` 索引）。
+
+**会话隔离方案 A**：前端换房重置 `session_id`。
+
+坐标铁律：点云 Z-up；tp 白名单；偏移见各 `SOURCE.md`，**禁止套用 0330 公式**。
+
+---
+
+## 5. 接口契约速查（SPEC v2.3 §3）
 
 字段命名 snake_case；可选无值 **omit**（不发 `null` / 空 `actions`）。错误顶层 `{code, message}`。
 
 | 方法 | 必填 | 成功体要点 |
 |------|------|------------|
-| `POST /chat` | `session_id`, `world_id`；`user_text` 与 `audio` 二选一（`enter_room` 可无文本） | `{reply_text}`；可选 `tts_url`, `actions` |
+| `POST /chat` | `session_id`, `world_id`；`user_text` 与 `audio` 二选一；**可选 `listing_id`** | `{reply_text}`；可选 `tts_url`, `actions` |
 | `POST /asr` | multipart `audio` | `{text, duration_ms?}`；空语音 `text=""` |
 | `POST /tts` | JSON `text` | `{audio_url}` 或 `{}` |
-| `GET /narration` | `world_id`, `room_id`；**可选** `session_id`（只增不改，用于去重） | `{reply_text}`；无内容 **404** |
+| `GET /narration` | `world_id`, `room_id`；**可选** `session_id` / `listing_id` | `{reply_text}`；无内容 **404** |
 | `POST /tour` | `world_id`, `session_id` | `{steps:[{index, room_id, trajectory_point_id, narration, selling_points?}]}` |
 
 超时：chat 30s / asr 10s / tts 15s。`session_id` **前端生成**，后端按它记 history / current_room / tour_index。
@@ -98,7 +120,7 @@ L0 与 L1 **共用** facts / session / actions 铁律，避免两套幻觉源。
 
 PI 已定（2026-08-28）：
 
-- 演示世界 **`world_id = w_0330_840483`**（0330）。
+- 演示世界为上表 5 套真实 `world_id`（默认仍可从 0330 进）。
 - **camera_poses 走网关** `GET /api/camera_poses/{world_id}`（前端执行 tp→点云；agent 仍只出 tp_id）。
 
 | 前端 | 打网关 |
@@ -134,10 +156,11 @@ HUD 动作：`teleport.tp_id` → `coords.resolveTeleportCloud` → 体素贴地
 
 | 数据 | 路径 | 用途 |
 |------|------|------|
-| GT scene_graph | `mock/real_0330/scene_graph.json` | 0330：10 房、75 实例，`coord.up=Y` |
+| GT scene_graph | `mock/real_0330/` + `mock/{scene_id}/` | 5 套真实，`coord.up=Y` |
+| 挂牌 | `mock/listings.json` | `facts.load_listing(listing_id)` |
 | 手写 mock | `mock/scene_graph.json` | `w_mock_001` 开发基线 |
 | 加载代码 | `backend/app/data/scene_store.py` | `facts.load` **只包装**，不复制读盘 |
-| tp 表 | `mock/real_0330/camera_poses.json` | 前端/网关；agent **不读点云坐标** |
+| tp 表 | 各目录 `camera_poses.json` | 前端/网关；agent **不读点云坐标** |
 
 未知 `world_id`：`facts.load` → `None`（与 scene 路由 `WORLD_NOT_FOUND` 同源表）。
 
@@ -183,6 +206,7 @@ backend/app/services/agent/
 | 2026-08-28 | chat 切火山方舟（openai_compat）；volcengine TTS V1 + ASR 骨架；凭证仅 .env |
 | 2026-08-28 | chat 接方舟 ep 接入点（completions 真通）；TTS 升级 V3 SeedTTS2.0；ASR WebSocket 真实现 |
 | 2026-08-28 | ASR 真实识别：ffmpeg 把 webm/m4a 转到 pcm16k；前端 PTT 格式对齐；live 转写「这栋房子的主卧在哪？」 |
+| 2026-08-28 | 多世界 + listing_id：5 套 world 表；挂牌优先于 scene_graph；逐场景坐标铁律 |
 
 ---
 
