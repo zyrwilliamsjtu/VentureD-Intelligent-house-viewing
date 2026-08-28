@@ -11,7 +11,7 @@
   - `GET /api/scene/{world_id}` — 理解层产出 `scene_graph`（当前 GTProvider；**5 套真实世界** + 手写 mock）
   - `GET /api/camera_poses/{world_id}` — `tp_id` → 点云坐标
   - `GET /api/listings` — 挂牌列表（`mock/listings.json`；可选查询 `layout` / `price_min` / `price_max` / `q`，无参返回全部；失败 500，前端硬编码兜底）
-  - **agent 语义服务**：SPEC v2.3 的 `chat` / `asr` / `tts` / `narration` / `tour`（`backend/app/services/agent/`；chat 可选 `listing_id`）
+  - **agent 语义服务**：SPEC v2.3 的 `chat` / `asr` / `tts` / `narration` / `tour` / **`recommend`（只增）**（`backend/app/services/agent/`；chat 可选 `listing_id`）
   - 统一错误 `{code,message}`、CORS、会话透传
 - **边界**：不做前端渲染（A）。根目录 `agent/`（队友 Node）**不合并不改**。Spark / ply 托管是前端的事，不进本板块、不进 SPEC。
 
@@ -60,6 +60,9 @@ SpatialLM **S0 受阻**（flash-attn 编译 OOM），降级为可选加分；dem
 ```
 chat：规则版始终先跑 → 方舟 chat/completions（失败则 responses）成功才替换 reply_text
       失败/未配置 → 保持规则版；actions 仍由规则版产出
+
+recommend：方舟 8s 结构化 {listing_id,reason} → 校验 ∈ 真实 5 套；失败/未配置 → 关键词规则版
+           # 待确认：AGENT_ROUTE_MODEL lite 未开通时仅规则版
 
 ASR： volcengine WebSocket（ffmpeg → pcm16k，超时 10s）→ stub {text:"", duration_ms:0}
 
@@ -119,7 +122,7 @@ backend/
 A 前端 ──GET /api/listings──> mock/listings.json
 A 前端 ──GET /api/scene/{world_id}──> 理解层 GT ──> agent 知识库 / 前端图纸
 A 前端 ──GET /api/camera_poses/{world_id}──> mock camera_poses.json
-A 前端 ──POST chat|asr|tts|tour / GET narration──> services.agent
+A 前端 ──POST chat|asr|tts|tour|recommend / GET narration──> services.agent
 ```
 
 ## 5. 接口契约对齐

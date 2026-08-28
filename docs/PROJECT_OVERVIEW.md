@@ -76,6 +76,7 @@
 | 6 | `POST /api/agent/tts` | §3.3 | 已接；默认 stub，常 omit `audio_url` |
 | 7 | `GET /api/agent/narration` | §3.4 | 已接；前端进房优先打，404 回落 `enter_room` |
 | 8 | `POST /api/agent/tour` | §3.5 | 已接；「开始带看」/ **B 键** 播放 |
+| 9 | `POST /api/agent/recommend` | §3.6 | **只增**；问问小驻找房；非法 listing_id 丢弃；LLM 失败规则回落 |
 
 错误体统一 `{code, message}`（SPEC §6）。
 
@@ -138,9 +139,9 @@
 
 1. **进入** — `cd frontend && npm run dev`；`cd backend && uvicorn app.main:app --reload`。前端 `.env.local`：`VITE_API_MODE=real`（联调网关）。
 2. **Splash** — 品牌「小驻看房」/ inNest，点「进入看房」。`# 待合入 feat/agent-ux`
-3. **HouseList** — `GET /api/listings`，卡片显示楼盘名 + 编号（如 云栖雅苑 / 0330）。
-4. **详情弹窗** — 点卡片：2D 户型图（真实 polygon 墙体/功能配色，居中；不画家具；无门窗数据不编造）+ 挂牌介绍 + 房间清单；点「进入3D空间」才进漫游。
-5. **3D WalkHud** — Spark 加载 ply；WASD + 鼠标（Pointer Lock）；左上 PlaceFacts +「返回列表」；右上「小驻AI·询问」。
+3. **HouseList** — `GET /api/listings`，卡片显示楼盘名 + 编号；可点 **问问小驻** 说需求 → 推荐 1 套 → 查看详情。
+4. **详情弹窗** — 点卡片或推荐结果：2D 户型图（真实 polygon 墙体/功能配色，居中；不画家具；无门窗数据不编造）+ 挂牌介绍 + 房间清单；点「进入3D空间」才进漫游。
+5. **3D WalkHud** — Spark 加载 ply；WASD + 鼠标（Pointer Lock）；左上 PlaceFacts +「返回列表」；右上「小驻AI·询问」；**M** 俯瞰图（去文字 + 当前位置光点）。
 6. **带看** — 点「开始带看」或漫游中按 **B** → `POST /tour` 按 `steps[]` 走房；**每次切房强制拉回对应房间**（介绍期可走动）；再按 B 停止。
 7. **提问** — HUD 输入「主卧在哪」→ chat 回 `reply_text` + `teleport(tp_bedroom_master)`；问家具可叠加 highlight / show_card。
 8. **PTT** — 按住说话 → `POST /asr` → 识别文本自动送 chat；无权限或空文本则打字。

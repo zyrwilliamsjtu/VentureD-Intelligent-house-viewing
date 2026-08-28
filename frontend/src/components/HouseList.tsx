@@ -6,6 +6,7 @@ import {
   type WorldListing,
 } from '../scene/worlds'
 import { ListingDetail } from './ListingDetail'
+import { RecommendAsk } from './RecommendAsk'
 
 const LAYOUTS = Array.from(new Set(WORLD_LISTINGS.map((w) => w.layout).filter(Boolean)))
 
@@ -25,6 +26,7 @@ export function HouseList({ onPick }: { onPick: (listing: WorldListing) => void 
   const [rows, setRows] = useState<WorldListing[]>(WORLD_LISTINGS)
   const [loading, setLoading] = useState(false)
   const [detail, setDetail] = useState<WorldListing | null>(null)
+  const [askOpen, setAskOpen] = useState(false)
 
   useEffect(() => {
     const t = window.setTimeout(() => setQDebounced(q), 280)
@@ -115,6 +117,9 @@ export function HouseList({ onPick }: { onPick: (listing: WorldListing) => void 
               onChange={(e) => setQ(e.target.value)}
             />
           </label>
+          <button type="button" className="hl-ask" onClick={() => setAskOpen(true)}>
+            问问小驻
+          </button>
           {hasFilter && (
             <button type="button" className="hl-clear" onClick={clear}>
               清除
@@ -164,6 +169,16 @@ export function HouseList({ onPick }: { onPick: (listing: WorldListing) => void 
         </div>
       )}
 
+      {askOpen && (
+        <RecommendAsk
+          open={askOpen}
+          onClose={() => setAskOpen(false)}
+          onOpenDetail={(w) => {
+            setAskOpen(false)
+            setDetail(w)
+          }}
+        />
+      )}
       {detail && (
         <ListingDetail
           listing={detail}

@@ -23,8 +23,8 @@ Splash（落地） → HouseList（选房） → WalkHud（第一人称漫游）
 | 层 | 组件 | 职责 |
 |---|---|---|
 | **Splash** | `components/Splash.tsx` | icon +「小驻看房」+ slogan「先驻进去，再住下来」+ inNest / *Step In. Stay Longer.*；主按钮进入列表。不加载 ply、不锁指针。 |
-| **HouseList** | `components/HouseList.tsx` | 圆角卡片（楼盘名 + 编号）；筛选；点卡打开详情弹窗，**不直接进 3D**。 |
-| **WalkHud** | `components/WalkHud.tsx` | 既有漫游 HUD（对话 / PTT / 带看 / 信息卡 / PlaceFacts / V 回起点）**不改逻辑**；仅加「返回列表」。 |
+| **HouseList** | `components/HouseList.tsx` | 圆角卡片（楼盘名 + 编号）；筛选；**问问小驻** 推荐；点卡打开详情弹窗，**不直接进 3D**。 |
+| **WalkHud** | `components/WalkHud.tsx` | 既有漫游 HUD（对话 / PTT / 带看 / 信息卡 / PlaceFacts / V 回起点 / **M 俯瞰**）；「返回列表」。 |
 
 选房后才挂载 `AholoViewport`（避免开场就拉 ply）。换房：回列表再选，并 `resetAgentSession()`（SPEC 方案 A）。
 
@@ -43,6 +43,8 @@ Splash（落地） → HouseList（选房） → WalkHud（第一人称漫游）
 | 房间清单 | scene_graph `rooms[]`：名称 + 面积 + 主要实例中文名 | 类别→中文与 agent 别名表一致；窗帘等噪点类省略 |
 
 楼盘名在 `mock/listings.json` 的 `title`；编号在只增字段 `code`（0330 / 0469 / …）。
+
+搜索栏 **「问问小驻」** → `POST /api/agent/recommend`（SPEC §3.6）推荐 1 套真实房源 + 理由；「查看详情」打开同一套 `ListingDetail`。失败 toast「小驻暂时开小差了」。**# 待确认**：lite 未开通时网关走规则版关键词。
 
 ---
 
@@ -91,10 +93,12 @@ AholoViewport（文件名历史包袱，避免大范围改 import）
 | `src/services/narration.ts` | narration GET 客户端（8s 超时；404 → `null`） |
 | `src/services/agent.ts` / `asr.ts` / `tour.ts` | chat / ASR / tour |
 | `src/components/Splash.tsx` | 落地页 |
-| `src/components/HouseList.tsx` | 房源卡片 + 筛选 + 打开详情 |
+| `src/components/HouseList.tsx` | 房源卡片 + 筛选 +「问问小驻」+ 打开详情 |
+| `src/components/RecommendAsk.tsx` | 问问小驻弹窗 → `POST /api/agent/recommend` → 查看详情复用 ListingDetail |
 | `src/components/ListingDetail.tsx` | 选房详情弹窗 |
-| `src/components/Floorplan2D.tsx` | 真实 polygon 2D 户型图（居中、无家具、房间名质心居中；无门窗不编造） |
-| `src/components/WalkHud.tsx` | 对话 + PTT；右上角「小驻AI·询问」；**不改** 3D 循环；返回列表 |
+| `src/components/Floorplan2D.tsx` | 真实 polygon 2D 户型图（居中、无家具；俯瞰图可 `hideLabels` + 位置光点） |
+| `src/components/WalkHud.tsx` | 对话 + PTT；右上角「小驻AI·询问」；**M** 俯瞰图；底栏两行键位；返回列表 |
+| `src/components/WalkMinimap.tsx` | 漫游俯瞰覆盖层：去文字 Floorplan2D + `cloudToScene` 光点 |
 | `src/components/PlaceFacts.tsx` | 常驻房源/房间卡（listings + 当前 `player.room_id`） |
 | `src/components/InfoCard.tsx` | `show_card` HUD（可关 / 6s） |
 | `src/components/TourBar.tsx` | 「开始带看」+ **B 键**（Pointer Lock 时鼠标点不到按钮） |
@@ -157,13 +161,14 @@ AholoViewport（文件名历史包袱，避免大范围改 import）
 | **InfoCard** | 仅响应 `actions.show_card`（`title` + `lines[]`；兼容平铺与 `data` 嵌套）。可关，约 6s 消失。 |
 | **TourBar** | 「开始带看」→ `startTour`；进行中显示房间名。失败 toast「带看暂不可用」。 |
 | **B 键** | `keydown` `KeyB` 切换带看（忽略输入框）。Pointer Lock 时点不到左上按钮，用键盘兜底。 |
-| **WalkHud** | 对话气泡 + 打字 + PTT；右上角入口文案「小驻AI·询问」；进房 toast 由 `narration.ts` 调 `showToast`。 |
+| **M 键** | 打开/关闭 2D 俯瞰图（去房间名；橙点 = `player` 点云坐标经 `cloudToScene` 投影）。Esc / 关闭可退。不阻塞 WASD。 |
+| **WalkHud** | 对话气泡 + 打字 + PTT；右上角入口文案「小驻AI·询问」；底栏两行（上行键位、下行功能）；进房 toast 由 `narration.ts` 调 `showToast`。 |
 
 带看期间 `tourActive`：跳过进房 narration，避免与 tour 步骤双讲。切到下一步时 **强制飞入该步 tp**（忽略 WASD，不可取消过渡）；**到位后** 才上屏短句 / 播 `speech`。当前房介绍期间仍可自由走动。TTS stub 按文本时长推进，不卡死。
 
 ---
 
-## 6. 八接口用法（前端调用点）
+## 6. 九接口用法（前端调用点）
 
 字段以 `SPEC.md` 为准。`VITE_API_MODE=real` 打网关；`mock` 可无后端漫游（chat 为本地关键词）。
 
@@ -177,6 +182,7 @@ AholoViewport（文件名历史包袱，避免大范围改 import）
 | `POST /api/agent/tts` | 独立合成（少用） | chat 已带 `tts_url` 则直接播；独立 TTS 常 `{}` |
 | `GET /api/agent/narration` | `room_id` 变化（防抖 700ms） | 优先路径；404/失败/空文案 → chat `event=enter_room`；每房间每会话一次（前端 Set） |
 | `POST /api/agent/tour` | TourBar / B 键 | `{steps[]}` 依次 **强制** teleport（到位后再 toast + TTS）；介绍期可走动；可中途停止 |
+| `POST /api/agent/recommend` | 列表「问问小驻」 | 从真实 5 套荐 1 套 + 理由；非法 id 丢弃；失败规则回落 |
 
 会话：前端生成 `session_id`，换房重置（SPEC 方案 A）。错误顶层 `{code,message}`。
 

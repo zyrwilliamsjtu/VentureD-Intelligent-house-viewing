@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import type { RepoRoom } from '../services/mock/data'
 
 /** 功能区配色：半透明填色，墙体另描。无匹配则中性纸色。 */
@@ -71,10 +72,18 @@ function polyPoints(
 export function Floorplan2D({
   rooms,
   orientation,
+  hideLabels = false,
+  marker,
 }: {
   rooms: RepoRoom[]
   orientation?: string
+  /** 俯瞰图：不画房间名/面积/朝向文字 */
+  hideLabels?: boolean
+  /** scene XZ（Y-up 投影），当前位置 */
+  marker?: { x: number; z: number } | null
 }) {
+  const uid = useId().replace(/:/g, '')
+  const paperId = `fp-paper-${uid}`
   const usable = rooms.filter((r) => Array.isArray(r.polygon) && r.polygon.length >= 3)
   if (!usable.length) {
     return <div className="fp-placeholder">户型图暂不可用</div>
@@ -114,17 +123,17 @@ export function Floorplan2D({
   const barM = bw >= 12 ? 5 : 2
   const barLen = barM * scale
   const orient = orientation?.trim()
-  const showOrient = !!orient && orient !== '待对拍'
+  const showOrient = !hideLabels && !!orient && orient !== '待对拍'
 
   return (
     <svg className="fp-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="户型平面图">
       <defs>
-        <pattern id="fp-paper" width="8" height="8" patternUnits="userSpaceOnUse">
+        <pattern id={paperId} width="8" height="8" patternUnits="userSpaceOnUse">
           <rect width="8" height="8" fill="#f6f2ea" />
           <circle cx="1.2" cy="1.5" r="0.35" fill="#e4ddd2" />
         </pattern>
       </defs>
-      <rect x="0" y="0" width={W} height={H} fill="url(#fp-paper)" rx="16" />
+      <rect x="0" y="0" width={W} height={H} fill={`url(#${paperId})`} rx="16" />
 
       {usable.map((r) => (
         <polygon
@@ -157,7 +166,8 @@ export function Floorplan2D({
         />
       ))}
 
-      {usable.map((r) => {
+      {!hideLabels &&
+        usable.map((r) => {
         const label = (r.name || '').replace(/^\s+/, '')
         if (!label || label === '其他') return null
         const box = bounds(r.polygon)
@@ -207,6 +217,13 @@ export function Floorplan2D({
           </text>
         )
       })}
+
+      {marker ? (
+        <g pointerEvents="none">
+          <circle cx={toX(marker.x)} cy={toY(marker.z)} r="9" fill="rgba(196, 97, 60, 0.22)" />
+          <circle cx={toX(marker.x)} cy={toY(marker.z)} r="4.5" fill="#c4613c" stroke="#fff" strokeWidth="1.6" />
+        </g>
+      ) : null}
 
       <g transform={`translate(18, ${H - 18})`}>
         <line x1="0" y1="0" x2={barLen} y2="0" stroke="#1d1d1f" strokeWidth="2.2" />

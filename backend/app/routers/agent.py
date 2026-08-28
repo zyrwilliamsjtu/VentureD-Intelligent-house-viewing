@@ -10,6 +10,7 @@ from app.services.agent import (
     handle_asr,
     handle_chat,
     handle_narration,
+    handle_recommend,
     handle_tour,
     handle_tts,
 )
@@ -120,3 +121,24 @@ async def tour(request: Request) -> dict:
     if not world_id or not session_id:
         raise GatewayError(400, "AGENT_ERROR", "world_id 与 session_id 必填")
     return handle_tour(world_id, session_id)
+
+
+@router.post("/recommend")
+async def recommend(request: Request) -> dict:
+    try:
+        body = await request.json()
+    except Exception:
+        raise GatewayError(400, "AGENT_ERROR", "请求体无效") from None
+    if not isinstance(body, dict):
+        raise GatewayError(400, "AGENT_ERROR", "请求体无效")
+    session_id = _form_str(body.get("session_id"))
+    user_text = body.get("user_text")
+    if isinstance(user_text, str):
+        user_text = user_text.strip()
+    else:
+        user_text = str(user_text).strip() if user_text is not None else ""
+    raw_ids = body.get("listing_ids")
+    listing_ids: list[str] | None = None
+    if isinstance(raw_ids, list):
+        listing_ids = [str(x) for x in raw_ids if x]
+    return handle_recommend(session_id=session_id, user_text=user_text or None, listing_ids=listing_ids)

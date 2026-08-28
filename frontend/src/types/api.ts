@@ -125,6 +125,14 @@ export interface TourResponse {
   steps: TourStep[]
 }
 
+export interface RecommendResult {
+  listing_id?: string
+  reason: string
+  title?: string
+  code?: string
+  world_id?: string
+}
+
 /** SPEC §3.4 GET /api/agent/narration */
 export interface NarrationResponse {
   reply_text: string

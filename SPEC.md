@@ -276,7 +276,41 @@
 
 `speech` 由规则模板从 `scene_graph`（及可选 listing 亮点）组装，**不进 LLM**。面积/实例/邻接必须来自真实字段，不编造。数据不足时允许只有「房间名+面积」（最小模板）。
 
-### 3.6 agent 契约共同约定
+### 3.6 `POST /api/agent/recommend`（P2 · 只增）
+
+列表页「问问小驻」：根据自然语言需求，从**真实挂牌**里推荐 **1 套** 并给 grounded 理由。不编造房源。
+
+**请求** `application/json`：
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `session_id` | string | ✅ | 与 chat 相同，前端生成 |
+| `user_text` | string | ✅ | 找房需求（如「想要有书房的」） |
+| `listing_ids` | string[] | 否 | 候选 id 白名单；省略则默认 `GET /api/listings` 里 `is_real` 的 5 套 |
+
+**响应 200**：
+
+```json
+{
+  "listing_id": "listing_0259_840804",
+  "reason": "小驻推荐澜庭华府：挂牌带书房。",
+  "title": "澜庭华府",
+  "code": "0259",
+  "world_id": "w_0259_840804"
+}
+```
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| `listing_id` | 否 | 必须是候选真实挂牌 `id`；匹配不上或无法推荐时 **omit**，只给 `reason` 引导 |
+| `reason` | 是 | 推荐理由或换需求引导；不得引用目录没有的房源/数字 |
+| `title` / `code` / `world_id` | 否 | 只增，便于前端展示；与 listings 对齐 |
+
+实现：先走方舟（`AGENT_ROUTE_MODEL` 优先，否则 `LLM_MODEL`，超时 8s）输出 `{listing_id,reason}`；**`listing_id` 不在真实 5 套则丢弃**。失败/超时/未配置 → 规则版关键词匹配。**# 待确认**：lite 接入点未开通时仅规则版。
+
+缺 `session_id` / `user_text` → 400 `{code,message}`。
+
+### 3.7 agent 契约共同约定
 
 - **会话**：`session_id` 前端生成透传，B 按它维护上下文
 - **回答必须基于 scene JSON 的 `attrs`/`facts`/`selling_points`/`house` 事实，不编造冲突信息**；问不存在的实例 → 明确说无可靠信息，不猜
@@ -451,3 +485,4 @@ z = 1.087 − Y_pc
 - v2.3 只增（2026-08-28）：§3.5 `steps[].speech` 可选长稿（TTS 专用、不上屏）；既有 `narration` 语义不变。
 - v2.3 只增（2026-08-29）：§2.6 `GET /api/listings` 可选查询 `layout` / `price_min` / `price_max` / `q`；无参仍返回全部。
 - v2.3 只增（2026-08-29）：§2.6 可选 `code`（场景编号）；`title` 为楼盘名（编号不再写进 title）。
+- v2.3 只增（2026-08-29）：§3.6 `POST /api/agent/recommend`（问问小驻找房；只从真实 5 套选 1 套）。

@@ -14,6 +14,7 @@ import {
 } from '../scene/agentActions'
 import { useRoomNarration } from '../scene/narration'
 import { TourBar } from './TourBar'
+import { WalkMinimap } from './WalkMinimap'
 import { InfoCard } from './InfoCard'
 import { PlaceFacts } from './PlaceFacts'
 import type { House } from '../types/api'
@@ -285,10 +286,23 @@ export function WalkHud({
 }) {
   const locked = useAppStore((s) => s.pointerLocked)
   const [agentOpen, setAgentOpen] = useState(false)
+  const [minimap, setMinimap] = useState(false)
   const roomId = useAppStore((s) => s.player?.room_id ?? null)
   const house = useAppStore((s) => s.house) as House | null
   const zone = house?.zones.find((z) => z.id === roomId) ?? null
   useRoomNarration(worldId) // 进房主动讲解：room_id 切换 → enter_room → toast + TTS
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== 'KeyM' || e.repeat) return
+      const el = e.target as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+      e.preventDefault()
+      setMinimap((v) => !v)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   return (
     <div className="walk-hud">
@@ -316,14 +330,38 @@ export function WalkHud({
       {/* 准星（锁定时显示，仅指示视线） */}
       {locked && <div className="crosshair" />}
 
-      {/* 底部操作提示 */}
+      <WalkMinimap worldId={worldId} open={minimap} onClose={() => setMinimap(false)} />
+
+      {/* 底部操作提示：上行键位、下行功能 */}
       <div className="hint-bar">
-        <span><b>W A S D</b> 移动</span>
-        <span><b>鼠标</b> 视角</span>
-        <span><b>V</b> 回起点</span>
-        <span><b>Shift</b> 快走</span>
-        <span><b>B</b> 带看</span>
-        <span><b>ESC</b> 释放鼠标</span>
+        <span className="hint-item">
+          <b>WASD</b>
+          <i>移动</i>
+        </span>
+        <span className="hint-item">
+          <b>鼠标</b>
+          <i>视角</i>
+        </span>
+        <span className="hint-item">
+          <b>V</b>
+          <i>回起点</i>
+        </span>
+        <span className="hint-item">
+          <b>Shift</b>
+          <i>快走</i>
+        </span>
+        <span className="hint-item">
+          <b>B</b>
+          <i>带看</i>
+        </span>
+        <span className="hint-item">
+          <b>M</b>
+          <i>俯瞰图</i>
+        </span>
+        <span className="hint-item">
+          <b>ESC</b>
+          <i>释放鼠标</i>
+        </span>
       </div>
 
       {/* 未锁定时的恢复层（Agent 面板打开时不盖住输入框） */}

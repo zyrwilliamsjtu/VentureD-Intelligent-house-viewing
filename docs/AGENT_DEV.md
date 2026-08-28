@@ -209,6 +209,7 @@ backend/app/services/agent/
 | 2026-08-28 | ASR 真实识别：ffmpeg 把 webm/m4a 转到 pcm16k；前端 PTT 格式对齐；live 转写「这栋房子的主卧在哪？」 |
 | 2026-08-28 | 多世界 + listing_id：5 套 world 表；挂牌优先于 scene_graph；逐场景坐标铁律 |
 | 2026-08-29 | 人设自称小驻；当前房间介绍快路径；睡觉/书房/卫生间别名；去掉「您刚提到」回显 |
+| 2026-08-29 | `POST /api/agent/recommend` 问问小驻找房（真实 5 套 + 规则回落） |
 
 ---
 
