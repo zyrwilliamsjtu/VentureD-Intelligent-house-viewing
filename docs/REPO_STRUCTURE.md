@@ -62,7 +62,7 @@ main              ← 演示版，可运行
 
 ### 2.1 职责与边界
 
-- **做**：`GET /api/scene/{world_id}`（理解层产出 `scene_graph`）、`GET /api/camera_poses/{world_id}`、agent 契约 stub（chat/asr/tts/narration/tour）、统一错误 `{code,message}`、CORS。
+- **做**：`GET /api/scene/{world_id}`、`GET /api/camera_poses/{world_id}`、`GET /api/listings`、agent 契约（chat/asr/tts/narration/tour）、统一错误 `{code,message}`、CORS。
 - **不做**：agent 语义（B）、前端渲染（A）。
 
 理解层当前默认 `GTProvider`（读 `mock/real_0330`）；`UNDERSTANDING_PROVIDER=dual_engine` 为未来占位。对外格式始终 SPEC v2.2。重构路线见 `docs/REFACTOR_PLAN.md`（本分支有，**main 上尚无此文件**）。
@@ -274,10 +274,17 @@ frontend/
 | `scene_graph.json` | 手写基线，`world_id = w_mock_001` |
 | `camera_poses.json` | tp_id → 点云坐标（w_mock_001） |
 | `agent_responses.json` | agent 接口响应样例 |
+| `listings.json` | `GET /api/listings` 挂牌列表（5 套真实，snake_case） |
+| `CONVERT_PIPELINE.md` | 0330 标准转换链路（已参数化）+ 硬编码点 |
 | `real_0330/scene_graph.json` | InteriorGS 0330 → SPEC，`w_0330_840483` |
 | `real_0330/camera_poses.json` | 对拍转正 tp 表（见 `SOURCE.md`） |
 | `real_0330/SOURCE.md` | 数据来源、坐标映射、转换脚本路径 |
-| `real_0330/fix_poses.py` / `final_check.py` | 对拍辅助脚本 |
+| `real_0330/fix_poses.py` / `final_check.py` | 0330 对拍遗留（硬编码偏移，勿用于新场景） |
+| `0469_840829/` | 场景 0469：scene_graph / camera_poses / SOURCE.md |
+| `0259_840804/` | 场景 0259（同上） |
+| `0309_840544/` | 场景 0309（同上） |
+| `0836_841149/` | 场景 0836（同上） |
+| `tools/` | 参数化转换：make_scene_graph / calibrate / fix_poses / final_check |
 
 原始 ply / labels **不入库**（见 `SOURCE.md`，数据盘路径）。
 
@@ -340,3 +347,4 @@ frontend/
 | 日期 | 变更 |
 |------|------|
 | 2026-08-28 | 初稿：仓库总览 + backend/frontend/docs/mock/根文件/未跟踪 + 文档索引；前端按 main `b2cec81` 42 个新增文件（排除 `_parked/`）分析 |
+| 2026-08-28 | mock 补 4 套真实场景 + listings.json；转换链路见 `mock/CONVERT_PIPELINE.md` |

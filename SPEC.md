@@ -1,7 +1,7 @@
-# 接口契约 SPEC v2.2（整合版 · 全队唯一事实源）
+# 接口契约 SPEC v2.3（整合版 · 全队唯一事实源）
 
 > **性质**：本文件是**全队唯一接口事实源**。任何改动先更新本文件、通知全员、再改代码。
-> **基线**：在 v2.1 基础上**抛弃 RenderCloud 轨道（A 本地处理）**、agent 契约按 A 的 chat/actions 模型重构、语音按 A 意见（ASR 前端直传后端）。全部新增字段可选，符合"只增不改"。
+> **基线**：在 v2.2 基础上只增：`GET /api/listings`、chat/narration 可选 `listing_id`、5 套真实世界、会话隔离方案 A。全部新增字段可选，符合"只增不改"。
 
 ---
 
@@ -14,7 +14,7 @@
 | **空值约定** | 数组为空发 `[]`，不用 `null`；可选字段无值时省略（omit），不发送 |
 | **时间** | Unix 毫秒 |
 | **编码** | JSON，UTF-8（除上传音频为 multipart）；JSON 字符串内不要出现反引号 |
-| **会话** | `session_id` 由**前端生成**（首次进房生成、全程复用），每次请求透传；后端按它维护多轮上下文 |
+| **会话** | `session_id` 由**前端生成**（首次进房生成、全程复用），每次请求透传；后端按它维护多轮上下文。**换房隔离（方案 A）**：前端切换房源时**重置 `session_id`**（生成新 uuid），不把上一套的 history/current_room 带到下一套 |
 | **鉴权（可选）** | 赛事内网可先不做；如需，前端在 Header 带静态 token `X-Agent-Token` |
 | **CORS** | 后端对前端域名开 CORS，开发期含 `http://localhost:5173` |
 | **超时** | `chat` 30s / `asr` 10s / `tts` 15s；超时返回统一错误格式 |
@@ -68,7 +68,7 @@
 > **产出定位**：本接口返回的 `scene_graph` 是**理解层的核心产出**（三级语义结构：house / rooms / instances + 坐标 + topology），由 PI 后端提供。
 > - 供 **B 的 agent** 作为场景知识库（房间/实例位置/拓扑）
 > - 供 **A 的前端**作为图纸（小地图/标注/镜头映射）
-> - 当前由 GTProvider 提供（数据来自 `mock/real_0330/scene_graph.json`）；未来可切换 DualEngineProvider。对外格式始终遵循本契约。
+> - 当前由 GTProvider 提供（5 套真实世界见 §7；0330 数据在 `mock/real_0330/`，其余在 `mock/{scene_id}/`）；未来可切换 DualEngineProvider。对外格式始终遵循本契约。
 
 
 ### 2.1 结构要点（完整示例见 mock/scene_graph.json）
@@ -106,7 +106,7 @@
 }
 ```
 
-真实场景完整示例见 `mock/real_0330/scene_graph.json`（world_id=w_0330_840483）。
+真实场景完整示例见 `mock/real_0330/scene_graph.json`（world_id=`w_0330_840483`）。另 4 套：`w_0469_840829` / `w_0259_840804` / `w_0309_840544` / `w_0836_841149`（`mock/{scene_id}/`）。
 
 ### 2.2 字段说明
 
@@ -134,6 +134,50 @@
 - [ ] 所有坐标字段为 number、最多 3 位小数
 - [ ] 示例 JSON 可 `JSON.parse` 通过（无反引号）
 
+### 2.6 `GET /api/listings`（P0 · 房源列表）
+
+前端开场页拉挂牌卡片。只读。字段一律 **snake_case**。
+
+**响应 200**：
+
+```json
+{
+  "listings": [
+    {
+      "id": "listing_0330_840483",
+      "title": "InteriorGS 0330 · 三室一厅",
+      "layout": "三室一厅",
+      "area": 120.1,
+      "orientation": "南向",
+      "floor": "12/28",
+      "price": "430万",
+      "price_num": 430,
+      "tags": ["南北通透", "全明户型"],
+      "highlight": "三室一厅约120平，南向客厅连阳台。",
+      "world_id": "w_0330_840483",
+      "is_real": true,
+      "floorplan": ""
+    }
+  ]
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `listings` | array | ✅ | 挂牌列表；空则 `[]` |
+| `listings[].id` | string | ✅ | 挂牌 id，与 chat/narration 的 `listing_id` **对齐**（`listing_{scene_id}`） |
+| `title` / `layout` / `area` | string / string / number | ✅ | 标题 / 户型 / 面积（㎡） |
+| `orientation` / `floor` | string | ✅ | 朝向 / 楼层（挂牌 mock，见 `_notes`） |
+| `price` / `price_num` | string / number | ✅ | 展示价（如 `"430万"`）/ 数值万 |
+| `tags` / `highlight` | string[] / string | ✅ | 标签 / 一句话卖点 |
+| `world_id` | string | ✅ | 对应 `GET /api/scene/{world_id}` |
+| `is_real` | boolean | ✅ | 真实 InteriorGS 场景为 `true`；手写 mock 房源若接入则为 `false` |
+| `floorplan` | string | 可选 | 户型图 URL；无则 `""` 或 omit |
+
+**数据源**：`mock/listings.json`。文件缺失或损坏 → 500 `{code,message}`；**前端有本地硬编码兜底**，demo 不挂。
+
+**挂牌 vs scene_graph**：价格/朝向/楼层等以 **listing 为准**（数据集无这些字段，listing 为挂牌 mock）。scene_graph 的 `house.price` 等可仍为「待对拍」占位。
+
 ---
 
 ## 3. agent 契约（B 提供，经后端暴露）
@@ -155,6 +199,7 @@
 | `player_position` | number[3] | 可选 | 玩家眼位。`player_position` / `player_facing` 为点云系（**IG 原生 Z-up**，米；实测见附录 A），agent 可忽略或仅日志，不用于坐标计算。 |
 | `player_facing` | number[3] | 可选 | 视线方向单位向量（同坐标系；agent 可忽略，不用于坐标计算） |
 | `room_id` | string | 可选 | 当前房间；**对拍完成前恒为 null**，房间归因由 Agent 用位置粗处理或省略 |
+| `listing_id` | string | 可选 | 当前挂牌 id（与 `GET /api/listings` 的 `id` 对齐）。**有则挂牌信息优先**（价格/面积/朝向/楼层/卖点）；`null` 或省略则 scene_graph 兜底。**listings 与 scene_graph 冲突以 listing 为准**（防幻觉） |
 | `event` | string | 可选 | `button_press`（主动问）/ `enter_room`（进房主动讲，配合 §3.4） |
 
 **响应 200**：
@@ -193,6 +238,7 @@
 
 ### 3.4 `GET /api/agent/narration?world_id=&room_id=`（可选 · 进房主动讲解）
 
+- 查询参数：`world_id`、`room_id` 必填；`session_id` 可选（去重）；**`listing_id` 可选**（有则会话可挂当前挂牌，讲解正文仍以房间 `story_card` 为准）
 - 响应：`{ "reply_text": "这是24平朝南客厅…", "tts_url": "..." }`
 - 没有对应内容时返回 404，前端静默跳过
 - 无此接口前端用本地 mock 讲解词，不阻塞
@@ -205,6 +251,7 @@
 
 - **会话**：`session_id` 前端生成透传，B 按它维护上下文
 - **回答必须基于 scene JSON 的 `attrs`/`facts`/`selling_points`/`house` 事实，不编造冲突信息**；问不存在的实例 → 明确说无可靠信息，不猜
+- **有 `listing_id` 时**：价格 / 面积 / 朝向 / 楼层 / 挂牌卖点以 listing 为准；与 scene_graph `house` 冲突时 **listing 赢**
 - **坐标系边界**：B 只读 scene JSON（Y-up），**不感知点云坐标**；对拍完成前 B 不做坐标级归因（`room_id` 恒 null、不输出 `position` 型 teleport）
 - 职责链：**B 决定"讲什么/去哪个语义锚点"，A 负责把动作落到点云坐标（本地映射或 PI 映射表）**
 
@@ -235,7 +282,7 @@
 
 A 查询 `tp_id` → **点云坐标**映射，供 `teleport` / `highlight` 落点。只读。
 
-**请求**：path `world_id`（与 scene 相同：`w_0330_840483` / `w_mock_001`）
+**请求**：path `world_id`（与 scene 相同：5 套真实 `w_{scene_id}` 或手写 `w_mock_001`）
 
 **响应 200**：
 
@@ -250,7 +297,7 @@ A 查询 `tp_id` → **点云坐标**映射，供 `teleport` / `highlight` 落�
 
 未知 `world_id` → 404 `{ "code": "WORLD_NOT_FOUND", "message": "世界不存在" }`。
 
-**数据源**：`mock/real_0330/camera_poses.json`（0330 对拍转正版）；手写 mock 为 `mock/camera_poses.json`（开发基线，勿套用 0330 公式）。
+**数据源**：真实世界 `mock/real_0330/camera_poses.json` 或 `mock/{scene_id}/camera_poses.json`（各自对拍）；手写 mock 为 `mock/camera_poses.json`。**偏移每场景独立，禁止套用 0330 的 0.573/1.087。**
 
 ---
 
@@ -282,6 +329,7 @@ A 查询 `tp_id` → **点云坐标**映射，供 `teleport` / `highlight` 落�
 | `ASR_FAILED` | 语音识别失败（前端降级：隐藏用户气泡，仅显示回答/提示） |
 | `TTS_FAILED` | 语音合成失败（前端降级：本地 TTS 朗读） |
 | `RATE_LIMITED` | 限流 |
+| `LISTINGS_UNAVAILABLE` | 挂牌列表数据不可用（`mock/listings.json` 缺失或损坏） |
 
 ---
 
@@ -293,7 +341,11 @@ A 查询 `tp_id` → **点云坐标**映射，供 `teleport` / `highlight` 落�
 | **联调窗口** | 开赛后 36h 起 |
 | **里程碑合并** | 4h / 12h / 24h / 36h，PI 主持合 main |
 | **站会** | 早 9 点对契约、晚 9 点对进度，各 10 分钟 |
-| **统一 demo 场景** | **主场景 = 真实数据 `w_0330_840483`（来自 InteriorGS `0330_840483`，见 `mock/real_0330/`）；手写 mock `w_mock_001`（`mock/scene_graph.json`）作为开发基线保留**。后端 `GET /api/scene` 按 `world_id` 路由：`w_0330_840483` → real_0330，`w_mock_001` → 手写 mock。 |
+| **统一 demo 场景** | **5 套真实房源**（InteriorGS）：`w_0330_840483`、`w_0469_840829`、`w_0259_840804`、`w_0309_840544`、`w_0836_841149`。0330 产物在 `mock/real_0330/`，其余在 `mock/{scene_id}/`。手写 mock `w_mock_001` 作开发基线保留。未知 `world_id` → 404 `WORLD_NOT_FOUND`。 |
+| **字段命名** | 全接口 **snake_case**（`world_id` / `is_real` / `price_num` / `listing_id` / `session_id`）。camelCase 一律按此修正 |
+| **listing_id** | 与 `GET /api/listings` 的 `listings[].id` 对齐，格式 `listing_{scene_id}`（如 `listing_0469_840829`） |
+| **会话隔离** | **方案 A**：前端换房重置 `session_id`；后端不在同一 session 上切换 world（若请求 world_id 与 session 已绑 world 不一致——**待确认**是否 400；当前按新 world 覆盖写入） |
+| **多世界接入铁律** | 点云 **Z-up**（米）；`teleport` 只用 scene 已有 `tp_id` 白名单；**坐标偏移逐场景标定 + 对拍**，禁止套用 0330 公式；对拍见各 `mock/.../SOURCE.md` |
 | **接口变更流程** | 群里说 → 更新本文件 → 通知全员 → 才改代码 |
 | **Mock 先行** | PI 先提交 mock 数据 + API stub，B/A 对 mock 开发 |
 | **Golden Path（联调第一件事）** | 跑通：问"沙发在哪里" → `chat` 返回 `reply_text` + `actions.teleport(tp_id=tp_sofa)` → A 查映射表瞬移到沙发前 + 显示回答。**这条不通，一切白搭；先保它** |
@@ -304,6 +356,7 @@ A 查询 `tp_id` → **点云坐标**映射，供 `teleport` / `highlight` 落�
 
 | 缺失项 | 降级方案 |
 |---|---|
+| `GET /api/listings` | 前端本地硬编码挂牌列表 |
 | `chat` 全接口 | 内置关键词问答（前端/本地 mock） |
 | `asr` | 打字输入框 |
 | `tts` / `tts_url` | 前端本地 TTS 或静音气泡 |
@@ -325,9 +378,11 @@ A 查询 `tp_id` → **点云坐标**映射，供 `teleport` / `highlight` 落�
 | 4 | `tp_id` → 点云坐标映射表由谁提供 | 默认 PI 提供（`mock/camera_poses.json` 或映射表） |
 
 ---
-## 附录 A：坐标映射（已对拍转正 · 仅 0330 标定）
+## 附录 A：坐标映射（已对拍转正 · **逐场景标定**）
 
-> 0330 坐标对拍完成（2026-08-28，A 实测：75/75 实例 <1cm、10/10 房间命中、残差 0.0003m）。以下公式为最终实测结果，写死为本附录正式约定。
+> **铁律**：平移量 **每场景特有**，禁止把 0330 的 0.573 / 1.087 套到其它世界。形态公式相同，数值见各场景 `mock/.../SOURCE.md` + `origin.json`。
+>
+> 0330 坐标对拍完成（2026-08-28，A 实测：75/75 实例 <1cm、10/10 房间命中、残差 0.0003m）。以下 **0330 数值** 写死为该场景约定。
 
 **背景**：
 - scene JSON：米，Y-up，原点 house_center（`coord.up="Y"`）
@@ -350,7 +405,7 @@ z = 1.087 − Y_pc
 
 - 变换保持右手系（行列式 +1，无镜像）
 - 语义：scene 原点 = IG 坐标 − (0.573, −1.087)
-- **标定范围：仅 0330 场景**；更换场景需重新标定平移量
+- **标定范围：逐场景**。0330 用上式数值；0469 / 0259 / 0309 / 0836 各自 `ox` / `Y_const=(-oz)`，见对应 `SOURCE.md`
 
 **应用**：
 - A 前端：`teleport(tp_id)` 查 `mock/real_0330/camera_poses.json`（fixed 转正版）；或按正向公式从 scene 坐标计算。**ply 加载后 viewer 无需任何旋转变换**（原生 Z-up 直接显示）。
@@ -358,4 +413,6 @@ z = 1.087 − Y_pc
 
 ---
 
-**版本历史**：v2.1 → v2.2（抛弃 RenderCloud 轨道、坐标系改两层并新增点云层、agent 契约按 chat/actions/asr/tts/narration 重构、语音按 A 意见、删除附录 B、Golden Path 与降级矩阵更新）。
+**版本历史**：
+- v2.1 → v2.2（抛弃 RenderCloud 轨道、坐标系改两层并新增点云层、agent 契约按 chat/actions/asr/tts/narration 重构、语音按 A 意见、删除附录 B、Golden Path 与降级矩阵更新）。
+- v2.2 → v2.3（`GET /api/listings`；chat/narration 可选 `listing_id`；5 套真实世界；snake_case / 会话隔离方案 A / 逐场景坐标铁律写入 §7）。
