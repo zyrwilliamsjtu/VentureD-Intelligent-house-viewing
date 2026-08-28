@@ -237,6 +237,14 @@ export function AholoViewport({ worldId }: { worldId: string }) {
       const camUp = new THREE.Vector3(0, upAxis === 2 ? 0 : upSign, upAxis === 2 ? 1 : 0)
       camera.up.copy(camUp)
       let skipLook = 0 // Pointer Lock 后丢掉前几帧脏 movement
+      const FLY_MS = 850
+      let fly: {
+        x0: number; y0: number; z0: number
+        x1: number; y1: number; z1: number
+        yaw0: number; yaw1: number
+        pitch0: number; pitch1: number
+        t0: number
+      } | null = null
 
       const applyLookDir = () => {
         const lc = Math.cos(st.pitch)
@@ -260,6 +268,28 @@ export function AholoViewport({ worldId }: { worldId: string }) {
         if (k.has('KeyS') || k.has('ArrowDown')) iz += 1
         if (k.has('KeyA') || k.has('ArrowLeft')) ix -= 1
         if (k.has('KeyD') || k.has('ArrowRight')) ix += 1
+
+        if (fly && (ix !== 0 || iz !== 0)) {
+          fly = null
+        }
+
+        if (fly) {
+          const u = Math.min(1, (performance.now() - fly.t0) / FLY_MS)
+          const s = u * u * (3 - 2 * u)
+          camera.position.set(
+            fly.x0 + (fly.x1 - fly.x0) * s,
+            fly.y0 + (fly.y1 - fly.y0) * s,
+            fly.z0 + (fly.z1 - fly.z0) * s,
+          )
+          let dyaw = fly.yaw1 - fly.yaw0
+          while (dyaw > Math.PI) dyaw -= Math.PI * 2
+          while (dyaw < -Math.PI) dyaw += Math.PI * 2
+          st.yaw = fly.yaw0 + dyaw * s
+          st.pitch = fly.pitch0 + (fly.pitch1 - fly.pitch0) * s
+          st.vx = 0
+          st.vz = 0
+          if (u >= 1) fly = null
+        } else {
         const speed = k.has('ShiftLeft') || k.has('ShiftRight') ? RUN : WALK
         let tv1 = 0
         let tv2 = 0
@@ -304,10 +334,12 @@ export function AholoViewport({ worldId }: { worldId: string }) {
             p.y = g.y + EYE * upSign
           }
         }
+        }
 
         applyLookDir()
 
         // ---- Agent 上下文发布（节流）：眼位/视线取点云原生坐标，房间按对拍映射归因 ----
+        const p = camera.position
         const ctxNow = performance.now()
         if (worldId && ctxNow - ctxLast > CTX_INTERVAL) {
           ctxLast = ctxNow
@@ -376,21 +408,37 @@ export function AholoViewport({ worldId }: { worldId: string }) {
         const cmd = state.teleportCmd
         if (!cmd || cmd.nonce === prev.teleportCmd?.nonce) return
         const [tx, ty, tz] = cmd.position
+        let x1 = tx
+        let y1 = ty
+        let z1 = tz
         if (upAxis === 2) {
-          // z-up 点云系：tp 落点 + 眼高 1.0（与出生点同约定）
-          camera.position.set(tx, ty, tz + 1.0)
+          z1 = tz + 1.0
         } else {
           let sy = ty
           if (vox) {
             const g = vox.raycast(tx, sy + 1.5 * upSign, tz, 0, -upSign, 0, 3)
             if (g) sy = g.y + EYE * upSign
           }
-          camera.position.set(tx, sy, tz)
+          y1 = sy
+        }
+        const from = camera.position
+        const dh1 = x1 - from.x
+        const dh2 = upAxis === 2 ? y1 - from.y : z1 - from.z
+        let yaw1 = st.yaw
+        if (Math.hypot(dh1, dh2) > 0.2) {
+          yaw1 = Math.atan2(-dh1, -dh2)
+        }
+        fly = {
+          x0: from.x, y0: from.y, z0: from.z,
+          x1, y1, z1,
+          yaw0: st.yaw, yaw1,
+          pitch0: st.pitch, pitch1: 0,
+          t0: performance.now(),
         }
         st.vx = 0
         st.vz = 0
         useAppStore.getState().showToast(cmd.label ? `已传送 · ${cmd.label}` : '已传送')
-        console.info('[teleport] agent world=%s target=%o pos=%o', state.player?.world_id, cmd.position, camera.position.toArray())
+        console.info('[teleport] agent world=%s fly→ %o', state.player?.world_id, [x1, y1, z1])
       })
       cleanupFns.push(unsubTp)
 

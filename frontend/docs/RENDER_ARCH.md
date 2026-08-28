@@ -112,10 +112,10 @@ AholoViewport（仍用此文件名，避免大范围改 import）
 
 | 项 | 状态 |
 |---|---|
-| `0309` / `0836` 无 `tp_living` | **# 待确认**（camera_poses 事实；厨房/主卧完整，未编造）。出生点回落到该世界第一档 tp |
+| `0309` / `0836` `tp_living` | 复用已对拍 `tp_kitchen`（无独立客厅；见各 SOURCE.md），非编造 |
 | 生产 ply 对象存储 | **# 待确认** 位置与权限；代码骨架已就绪 |
 | React StrictMode 双挂载 | dev 下 ply 可能下载两次（~2×47MB）。生产构建无此问题 |
-| Splash 文案 | 已改为「Spark 3DGS」；旧 README 写 Aholo 至本次文档更新 |
+| Splash 文案 | 已改为「3D 实景看房」 |
 | 文件名 `AholoViewport` | 历史包袱，未改名以免大 diff |
 | `highlight` 3D 标记 | `tp_id` → camera_poses 点云落点上的陶土橙光柱（8s）；无 tp 则 toast |
 | `show_card` | HUD `InfoCard`（可关 / 6s） |

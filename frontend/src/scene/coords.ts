@@ -55,7 +55,7 @@ export const CLOUD_RULES: Record<string, CloudRule> = {
   w_0309_840544: {
     tx: -3.938458,
     ty: -0.707424,
-    // # 待确认：camera_poses 无 tp_living（厨房/主卧对拍完整）
+    // 出生点：z-up 世界用 tp_living（点云同帧；0309/0836 复用已对拍 tp_kitchen）
     label: 'InteriorGS 0309_840544 · origin.json ox/oz（10/10 房间、93/93 实例 <1cm）',
     up: 'z',
     voxel: false,
@@ -63,7 +63,7 @@ export const CLOUD_RULES: Record<string, CloudRule> = {
   w_0836_841149: {
     tx: 0.314266,
     ty: -0.446865,
-    // # 待确认：camera_poses 无 tp_living（厨房/主卧对拍完整）
+    // 出生点：z-up 世界用 tp_living（点云同帧；0309/0836 复用已对拍 tp_kitchen）
     label: 'InteriorGS 0836_841149 · origin.json ox/oz（10/10 房间、86/86 实例 <1cm）',
     up: 'z',
     voxel: false,

@@ -48,7 +48,7 @@ AholoViewport（文件名历史包袱，避免大范围改 import）
 
 | 模块 | 职责 |
 |---|---|
-| `src/scene/AholoViewport.tsx` | 命令式视口：renderer / Spark / SplatMesh；WASD + Pointer Lock；订阅 `teleportCmd` / `highlightCmd`；200ms 发布 `player`（点云系 + `room_id`）；V 键校准；体素可选 |
+| `src/scene/AholoViewport.tsx` | 命令式视口；`teleportCmd` **约 0.85s 平滑飞入**（WASD 可打断）；出生点优先 `tp_living` |
 | `src/scene/worlds.ts` | 5 套 `world_id` ↔ `scene_dir` ↔ listing；`splatUrlForWorld` |
 | `src/scene/coords.ts` | `CLOUD_RULES`、scene↔点云、tp 表、房间 polygon、`resolveTeleportCloud` |
 | `src/scene/voxel.ts` | splat-transform 体素（5 套真实世界默认 `voxel:false`） |
@@ -152,7 +152,7 @@ Golden Path：问「主卧在哪」→ `teleport` + `tp_id=tp_bedroom_master`（
 
 | 项 | 状态 |
 |---|---|
-| `0309` / `0836` 无 `tp_living` | **# 待确认**（camera_poses 事实；未编造）。出生点回落到该世界第一档 tp |
+| `0309` / `0836` `tp_living` | 复用已对拍 `tp_kitchen`（无独立客厅，见各 `SOURCE.md`），非编造 |
 | 生产 ply 对象存储 | **# 待确认**；代码骨架已就绪 |
 | React StrictMode 双挂载 | dev 下 ply 可能下载两次。生产构建无此问题 |
 | 文件名 `AholoViewport` | 历史包袱，未改名以免大 diff |
