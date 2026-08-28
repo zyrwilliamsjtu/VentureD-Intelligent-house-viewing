@@ -5,3 +5,5 @@ dist
 *.local
 .DS_Store
 *.log
+# 3DGS 点云（大文件不入库，本地放 public/scenes/{scene_id}/3dgs_compressed.ply）
+public/scenes/

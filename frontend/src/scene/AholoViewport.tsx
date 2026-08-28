@@ -7,6 +7,7 @@ import {
   BackgroundMode,
   Vector3,
   Color,
+  SplatLoader,
   SplatUtils,
   type Viewer,
 } from '@manycore/aholo-viewer'
@@ -47,6 +48,16 @@ const SIDE_SIGN = 1
 // 玩家上下文发布节流（Agent chat 请求字段）
 const CTX_INTERVAL = 200
 
+/** world_id → 本地场景目录 id（w_0330_840483 → 0330_840483） */
+function sceneIdOf(worldId: string): string {
+  return worldId.replace(/^w_/, '')
+}
+
+/** 本地 3DGS ply 地址：InteriorGS 点云放 frontend/public/scenes/{scene_id}/3dgs_compressed.ply */
+function localPlyUrl(worldId: string): string {
+  return `${import.meta.env.BASE_URL || '/'}scenes/${sceneIdOf(worldId)}/3dgs_compressed.ply`
+}
+
 function webglOk(): boolean {
   try {
     const c = document.createElement('canvas')
@@ -77,6 +88,7 @@ export function AholoViewport() {
 
     let viewer: Viewer | null = null
     let lod: SplatUtils.LodSplat | null = null
+    let splat: Awaited<ReturnType<typeof SplatUtils.createSplat>> | null = null
     let raf = 0
     let disposed = false
     const st = { yaw: 0, pitch: 0, vx: 0, vz: 0, keys: new Set<string>() }
@@ -171,33 +183,91 @@ export function AholoViewport() {
           .catch(() => {})
       }
 
-      // ---- LOD 流式加载（分块多级，视锥调度）----
-      setStatus('下载点云索引…')
-      const ctrl = new AbortController()
-      const metaTimer = window.setTimeout(() => ctrl.abort(), 20_000) // 卡死不再是无限黑屏
-      let lodMeta: ConstructorParameters<typeof SplatUtils.LodSplat>[0] | undefined
-      try {
-        const metaRes = await fetch(LOD_META_URL, { signal: ctrl.signal })
-        if (!metaRes.ok) throw new Error(`lod-meta 下载失败 HTTP ${metaRes.status}`)
-        lodMeta = await metaRes.json()
-      } catch (e) {
-        throw new Error(
-          e instanceof DOMException && e.name === 'AbortError'
-            ? '点云索引下载超时（20s），请检查网络后刷新'
-            : `lod-meta 下载失败：${e instanceof Error ? e.message : String(e)}`,
-        )
-      } finally {
-        window.clearTimeout(metaTimer)
+      // ---- 点云加载：本地真实 3DGS 优先（群核 viewer 直接渲染 ply），失败回退 LOD 流式 ----
+      const disposeSplat = () => {
+        try {
+          lod?.destroy()
+        } catch {
+          /* noop */
+        }
+        lod = null
+        if (splat) {
+          try {
+            scene.remove(splat as unknown as Parameters<typeof scene.remove>[0])
+          } catch {
+            /* noop */
+          }
+          splat = null
+        }
       }
-      if (!lodMeta) throw new Error('点云索引解析失败（空内容）')
-      lod = new SplatUtils.LodSplat(lodMeta, undefined, createViewerContext(viewer))
-      scene.add(lod.container)
-      lod.start()
-      setStatus('加载点云…（视网络 10–60 秒，期间画面逐块出现）')
-      void lod
-        .onFinishSchedule()
-        .then(() => setStatus(`场景就绪 · WASD 漫游${upAxis === 2 ? ' · 黑屏先按 V' : ''}`, true))
-        .catch(() => {}) // 调度完成回调失败不影响渲染
+
+      const loadLod = async () => {
+        setStatus('下载点云索引…')
+        const ctrl = new AbortController()
+        const metaTimer = window.setTimeout(() => ctrl.abort(), 20_000) // 卡死不再是无限黑屏
+        let lodMeta: ConstructorParameters<typeof SplatUtils.LodSplat>[0] | undefined
+        try {
+          const metaRes = await fetch(LOD_META_URL, { signal: ctrl.signal })
+          if (!metaRes.ok) throw new Error(`lod-meta 下载失败 HTTP ${metaRes.status}`)
+          lodMeta = await metaRes.json()
+        } catch (e) {
+          throw new Error(
+            e instanceof DOMException && e.name === 'AbortError'
+              ? '点云索引下载超时（20s），请检查网络后刷新'
+              : `lod-meta 下载失败：${e instanceof Error ? e.message : String(e)}`,
+          )
+        } finally {
+          window.clearTimeout(metaTimer)
+        }
+        if (!lodMeta) throw new Error('点云索引解析失败（空内容）')
+        lod = new SplatUtils.LodSplat(lodMeta, undefined, createViewerContext(viewer!))
+        scene.add(lod.container)
+        lod.start()
+        setStatus('加载点云…（视网络 10–60 秒，期间画面逐块出现）')
+        void lod
+          .onFinishSchedule()
+          .then(() => setStatus(`场景就绪 · WASD 漫游${upAxis === 2 ? ' · 黑屏先按 V' : ''}`, true))
+          .catch(() => {}) // 调度完成回调失败不影响渲染
+      }
+
+      const loadWorldPointCloud = async (worldId: string) => {
+        disposeSplat()
+        // 坐标 / 出生点按新世界刷新（tp 表走网关，其余本地 fallback）
+        tpTable = await loadTpTable(worldId).catch(() => ({}))
+        loadRoomPolys(worldId)
+          .then((ps) => {
+            roomPolys = ps
+          })
+          .catch(() => {})
+        if (upAxis === 2) {
+          const tp = tpTable?.tp_living ?? (tpTable ? Object.values(tpTable)[0] : null)
+          if (tp) camera.position.set(tp[0], tp[1], tp[2] + 1.0)
+          else camera.position.set(0, 0, 1.5)
+        } else {
+          camera.position.set(-1.5, EYE * upSign, 0)
+        }
+        st.yaw = 0
+        st.pitch = 0
+
+        const plyUrl = localPlyUrl(worldId)
+        setStatus(`下载 3DGS 点云…（${sceneIdOf(worldId)}）`)
+        try {
+          const res = await fetch(plyUrl)
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          const buf = await res.arrayBuffer()
+          setStatus('解析点云…')
+          const data = await SplatLoader.parseSplatData(SplatLoader.SplatFileType.PLY, new Uint8Array(buf))
+          splat = await SplatUtils.createSplat(data)
+          scene.add(splat as unknown as Parameters<typeof scene.add>[0])
+          setStatus(`场景就绪 · ${worldId} · WASD 漫游`, true)
+          console.info('[splat] 本地 3DGS 加载完成 %s', worldId)
+        } catch (e) {
+          console.warn('[splat] 本地 ply 加载失败，回退 LOD', worldId, e)
+          await loadLod()
+        }
+      }
+
+      await loadWorldPointCloud(WORLD_ID)
 
       // ---- 官方 Preset「效果优先」----
       setViewerConfig(viewer, {
@@ -288,7 +358,7 @@ export function AholoViewport() {
         if (WORLD_ID && ctxNow - ctxLast > CTX_INTERVAL) {
           ctxLast = ctxNow
           useAppStore.getState().setPlayer({
-            world_id: WORLD_ID,
+            world_id: useAppStore.getState().listing?.worldId || WORLD_ID,
             position: [p.x, p.y, p.z],
             facing: [look.x, look.y, look.z],
             room_id: roomPolys.length ? roomAtCloud([p.x, p.y, p.z], WORLD_ID, roomPolys) : null,
@@ -434,6 +504,16 @@ export function AholoViewport() {
         window.removeEventListener('keyup', onUp)
         ro.disconnect()
       })
+
+      // ---- 选房切换：换世界后重新加载该房源的真实点云（群核 viewer 渲染）----
+      const unsubListing = useAppStore.subscribe((state, prev) => {
+        const cur = state.listing?.worldId || WORLD_ID
+        const prevW = prev.listing?.worldId || WORLD_ID
+        if (cur !== prevW && state.view === 'walk') {
+          void loadWorldPointCloud(cur)
+        }
+      })
+      cleanupFns.push(unsubListing)
     }
 
     const cleanupFns: Array<() => void> = []
