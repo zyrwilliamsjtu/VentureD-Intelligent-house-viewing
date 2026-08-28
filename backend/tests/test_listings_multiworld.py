@@ -190,6 +190,31 @@ def test_listings_filter_combo_and_empty() -> None:
     assert miss.json()["listings"] == []
 
 
+def test_listings_estate_names_and_code() -> None:
+    expected = {
+        "listing_0330_840483": ("云栖雅苑", "0330"),
+        "listing_0469_840829": ("翡翠云邸", "0469"),
+        "listing_0259_840804": ("澜庭华府", "0259"),
+        "listing_0309_840544": ("月栖小筑", "0309"),
+        "listing_0836_841149": ("澄心雅居", "0836"),
+    }
+    resp = client.get("/api/listings")
+    assert resp.status_code == 200
+    for item in resp.json()["listings"]:
+        title, code = expected[item["id"]]
+        assert item["title"] == title
+        assert item["code"] == code
+        assert "InteriorGS" not in item["title"]
+
+
+def test_listings_filter_q_code_and_name() -> None:
+    by_code = client.get("/api/listings", params={"q": "0330"})
+    assert by_code.status_code == 200
+    assert [r["id"] for r in by_code.json()["listings"]] == ["listing_0330_840483"]
+    by_name = client.get("/api/listings", params={"q": "云栖"})
+    assert [r["title"] for r in by_name.json()["listings"]] == ["云栖雅苑"]
+
+
 def test_listings_invalid_price_400() -> None:
     resp = client.get("/api/listings", params={"price_min": "abc"})
     assert resp.status_code == 400

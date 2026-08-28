@@ -145,7 +145,8 @@
   "listings": [
     {
       "id": "listing_0330_840483",
-      "title": "InteriorGS 0330 · 三室一厅",
+      "title": "云栖雅苑",
+      "code": "0330",
       "layout": "三室一厅",
       "area": 120.1,
       "orientation": "南向",
@@ -166,7 +167,8 @@
 |---|---|---|---|
 | `listings` | array | ✅ | 挂牌列表；空则 `[]` |
 | `listings[].id` | string | ✅ | 挂牌 id，与 chat/narration 的 `listing_id` **对齐**（`listing_{scene_id}`） |
-| `title` / `layout` / `area` | string / string / number | ✅ | 标题 / 户型 / 面积（㎡） |
+| `title` / `layout` / `area` | string / string / number | ✅ | **楼盘名** / 户型 / 面积（㎡） |
+| `code` | string | 可选 | **只增**：场景编号（如 `"0330"`），作副标题；无则 omit |
 | `orientation` / `floor` | string | ✅ | 朝向 / 楼层（挂牌 mock，见 `_notes`） |
 | `price` / `price_num` | string / number | ✅ | 展示价（如 `"430万"`）/ 数值万 |
 | `tags` / `highlight` | string[] / string | ✅ | 标签 / 一句话卖点 |
@@ -181,7 +183,7 @@
 | `layout` | string | 房型过滤，子串包含（如 `三室` 可命中 `三室一厅`） |
 | `price_min` | number | 价格下限（按 `price_num`，单位：万），含边界 |
 | `price_max` | number | 价格上限（按 `price_num`，单位：万），含边界 |
-| `q` | string | 关键词，匹配 `title` / `layout` / `highlight` / `tags` / `orientation` / `floor`（不区分大小写） |
+| `q` | string | 关键词，匹配 `title` / `code` / `layout` / `highlight` / `tags` / `orientation` / `floor`（不区分大小写） |
 
 `price_min` / `price_max` 若提供且无法解析为数字 → 400 `{ "code": "AGENT_ERROR", "message": "price_min 无效" }`（或 `price_max`）。合法过滤无命中 → 200 `{ "listings": [] }`，不报错。
 
@@ -448,3 +450,4 @@ z = 1.087 − Y_pc
 - v2.3 状态对齐 main（2026-08-28）：§9 坐标改为 Z-up 且 5 套已对拍；§4.1/§8 tour·highlight·show_card 标已实现；§3.1 示例改为 `tp_bedroom_master` 且只出 `tp_id`。**未改字段语义、未改 §7 会话 400 行为**。
 - v2.3 只增（2026-08-28）：§3.5 `steps[].speech` 可选长稿（TTS 专用、不上屏）；既有 `narration` 语义不变。
 - v2.3 只增（2026-08-29）：§2.6 `GET /api/listings` 可选查询 `layout` / `price_min` / `price_max` / `q`；无参仍返回全部。
+- v2.3 只增（2026-08-29）：§2.6 可选 `code`（场景编号）；`title` 为楼盘名（编号不再写进 title）。

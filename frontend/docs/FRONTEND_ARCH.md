@@ -1,7 +1,7 @@
 # 前端架构（FRONTEND_ARCH）
 
 > **性质**：前端板块**唯一总览**。接口字段仍以根目录 `SPEC.md` 为准；本文记视口、坐标、HUD、8 接口用法。  
-> **日期**：2026-08-29 · `feat/agent-ux`（三层流转 Splash → HouseList → WalkHud；**尚未合 main**）  
+> **日期**：2026-08-29 · `feat/agent-ux`（三层流转 + 选房详情弹窗；**尚未合 main**）  
 > **不可违反**：命令式 3D（不挂 R3F Canvas）；不改 agent/后端/SPEC 字段语义；ply 不入库。  
 > **执行日志**：[`../WORKLOG.md`](../WORKLOG.md)（决策史 D1–D7，接手先读）。  
 > 旧稿 [`RENDER_ARCH.md`](./RENDER_ARCH.md) 已并入本文，仅作渲染层对照。
@@ -23,7 +23,7 @@ Splash（落地） → HouseList（选房） → WalkHud（第一人称漫游）
 | 层 | 组件 | 职责 |
 |---|---|---|
 | **Splash** | `components/Splash.tsx` | icon +「小驻看房」+ slogan「先驻进去，再住下来」+ inNest / *Step In. Stay Longer.*；主按钮进入列表。不加载 ply、不锁指针。 |
-| **HouseList** | `components/HouseList.tsx` | 圆角卡片展示挂牌；房型 / 价格区间 / 关键词筛选；点卡进入对应 `world_id`。 |
+| **HouseList** | `components/HouseList.tsx` | 圆角卡片（楼盘名 + 编号）；筛选；点卡打开详情弹窗，**不直接进 3D**。 |
 | **WalkHud** | `components/WalkHud.tsx` | 既有漫游 HUD（对话 / PTT / 带看 / 信息卡 / PlaceFacts / V 回起点）**不改逻辑**；仅加「返回列表」。 |
 
 选房后才挂载 `AholoViewport`（避免开场就拉 ply）。换房：回列表再选，并 `resetAgentSession()`（SPEC 方案 A）。
@@ -31,6 +31,18 @@ Splash（落地） → HouseList（选房） → WalkHud（第一人称漫游）
 `GET /api/listings` 可带 `layout` / `price_min` / `price_max` / `q`（`VITE_API_MODE=real`）；失败或 mock 用 `worlds.ts` 硬编码再**本地过滤**。空结果展示「没有符合条件的房源，换个条件试试」。
 
 `store.view`: `splash` | `list` | `walk`；`entered` 仍表示已进入漫游（视口 / narration / V 键）。
+
+### 1.6 选房详情弹窗
+
+点卡片 → `ListingDetail` Modal（遮罩 / Esc /「关闭」可退回列表）。**「进入3D空间」** 才 `enterWalk` + 重置 `session_id`。
+
+| 块 | 数据 | 说明 |
+|---|---|---|
+| 2D 户型图 | `GET /api/scene/{world_id}` 的 `rooms[].polygon`（scene XZ） | `Floorplan2D` SVG：房间填色/描边/名称/比例尺。真实 polygon，不画假图。0330 可回落 `public/mock/real_0330`。失败显示「户型图暂不可用」，**不阻塞**进 3D。 |
+| 介绍 | listings：`title`（楼盘名）/`code`（编号）/`layout`/`area`/`price`/`tags`/`highlight` | 不编造 |
+| 房间清单 | scene_graph `rooms[]`：名称 + 面积 + 主要实例中文名 | 类别→中文与 agent 别名表一致；窗帘等噪点类省略 |
+
+楼盘名在 `mock/listings.json` 的 `title`；编号在只增字段 `code`（0330 / 0469 / …）。
 
 ---
 
@@ -69,7 +81,7 @@ AholoViewport（文件名历史包袱，避免大范围改 import）
 | 模块 | 职责 |
 |---|---|
 | `src/scene/AholoViewport.tsx` | 命令式视口；`teleportCmd` **约 0.85s 平滑飞入**（WASD 可打断）；出生点优先 `tp_living` |
-| `src/scene/worlds.ts` | 5 套 `world_id` ↔ `scene_dir` ↔ listing；`loadListings(query)` |
+| `src/scene/sceneGraphFetch.ts` | 详情弹窗拉 scene_graph（网关 + 0330 本地兜底） |
 | `src/scene/coords.ts` | `CLOUD_RULES`、scene↔点云、tp 表、房间 polygon、`resolveTeleportCloud` |
 | `src/scene/voxel.ts` | splat-transform 体素（5 套真实世界默认 `voxel:false`） |
 | `src/scene/agentActions.ts` | chat 动作：teleport / InfoCard / highlight 光柱 / 播 `tts_url` |
@@ -79,7 +91,9 @@ AholoViewport（文件名历史包袱，避免大范围改 import）
 | `src/services/narration.ts` | narration GET 客户端（8s 超时；404 → `null`） |
 | `src/services/agent.ts` / `asr.ts` / `tour.ts` | chat / ASR / tour |
 | `src/components/Splash.tsx` | 落地页 |
-| `src/components/HouseList.tsx` | 房源卡片 + 筛选 |
+| `src/components/HouseList.tsx` | 房源卡片 + 筛选 + 打开详情 |
+| `src/components/ListingDetail.tsx` | 选房详情弹窗 |
+| `src/components/Floorplan2D.tsx` | 真实 polygon 2D 户型图 |
 | `src/components/WalkHud.tsx` | 对话 + PTT；**不改** 3D 循环；返回列表 |
 | `src/components/PlaceFacts.tsx` | 常驻房源/房间卡（listings + 当前 `player.room_id`） |
 | `src/components/InfoCard.tsx` | `show_card` HUD（可关 / 6s） |

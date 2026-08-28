@@ -5,6 +5,7 @@ import {
   type ListingQuery,
   type WorldListing,
 } from '../scene/worlds'
+import { ListingDetail } from './ListingDetail'
 
 const LAYOUTS = Array.from(new Set(WORLD_LISTINGS.map((w) => w.layout).filter(Boolean)))
 
@@ -23,6 +24,7 @@ export function HouseList({ onPick }: { onPick: (listing: WorldListing) => void 
   const [qDebounced, setQDebounced] = useState('')
   const [rows, setRows] = useState<WorldListing[]>(WORLD_LISTINGS)
   const [loading, setLoading] = useState(false)
+  const [detail, setDetail] = useState<WorldListing | null>(null)
 
   useEffect(() => {
     const t = window.setTimeout(() => setQDebounced(q), 280)
@@ -133,13 +135,14 @@ export function HouseList({ onPick }: { onPick: (listing: WorldListing) => void 
               type="button"
               className="hl-card"
               style={{ animationDelay: `${i * 50}ms` }}
-              onClick={() => onPick(w)}
+              onClick={() => setDetail(w)}
             >
               <div className="hl-card-top">
                 <span className="hl-layout">{w.layout}</span>
                 {w.is_real && <span className="hl-badge">实景</span>}
               </div>
-              <h2>{w.title.replace(/^InteriorGS\s+/, '')}</h2>
+              <h2>{w.title}</h2>
+              {w.code ? <div className="hl-code">{w.code}</div> : null}
               <div className="hl-price">{w.price}</div>
               <div className="hl-meta">
                 {w.area}㎡{w.orientation ? ` · ${w.orientation}` : ''}
@@ -159,6 +162,18 @@ export function HouseList({ onPick }: { onPick: (listing: WorldListing) => void 
             </button>
           ))}
         </div>
+      )}
+
+      {detail && (
+        <ListingDetail
+          listing={detail}
+          onClose={() => setDetail(null)}
+          onEnter={() => {
+            const w = detail
+            setDetail(null)
+            onPick(w)
+          }}
+        />
       )}
     </div>
   )

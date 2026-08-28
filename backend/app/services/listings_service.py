@@ -24,7 +24,7 @@ def _blob(item: dict[str, Any]) -> str:
     tag_s = " ".join(str(t) for t in tags) if isinstance(tags, list) else ""
     return " ".join(
         str(item.get(k) or "")
-        for k in ("title", "layout", "highlight", "orientation", "floor")
+        for k in ("title", "code", "layout", "highlight", "orientation", "floor")
     ) + " " + tag_s
 
 

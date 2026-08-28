@@ -15,6 +15,8 @@ export interface WorldListing {
   tags?: string[]
   is_real?: boolean
   floorplan?: string
+  /** 场景编号（如 0330），副标题；只增 */
+  code?: string
   /** InteriorGS 点云均为 Z-up；体素与 0330 一样不同帧，默认关 */
   up: 'z'
   voxel: boolean
@@ -26,7 +28,8 @@ export const WORLD_LISTINGS: WorldListing[] = [
     listing_id: 'listing_0330_840483',
     world_id: 'w_0330_840483',
     scene_dir: '0330_840483',
-    title: '0330 · 三室一厅',
+    title: '云栖雅苑',
+    code: '0330',
     layout: '三室一厅',
     area: 120.1,
     price: '430万',
@@ -43,7 +46,8 @@ export const WORLD_LISTINGS: WorldListing[] = [
     listing_id: 'listing_0469_840829',
     world_id: 'w_0469_840829',
     scene_dir: '0469_840829',
-    title: '0469 · 四室一厅',
+    title: '翡翠云邸',
+    code: '0469',
     layout: '四室一厅',
     area: 135.9,
     price: '490万',
@@ -60,7 +64,8 @@ export const WORLD_LISTINGS: WorldListing[] = [
     listing_id: 'listing_0259_840804',
     world_id: 'w_0259_840804',
     scene_dir: '0259_840804',
-    title: '0259 · 三室一厅',
+    title: '澜庭华府',
+    code: '0259',
     layout: '三室一厅',
     area: 135.9,
     price: '460万',
@@ -77,7 +82,8 @@ export const WORLD_LISTINGS: WorldListing[] = [
     listing_id: 'listing_0309_840544',
     world_id: 'w_0309_840544',
     scene_dir: '0309_840544',
-    title: '0309 · 三室一厅',
+    title: '月栖小筑',
+    code: '0309',
     layout: '三室一厅',
     area: 85.9,
     price: '320万',
@@ -94,7 +100,8 @@ export const WORLD_LISTINGS: WorldListing[] = [
     listing_id: 'listing_0836_841149',
     world_id: 'w_0836_841149',
     scene_dir: '0836_841149',
-    title: '0836 · 三室一厅',
+    title: '澄心雅居',
+    code: '0836',
     layout: '三室一厅',
     area: 92.9,
     price: '340万',
@@ -158,7 +165,7 @@ export function filterListingsLocal(rows: WorldListing[], query: ListingQuery = 
     if (query.price_min != null && (pn == null || pn < query.price_min)) return false
     if (query.price_max != null && (pn == null || pn > query.price_max)) return false
     if (needle) {
-      const blob = [w.title, w.layout, w.highlight, w.orientation, w.floor, ...(w.tags ?? [])].join(' ').toLowerCase()
+      const blob = [w.title, w.code, w.layout, w.highlight, w.orientation, w.floor, ...(w.tags ?? [])].join(' ').toLowerCase()
       if (!blob.includes(needle)) return false
     }
     return true
@@ -185,6 +192,7 @@ function mapListingRow(row: Record<string, unknown>): WorldListing | null {
     tags: Array.isArray(row.tags) ? row.tags.map(String) : known?.tags,
     is_real: row.is_real === true || known?.is_real === true,
     floorplan: typeof row.floorplan === 'string' ? row.floorplan : known?.floorplan,
+    code: typeof row.code === 'string' && row.code ? row.code : known?.code ?? sceneDirForWorld(world_id).slice(0, 4),
     up: 'z',
     voxel: false,
   }

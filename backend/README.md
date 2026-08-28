@@ -183,6 +183,7 @@ A 前端 ──POST chat|asr|tts|tour / GET narration──> services.agent
 | 2026-08-28 | 多世界 + listings | 5 套索引；`listing_id`；SPEC v2.3 |
 | 2026-08-28 | 文档升格 | 本文改为板块唯一总览；链 AGENT_DEV / REFACTOR_PLAN |
 | 2026-08-29 | listings 筛选 | `GET /api/listings` 可选 `layout`/`price_min`/`price_max`/`q`（只增；无参兼容） |
+| 2026-08-29 | 楼盘名 + code | listings `title` 改为楼盘名；只增 `code`（0330 等编号） |
 
 ## 10. 与其他板块
 

@@ -1,12 +1,14 @@
 {
   "_notes": [
     "挂牌 mock：朝向/楼层/价格按面积与户型区间设计，非 InteriorGS 数据集字段；问答时 listing 优先于 scene_graph 占位",
-    "id 与 chat listing_id 对齐：listing_{scene_id}"
+    "id 与 chat listing_id 对齐：listing_{scene_id}",
+    "title 为楼盘名；code 为场景编号（0330 等），只增字段"
   ],
   "listings": [
     {
       "id": "listing_0330_840483",
-      "title": "InteriorGS 0330 · 三室一厅",
+      "title": "云栖雅苑",
+      "code": "0330",
       "layout": "三室一厅",
       "area": 120.1,
       "orientation": "南向",
@@ -21,7 +23,8 @@
     },
     {
       "id": "listing_0469_840829",
-      "title": "InteriorGS 0469 · 四室一厅",
+      "title": "翡翠云邸",
+      "code": "0469",
       "layout": "四室一厅",
       "area": 135.9,
       "orientation": "南向",
@@ -36,7 +39,8 @@
     },
     {
       "id": "listing_0259_840804",
-      "title": "InteriorGS 0259 · 三室一厅",
+      "title": "澜庭华府",
+      "code": "0259",
       "layout": "三室一厅",
       "area": 135.9,
       "orientation": "南北",
@@ -51,7 +55,8 @@
     },
     {
       "id": "listing_0309_840544",
-      "title": "InteriorGS 0309 · 三室一厅",
+      "title": "月栖小筑",
+      "code": "0309",
       "layout": "三室一厅",
       "area": 85.9,
       "orientation": "东南",
@@ -66,7 +71,8 @@
     },
     {
       "id": "listing_0836_841149",
-      "title": "InteriorGS 0836 · 三室一厅",
+      "title": "澄心雅居",
+      "code": "0836",
       "layout": "三室一厅",
       "area": 92.9,
       "orientation": "南向",

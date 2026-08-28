@@ -28,7 +28,8 @@ export function PlaceFacts({ listing }: { listing?: WorldListing }) {
       </div>
       {open && (
         <>
-          <div className="place-title">{title.replace(/^InteriorGS\s+/, '')}</div>
+          <div className="place-title">{title}</div>
+          {listing?.code ? <div className="place-code">{listing.code}</div> : null}
           <div className="place-meta">
             {[layout, area ? `${area}㎡` : '', price, floor].filter(Boolean).join(' · ')}
           </div>
