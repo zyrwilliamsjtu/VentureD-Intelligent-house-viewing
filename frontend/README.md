@@ -12,7 +12,8 @@
 |---|---|
 | 后端 / Agent 同学 | **[docs/backend-handbook.md](./docs/backend-handbook.md)**（联调三步 + 数据字典 + 坐标铁律 + 已知坑） |
 | 要实现 chat/asr 接口 | [docs/agent-api.md](./docs/agent-api.md)（Agent 契约实现版）+ 根目录 `SPEC.md` §3（唯一事实源） |
-| 改 UI | 本 README 的目录结构节 + WORKLOG D6（UI 与逻辑已解耦） |
+| 承接 Agent 板块（新执行方） | 根目录 **`docs/agent-handoff.md`**（自包含需求书：接口契约/坐标铁律/数据字典/路线图/自测清单） |
+| 改 UI | **`../docs/ui-handoff.md`**（护栏说明：store 只读字段/固定类名/层级约定/体验底线）+ WORKLOG D6 |
 
 ## 快速开始
 
@@ -46,6 +47,8 @@ VITE_WORLD_ID=w_0330_840483       # 对拍世界 ID，见 scene/coords.ts
 | Agent 传送命令 | `store.teleportCmd` → 体素贴地校验 → 瞬移（已上线，等后端 chat 接口） |
 | 坐标映射 | `scene/coords.ts`：scene(Y-up) ↔ 点云(IG 原生 Z-up)，对拍转正 |
 | 房间归因 | 点云坐标 → scene 系 polygon point-in-polygon → `room_id` |
+| 语音输入（PTT） | 按住说话 → `/api/agent/asr` → 识别文字自动发送（mock 轮换预设问题；权限拒绝/空文本降级） |
+| 进房主动讲解 | `room_id` 切换防抖触发 `event=enter_room` → toast + TTS（每房间每会话一次） |
 
 ## 坐标系（对拍转正，2026-08-28）
 
@@ -79,9 +82,12 @@ src/
 ├── components/
 │   └── WalkHud.tsx         # 漫游 HUD：房源信息 / 当前房间 / Agent 对话面板
 ├── services/
-│   └── agent.ts            # Agent 客户端：session_id + mock/real 双实现
+│   ├── agent.ts            # Agent 客户端：session_id + mock/real 双实现
+│   ├── asr.ts              # 语音识别客户端（mock/real，10s 超时）
+│   └── recorder.ts         # PTT 录音器（webm/mp4 自动探测，≤15s）
 ├── scene/
 │   ├── agentActions.ts     # Agent 动作执行器（teleport/show_card/highlight + TTS）
+│   ├── narration.ts        # 进房主动讲解（room 切换 → enter_room → toast+TTS）
 │   └── ...
 └── _parked/                # 已下线的上帝视角+小安讲解代码，Agent 就绪后按需回迁
 ```
@@ -107,6 +113,8 @@ HUD 右上角 `AI 讲解 · 询问` 已接线为**真对话面板**（mock 模�
 - [x] Agent 对话面板接线（mock 实测通过；`.env.local` 改 `VITE_API_MODE=real` 切真后端）
 - [x] `highlight` / `show_card` 动作执行（toast 承接）
 - [x] TTS 播放（`tts_url` 直接播，失败静默）
-- [ ] 后端 `/api/agent/chat` 就绪后联调 + ASR 录音按钮（等 `/api/agent/asr`）
-- [ ] 进房主动讲解（`event=enter_room` 请求已支持）
-- [ ] 部署 GitHub Pages（`vite.config.ts` 已设 `base: './'`）
+- [x] ASR 录音按钮（PTT 按住说话，mock 轮换预设；等 `/api/agent/asr` 后端即切 real）
+- [x] 进房主动讲解（`event=enter_room`，每房间每会话一次）
+- [x] 部署 GitHub Pages（`.github/workflows/deploy-pages.yml`；首次需配 repo Secrets + Pages Source=GitHub Actions）
+- [ ] 后端 `/api/agent/chat` 就绪后联调（`VITE_API_MODE=real` + `VITE_API_BASE`）
+- [ ] UI 视觉重设计（护栏见 `../docs/ui-handoff.md`）
