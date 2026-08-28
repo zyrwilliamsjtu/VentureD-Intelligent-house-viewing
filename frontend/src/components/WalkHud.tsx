@@ -55,20 +55,23 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
     setMsgs((m) => [...m, { role: 'user', text: q }])
     setBusy(true)
     try {
-      const player = useAppStore.getState().player
-      // 视口未启动（如 WebGL 不可用）时 player 为空：优先选中房源的 worldId，再退 env
-      const worldId =
-        player?.world_id ||
-        useAppStore.getState().listing?.worldId ||
-        (import.meta.env.VITE_WORLD_ID as string | undefined) ||
-        ''
+      const st = useAppStore.getState()
+      const player = st.player
+      const listing = st.listing
+      // world_id 优先选中房源（联调指南 §4.6：chat 的 world 与 listing 同源于 selectListing）；
+      // 视口视觉世界仍是 0330（LOD 唯一就绪），未选房才退 env
+      const worldId = listing?.worldId || player?.world_id || (import.meta.env.VITE_WORLD_ID as string | undefined) || ''
+      // 跨世界保护：视觉世界(0330) ≠ 房源世界时，玩家坐标/房间归因属于另一个世界，不送（避免错位 grounding）
+      const visualWorld = (import.meta.env.VITE_WORLD_ID as string | undefined) || 'w_0330_840483'
+      const sameWorld = !player || !listing || listing.worldId === player.world_id || player.world_id === visualWorld && listing.worldId === visualWorld
       const res = await agentChat({
         session_id: getSessionId(),
         world_id: worldId,
+        listing_id: listing?.id ?? null, // 挂牌口径优先（价格/面积/朝向以 listing 为准）
         user_text: q,
-        player_position: player?.position,
-        player_facing: player?.facing,
-        room_id: player?.room_id ?? null,
+        player_position: sameWorld ? player?.position : undefined,
+        player_facing: sameWorld ? player?.facing : undefined,
+        room_id: sameWorld ? (player?.room_id ?? null) : null,
         event: 'button_press',
       })
       setMsgs((m) => [...m, { role: 'assistant', text: res.reply_text }])

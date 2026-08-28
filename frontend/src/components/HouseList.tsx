@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
 import { useAppStore } from '../store/useAppStore'
-import { LISTINGS, type Listing, type RoomPoly } from '../data/listings'
+import { WALK_WORLD, type Listing, type RoomPoly } from '../data/listings'
 
-// ==== 房源列表页：暗色编辑部风（发丝线网格 + 编号卡片，悬停整卡反色）====
-// 0330 的户型 polygon 是 scene_graph 真实提取；其余为同管线示意户型。
-// 点击卡片 → selectListing → walk（3D 视口常驻，首次进入自动 Pointer Lock）
+// ==== 房源列表页：白纸编辑部风（发丝线网格 + 编号卡片，悬停整卡反色）====
+// 数据源：store.listings（网关 GET /api/listings，失败本地兜底；listingsSource 标注）。
+// 户型 polygon 全部为真实提取；点击 → selectListing（换房自动重置会话）→ walk。
 
 /** mini 户型图：等比缩放到 viewBox，房间半透明填充 + 描边 + 房名 */
 function MiniFloorplan({ rooms, className }: { rooms: RoomPoly[]; className?: string }) {
@@ -42,11 +42,12 @@ function MiniFloorplan({ rooms, className }: { rooms: RoomPoly[]; className?: st
 
 function HouseCard({ l, index, onPick }: { l: Listing; index: number; onPick: (l: Listing) => void }) {
   const no = String(index + 1).padStart(2, '0')
+  const walkable = l.worldId === WALK_WORLD // Aholo LOD 目前仅 0330 转码完成
   return (
     <button className="house-card" onClick={() => onPick(l)}>
       <div className="hc-plan">
         <MiniFloorplan rooms={l.floorplan} className="fp-svg" />
-        {l.isReal ? (
+        {walkable ? (
           <span className="hc-live-badge mono">3DGS 实景</span>
         ) : (
           <span className="hc-live-badge ghost mono">点云就绪</span>
@@ -64,7 +65,7 @@ function HouseCard({ l, index, onPick }: { l: Listing; index: number; onPick: (l
             <b>{l.price}</b>
             <i>{(l.priceNum / l.area).toFixed(1)}万/㎡</i>
           </span>
-          <span className="hc-go">{l.isReal ? '进入实景 →' : '先看 0330 实景 →'}</span>
+          <span className="hc-go">{walkable ? '进入实景 →' : 'AI 带看已就绪 →'}</span>
         </div>
         <div className="hc-tags">
           {l.tags.map((t) => (
@@ -81,15 +82,17 @@ function HouseCard({ l, index, onPick }: { l: Listing; index: number; onPick: (l
 export function HouseList() {
   const selectListing = useAppStore((s) => s.selectListing)
   const showToast = useAppStore((s) => s.showToast)
+  const listings = useAppStore((s) => s.listings)
+  const source = useAppStore((s) => s.listingsSource)
 
   const onPick = (l: Listing) => {
-    selectListing(l)
+    selectListing(l) // 换房自动重置会话（指南 §3.4）
     const canvas = document.querySelector('canvas')
     void canvas?.requestPointerLock()
-    if (l.isReal) {
+    if (l.worldId === WALK_WORLD) {
       showToast(`欢迎来到 ${l.title}`, 'AI 管家随时为您讲解，按 T 呼出')
     } else {
-      showToast(`${l.title} · 点云 LOD 转码中`, '先以 0330 实景为您演示，AI 管家按 T 呼出')
+      showToast(`${l.title}`, '点云 LOD 转码中 · 对话/讲解已按本套数据工作，按 T 呼出')
     }
   }
 
@@ -105,7 +108,7 @@ export function HouseList() {
         </div>
         <div className="hl-city">
           <span className="hl-city-dot" />
-          上海 Shanghai · {LISTINGS.length} 套在展
+          上海 Shanghai · {listings.length} 套在展{source === 'local' ? ' · 离线数据' : ''}
         </div>
       </header>
 
@@ -116,7 +119,7 @@ export function HouseList() {
       </div>
 
       <div className="hl-grid">
-        {LISTINGS.map((l, i) => (
+        {listings.map((l, i) => (
           <HouseCard key={l.id} l={l} index={i} onPick={onPick} />
         ))}
       </div>

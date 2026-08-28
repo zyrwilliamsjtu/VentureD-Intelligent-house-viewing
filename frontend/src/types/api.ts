@@ -87,6 +87,8 @@ export type AgentAction =
 export interface AgentChatRequest {
   session_id: string
   world_id: string
+  /** 选中房源 id（SPEC v2.3 §3.1 新增可选）：价格/面积/朝向/楼层以 listing 为准，冲突时 listing 赢 */
+  listing_id?: string | null
   user_text?: string | null
   /** 玩家眼位（点云系，Z-up，米） */
   player_position?: V3

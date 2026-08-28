@@ -26,12 +26,40 @@ export interface CloudRule {
   voxel?: boolean
 }
 
-/** 世界级对拍规则表（新场景对拍后在此登记） */
+/** 世界级对拍规则表（联调指南 §3.5 · 与各 mock/{scene_id}/origin.json 一致；新场景对拍后在此登记） */
 export const CLOUD_RULES: Record<string, CloudRule> = {
   w_0330_840483: {
     tx: 0.573,
     ty: 1.087,
     label: 'InteriorGS 0330_840483 · 对拍转正（75/75 实例 <1cm，锚点残差 0.0003m）',
+    up: 'z',
+    voxel: false,
+  },
+  w_0469_840829: {
+    tx: 2.839056,
+    ty: -3.219509,
+    label: 'InteriorGS 0469_840829 · 后端 origin.json',
+    up: 'z',
+    voxel: false,
+  },
+  w_0259_840804: {
+    tx: -2.768704,
+    ty: -5.238312,
+    label: 'InteriorGS 0259_840804 · 后端 origin.json',
+    up: 'z',
+    voxel: false,
+  },
+  w_0309_840544: {
+    tx: -3.938458,
+    ty: -0.707424,
+    label: 'InteriorGS 0309_840544 · 后端 origin.json',
+    up: 'z',
+    voxel: false,
+  },
+  w_0836_841149: {
+    tx: 0.314266,
+    ty: -0.446865,
+    label: 'InteriorGS 0836_841149 · 后端 origin.json',
     up: 'z',
     voxel: false,
   },

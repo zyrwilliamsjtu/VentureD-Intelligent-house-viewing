@@ -7,17 +7,33 @@ import type { AgentChatRequest, AgentChatResponse } from '../types/api'
 
 const SESSION_KEY = 'agent_session_id'
 
-/** session_id：前端生成、全程复用（SPEC §0 会话约定；sessionStorage 跨刷新保留） */
+/** session_id：前端生成、同一房源会话内复用（sessionStorage 跨刷新保留） */
 export function getSessionId(): string {
   try {
     const hit = sessionStorage.getItem(SESSION_KEY)
     if (hit) return hit
-    const sid = `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`
+    const sid = newSid()
     sessionStorage.setItem(SESSION_KEY, sid)
     return sid
   } catch {
     return `s_${Date.now().toString(36)}_tmp`
   }
+}
+
+/** 换房源必须重置会话（联调指南 §3.4 方案 A / SPEC §0：不带上一套的 history/current_room） */
+export function resetSessionId(): string {
+  const sid = newSid()
+  try {
+    sessionStorage.setItem(SESSION_KEY, sid)
+  } catch {
+    /* 私密模式等场景：本次内存态仍生效 */
+  }
+  return sid
+}
+
+function newSid(): string {
+  const uuid = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : null
+  return uuid ?? `s_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 }
 
 // 默认空 = 同源相对路径（dev 走 vite proxy /api → 后端网关，无跨源问题）；

@@ -33,12 +33,15 @@ export function useRoomNarration(): void {
         const st = useAppStore.getState()
         const p = st.player
         if (!p || p.room_id !== room || narrated.has(room)) return
+        // 跨世界保护：视觉世界(LOD 仅 0330) ≠ 房源世界时，房间归因属于另一世界，不触发讲解
+        if (st.listing && st.listing.worldId !== p.world_id) return
         narrated.add(room)
         void (async () => {
           try {
             const res = await agentChat({
               session_id: getSessionId(),
               world_id: p.world_id,
+              listing_id: st.listing?.id ?? null, // 讲解口径与挂牌对齐（联调指南 §3.3）
               user_text: null,
               player_position: p.position,
               player_facing: p.facing,

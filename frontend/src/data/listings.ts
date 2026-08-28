@@ -1,149 +1,123 @@
-// ==== 房源列表数据（v2.1 · 2026-08-28 精选 5 套）====
-// 户型/面积/world id 来自队友 InteriorGS 真实数据（floorplans.gen.ts 程序提取，勿手改）；
-// 挂牌信息（小区名/价格/朝向/楼层/文案）为演示营销层数据。
-// 展示 5 套（FEATURED 白名单）：0330 唯一可漫游 + 4 套价位/户型段位互补；
-// 恢复 10 套展示只需改回 Object.values(SCENE_FLOORS)。
-// 3D 漫游现状：仅 0330 完成 Aholo LOD 转码 + 后端 scene_graph（isReal=true），
-// 其余套数点云就绪（plyReady=true）待 LOD 转码，点击以 0330 实景演示。
-// 接入新场景三步：队友提供 LOD_META_URL → Listing.viewerUrl 填入 → scene/coords.ts 登记 CLOUD_RULES。
+// ==== 房源列表数据（v3 · 2026-08-28 对齐后端 dev-backend@66940dd）====
+// 数据源两级：GET /api/listings（后端 mock/listings.json，5 套真实挂牌，snake_case）
+//   → 失败/非 real 降级本文件（与后端同口径硬编码，勿改数值）。
+// floorplan：后端当前为 ""，展示用 floorplans.gen.ts 的真实提取（按 worldId 回填）。
+// 挂牌价/朝向/楼层为挂牌 mock（数据集无这些字段）；问答时 listing 优先于 scene_graph（SPEC v2.3 §3.1）。
 
 import { SCENE_FLOORS } from './floorplans.gen'
 
 export type RoomPoly = { name: string; poly: [number, number][]; area?: number }
 
-/** 展示白名单（5 套：0330 可漫游 + 两居/三居/洋房/江景大平层） */
-const FEATURED = ['w_0330_840483', 'w_0309_840544', 'w_0257_840812', 'w_0469_840829', 'w_0295_840492']
-
 export interface Listing {
-  id: string
-  title: string // 小区名（营销层）
-  layout: string // 户型（真实提取归纳，如「三室两厅」）
-  area: number // 套内面积 ㎡（房间 polygon 真实求和）
+  id: string // = 后端 listing_id（listing_XXXX_YYYYYY）
+  title: string
+  layout: string // 户型（真实提取归纳）
+  area: number // 建筑面积 ㎡
   orientation: string
   floor: string
   price: string // 展示价（万）
   priceNum: number
   tags: string[]
   highlight: string // 一句话卖点（卡片副标题）
-  worldId: string // 真实 world_id（w_XXXX_YYYYYY；agent/scene 用）
-  isReal: boolean // 已完成 LOD 转码 + 后端 scene_graph，可直接漫游
-  plyReady: boolean // InteriorGS 点云在手（.ply），待 LOD 转码
-  floorplan: RoomPoly[] // mini 户型图（真实提取）
+  worldId: string // ↔ GET /api/scene/{world_id} 与 chat world_id
+  isReal: boolean // 后端 is_real（实景数据源徽标）
+  plyReady: boolean // InteriorGS 点云在手
+  floorplan: RoomPoly[] // mini 户型图（本地真实提取回填）
 }
 
-/** 漫游世界（PI 决策 2：demo 期点云统一 0330；列表 worldId 为真实数据） */
+/** 3D 视口世界（PI 决策 2：Aholo LOD 目前仅 0330 转码完成，其余套 HUD/对话按 listing.worldId 工作） */
 export const WALK_WORLD = 'w_0330_840483'
 
-// ---- 营销层挂牌信息（key = world_id 后缀）----
-// 价格按真实面积 × 单价(万/㎡) 定档，仅演示用
-const META: Record<string, { title: string; unit: number; orientation: string; floor: string; tags: string[]; highlight: string }> = {
-  '0330_840483': {
-    title: '阳光里 · 三室一厅',
-    unit: 7.2,
-    orientation: '南北通透',
-    floor: '中楼层 / 18层',
-    tags: ['3DGS 实景重建', 'AI 讲解', '满五唯一'],
-    highlight: '群核 3DGS 全屋实景重建，AI 管家全程带看讲解',
+/** 后端同口径兜底（dev-backend mock/listings.json @66940dd；数值改动需与后端同步） */
+const FALLBACK_RAW: Array<
+  Omit<Listing, 'floorplan' | 'plyReady'> & { floorplan?: RoomPoly[] }
+> = [
+  {
+    id: 'listing_0330_840483',
+    title: 'InteriorGS 0330 · 三室一厅',
+    layout: '三室一厅',
+    area: 120.1,
+    orientation: '南向',
+    floor: '12/28',
+    price: '430万',
+    priceNum: 430,
+    tags: ['南北通透', '全明户型', '近地铁'],
+    highlight: '三室一厅约120平，客厅南向连阳台。',
+    worldId: 'w_0330_840483',
+    isReal: true,
   },
-  '0257_840812': {
-    title: '云顶花园 · 三室一厅',
-    unit: 8.2,
-    orientation: '南北通透',
-    floor: '中楼层 / 32层',
-    tags: ['电梯房', '学区', '车位充足'],
-    highlight: '三代同堂优选，双卫设计，书房可改儿童房',
+  {
+    id: 'listing_0469_840829',
+    title: 'InteriorGS 0469 · 四室一厅',
+    layout: '四室一厅',
+    area: 135.9,
+    orientation: '南向',
+    floor: '8/18',
+    price: '490万',
+    priceNum: 490,
+    tags: ['四房', '客厅开间大', '适合三代'],
+    highlight: '四室一厅约136平，客厅约47平。',
+    worldId: 'w_0469_840829',
+    isReal: true,
   },
-  '0259_840804': {
-    title: '翡翠湾 · 大平层',
-    unit: 10.8,
-    orientation: '南向采光',
-    floor: '高楼层 / 26层',
-    tags: ['南北通透', '拎包入住', '近地铁'],
-    highlight: '客厅大开间全景采光，主卧套房设计',
-  },
-  '0295_840492': {
-    title: '江畔铭邸 · 江景大宅',
-    unit: 11.6,
-    orientation: '东南 · 江景',
-    floor: '高楼层 / 40层',
-    tags: ['一线江景', '大平层', '物业管家'],
-    highlight: '270° 采光大横厅，双客厅格局，主卧观江',
-  },
-  '0309_840544': {
-    title: '青年荟 · 精装两居',
-    unit: 6.6,
-    orientation: '西南',
-    floor: '中楼层 / 15层',
-    tags: ['近地铁 300m', '精装', '拎包入住'],
-    highlight: '通勤友好，紧凑两居，得房率高',
-  },
-  '0441_840314': {
-    title: '和风雅苑 · 两室一厅',
-    unit: 6.8,
+  {
+    id: 'listing_0259_840804',
+    title: 'InteriorGS 0259 · 三室一厅',
+    layout: '三室一厅',
+    area: 135.9,
     orientation: '南北',
-    floor: '低楼层 / 11层',
-    tags: ['花园小区', '绿化 40%', '安静'],
-    highlight: '小区中心位置，推窗见园，全明户型',
+    floor: '6/22',
+    price: '460万',
+    priceNum: 460,
+    tags: ['带书房', '双卫', '面积宽裕'],
+    highlight: '三室一厅带书房约136平，主卧约22平。',
+    worldId: 'w_0259_840804',
+    isReal: true,
   },
-  '0469_840829': {
-    title: '半山云庐 · 花园洋房',
-    unit: 9.5,
-    orientation: '南向 · 山景',
-    floor: '洋房 / 6层',
-    tags: ['洋房', '私家花园', '人车分流'],
-    highlight: '纯洋房社区，双书房格局，一梯一户',
+  {
+    id: 'listing_0309_840544',
+    title: 'InteriorGS 0309 · 三室一厅',
+    layout: '三室一厅',
+    area: 85.9,
+    orientation: '东南',
+    floor: '3/11',
+    price: '320万',
+    priceNum: 320,
+    tags: ['小三房', '低楼层', '层高2.65米'],
+    highlight: '三室一厅约86平，总价门槛相对低。',
+    worldId: 'w_0309_840544',
+    isReal: true,
   },
-  '0755_840824': {
-    title: '梧桐小筑 · 阔景一居',
-    unit: 7.8,
+  {
+    id: 'listing_0836_841149',
+    title: 'InteriorGS 0836 · 三室一厅',
+    layout: '三室一厅',
+    area: 92.9,
     orientation: '南向',
-    floor: '低楼层 / 6层',
-    tags: ['总价低', '精装交付', '近商圈'],
-    highlight: '多厅阔景格局，动静分区，厨卫全明',
+    floor: '15/26',
+    price: '340万',
+    priceNum: 340,
+    tags: ['客餐厨一体', '三房', '高楼层'],
+    highlight: '三室一厅约93平，客餐厨开间约32平。',
+    worldId: 'w_0836_841149',
+    isReal: true,
   },
-  '0789_841261': {
-    title: '悦城华庭 · 一居室',
-    unit: 5.9,
-    orientation: '东向',
-    floor: '高楼层 / 22层',
-    tags: ['低总价', 'LOFT 风', '近产业园'],
-    highlight: '迷你户型极致利用，独立厨卫，月供压力小',
-  },
-  '0836_841149': {
-    title: '天际线 · 紧凑三居',
-    unit: 7.5,
-    orientation: '南向',
-    floor: '高楼层 / 30层',
-    tags: ['功能三居', '满二', '近学区'],
-    highlight: '小面积三房教科书，零走道浪费',
-  },
+]
+
+/** 按世界回填真实提取户型（后端 floorplan 为空时用；提取产物勿手改） */
+export function floorplanFor(worldId: string): RoomPoly[] {
+  return SCENE_FLOORS[worldId]?.floorplan ?? []
 }
 
-// ---- 真实数据 × 营销层合成（0330 置顶：唯一可直接漫游）----
-export const LISTINGS: Listing[] = Object.values(SCENE_FLOORS)
-  .filter((f) => FEATURED.includes(f.worldId))
-  .map((f) => {
-    const key = f.worldId.replace('w_', '')
-    const m = META[key]
-    const priceNum = Math.round((f.area * m.unit) / 2) * 2 // 取偶数万，观感稳定
-    return {
-      id: `l_${key}`,
-      title: m.title,
-      layout: f.layout,
-      area: f.area,
-      orientation: m.orientation,
-      floor: m.floor,
-      price: priceNum >= 1000 ? `${(priceNum / 1000).toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}万` : `${priceNum}万`,
-      priceNum,
-      tags: m.tags,
-      highlight: m.highlight,
-      worldId: f.worldId,
-      isReal: f.worldId === WALK_WORLD,
-      plyReady: true,
-      floorplan: f.floorplan,
-    }
-  })
-  .sort((a, b) => Number(b.isReal) - Number(a.isReal) || a.priceNum - b.priceNum)
+/** 本地兜底列表（0330 可漫游置顶，其余按价格升序） */
+export const LISTINGS: Listing[] = FALLBACK_RAW.map((l) => ({
+  ...l,
+  plyReady: true,
+  floorplan: l.floorplan ?? floorplanFor(l.worldId),
+})).sort(
+  (a, b) =>
+    Number(b.worldId === WALK_WORLD) - Number(a.worldId === WALK_WORLD) || a.priceNum - b.priceNum,
+)
 
 export function listingById(id: string): Listing | undefined {
   return LISTINGS.find((l) => l.id === id)

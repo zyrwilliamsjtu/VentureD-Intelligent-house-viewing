@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import type { House, V3 } from '../types/api'
 import type { Listing } from '../data/listings'
+import { LISTINGS } from '../data/listings'
+import { resetSessionId } from '../services/agent'
 
 // ==== 极简全局态：房源列表 → 第一人称漫游 + Agent 上下文/传送命令 ====
 // 坐标系约定：player.position / teleportCmd.position 均为点云系（对拍转正：IG 原生 Z-up，米）
@@ -33,6 +35,9 @@ interface AppState {
   entered: boolean // 兼容字段 = view==='walk'（漫游 HUD 显隐）
   pointerLocked: boolean // 鼠标是否锁定在画布（第一人称视角激活）
   listing: Listing | null // 当前选中的房源（walk 页数据源；null = 未选）
+  /** 房源列表（mount 时 loadListings 拉网关，失败已是本地兜底初值） */
+  listings: Listing[]
+  listingsSource: 'api' | 'local'
   house: House | null
   houseLoading: boolean
   houseError: string | null
@@ -42,8 +47,9 @@ interface AppState {
   teleportCmd: TeleportCmd | null // 视口订阅执行（nonce 变化触发）
 
   enterList: () => void // splash → list
-  selectListing: (l: Listing) => void // list → walk
+  selectListing: (l: Listing) => void // list → walk（换房重置会话，指南 §3.4）
   backToList: () => void // walk → list（3D 不卸载，再进秒开）
+  loadListings: (r: { listings: Listing[]; source: 'api' | 'local' }) => void
   setLocked: (v: boolean) => void
   setHouse: (h: House | null, loading?: boolean, error?: string | null) => void
   setZone: (z: string | null) => void
@@ -60,6 +66,8 @@ export const useAppStore = create<AppState>()((set) => ({
   entered: false,
   pointerLocked: false,
   listing: null,
+  listings: LISTINGS,
+  listingsSource: 'local',
   house: null,
   houseLoading: true,
   houseError: null,
@@ -69,11 +77,20 @@ export const useAppStore = create<AppState>()((set) => ({
   teleportCmd: null,
 
   enterList: () => set({ view: 'list' }),
-  selectListing: (l) => set({ listing: l, view: 'walk', entered: true }),
+  selectListing: (l) => {
+    const st = useAppStore.getState()
+    if (st.listing?.id !== l.id) {
+      resetSessionId() // 换房 → 新会话（不带上一套 history/current_room，指南 §3.4）
+      set({ listing: l, view: 'walk', entered: true, currentZone: null, player: null, toast: null })
+    } else {
+      set({ view: 'walk', entered: true }) // 同一套再进：会话延续
+    }
+  },
   backToList: () => {
     if (document.pointerLockElement) document.exitPointerLock()
     set({ view: 'list', entered: false })
   },
+  loadListings: (r) => set({ listings: r.listings, listingsSource: r.source }),
   setLocked: (v) => set({ pointerLocked: v }),
   setHouse: (h, loading = false, error = null) => set({ house: h, houseLoading: loading, houseError: error }),
   setZone: (z) => set({ currentZone: z }),
