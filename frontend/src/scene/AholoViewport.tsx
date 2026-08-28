@@ -23,7 +23,8 @@ const WALK = 2.6
 const RUN = 4.6
 const ACCEL = 12
 const SENS = 0.0022
-const PITCH_LIMIT = 1.45
+const PITCH_LIMIT = 1.15 // 勿贴近 ±π/2，lookAt 与 up 平行会闪回
+const MOUSE_MAX = 40 // Pointer Lock 首帧/丢帧常给超大 movementX，不夹会甩视角
 const CAPSULE_R = 0.28
 const TELEPORT_MAX = 40
 // 侧移符号：点云为 IG 原生 Z-up（右手系，对拍转正），常规取 +1；
@@ -231,7 +232,22 @@ export function AholoViewport({ worldId }: { worldId: string }) {
 
       // ---- 渲染 + 行走主循环 ----
       let lastT = 0
-      const look = new THREE.Vector3()
+      const lookDir = new THREE.Vector3()
+      const lookTarget = new THREE.Vector3()
+      const camUp = new THREE.Vector3(0, upAxis === 2 ? 0 : upSign, upAxis === 2 ? 1 : 0)
+      camera.up.copy(camUp)
+      let skipLook = 0 // Pointer Lock 后丢掉前几帧脏 movement
+
+      const applyLookDir = () => {
+        const lc = Math.cos(st.pitch)
+        const ls = Math.sin(st.pitch)
+        if (upAxis === 2) {
+          lookDir.set(-Math.sin(st.yaw) * lc, -Math.cos(st.yaw) * lc, ls)
+        } else {
+          lookDir.set(-Math.sin(st.yaw) * lc, upSign * ls, -Math.cos(st.yaw) * lc)
+        }
+      }
+
       const tick = () => {
         if (disposed || !renderer) return
         const dt = Math.min(0.05, lastT ? (performance.now() - lastT) / 1000 : 0.016)
@@ -289,14 +305,7 @@ export function AholoViewport({ worldId }: { worldId: string }) {
           }
         }
 
-        // 视线向量（轴向无关）
-        const lc = Math.cos(st.pitch)
-        const ls = Math.sin(st.pitch)
-        if (upAxis === 2) {
-          look.set(-Math.sin(st.yaw) * lc, -Math.cos(st.yaw) * lc, ls)
-        } else {
-          look.set(-Math.sin(st.yaw) * lc, upSign * ls, -Math.cos(st.yaw) * lc)
-        }
+        applyLookDir()
 
         // ---- Agent 上下文发布（节流）：眼位/视线取点云原生坐标，房间按对拍映射归因 ----
         const ctxNow = performance.now()
@@ -305,12 +314,15 @@ export function AholoViewport({ worldId }: { worldId: string }) {
           useAppStore.getState().setPlayer({
             world_id: worldId,
             position: [p.x, p.y, p.z],
-            facing: [look.x, look.y, look.z],
+            facing: [lookDir.x, lookDir.y, lookDir.z],
             room_id: roomPolys.length ? roomAtCloud([p.x, p.y, p.z], worldId, roomPolys) : null,
           })
         }
 
-        camera.lookAt(look.add(p))
+        // 输入已写入 yaw/pitch；本帧只提交一次矩阵（look 向量不 in-place add，避免 facing 被污染）
+        camera.up.copy(camUp)
+        lookTarget.copy(p).add(lookDir)
+        camera.lookAt(lookTarget)
         camera.updateMatrixWorld(true)
         renderer.render(scene, camera)
         raf = requestAnimationFrame(tick)
@@ -450,15 +462,23 @@ export function AholoViewport({ worldId }: { worldId: string }) {
 
       const onLockChange = () => {
         const c = canvas()
-        useAppStore.getState().setLocked(!!c && document.pointerLockElement === c)
+        const locked = !!c && document.pointerLockElement === c
+        useAppStore.getState().setLocked(locked)
+        if (locked) skipLook = 2
       }
       document.addEventListener('pointerlockchange', onLockChange)
 
       const onMove = (e: MouseEvent) => {
         const c = canvas()
         if (!c || document.pointerLockElement !== c) return
-        st.yaw += e.movementX * SENS
-        st.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, st.pitch - e.movementY * SENS))
+        if (skipLook > 0) {
+          skipLook -= 1
+          return
+        }
+        const dx = Math.max(-MOUSE_MAX, Math.min(MOUSE_MAX, e.movementX))
+        const dy = Math.max(-MOUSE_MAX, Math.min(MOUSE_MAX, e.movementY))
+        st.yaw += dx * SENS
+        st.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, st.pitch - dy * SENS))
       }
       document.addEventListener('mousemove', onMove)
 
@@ -478,7 +498,6 @@ export function AholoViewport({ worldId }: { worldId: string }) {
         camera.aspect = w / h
         camera.updateProjectionMatrix()
         renderer.setSize(w, h, false)
-        console.info('[boot] resize canvas %d×%d', w, h)
       })
       ro.observe(host)
 
