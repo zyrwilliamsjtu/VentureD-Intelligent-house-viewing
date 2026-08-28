@@ -1,4 +1,10 @@
-import type { AgentChatRequest, AgentChatResponse } from '../types/api'
+import type {
+  AgentChatRequest,
+  AgentChatResponse,
+  NarrationResponse,
+  TourResponse,
+  TtsResponse,
+} from '../types/api'
 
 // ==== Agent 服务（SPEC v2.2 §3.1 · docs/agent-api.md v1.1）====
 // 自研 mock 已下线（2026-08-28）：agent 全部由后端队友实现，
@@ -67,4 +73,42 @@ export async function agentChat(req: AgentChatRequest): Promise<AgentChatRespons
   } finally {
     clearTimeout(timer)
   }
+}
+
+/** 进房讲解（GET /api/agent/narration，SPEC §3.4）。后端不可达抛错，调用方静默处理。 */
+export async function getNarration(
+  worldId: string,
+  roomId: string,
+  sessionId?: string,
+  listingId?: string,
+): Promise<NarrationResponse> {
+  const q = new URLSearchParams({ world_id: worldId, room_id: roomId })
+  if (sessionId) q.set('session_id', sessionId)
+  if (listingId) q.set('listing_id', listingId)
+  const res = await fetch(`${BASE}/api/agent/narration?${q.toString()}`)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return (await res.json()) as NarrationResponse
+}
+
+/** 语音合成（POST /api/agent/tts，SPEC §3.3）。stub/无 key 会返回空 audio_url。 */
+export async function synthesizeTts(text: string, voice?: string): Promise<TtsResponse> {
+  if (!text.trim()) return {}
+  const res = await fetch(`${BASE}/api/agent/tts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, ...(voice ? { voice } : {}) }),
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return (await res.json()) as TtsResponse
+}
+
+/** 全屋带看（POST /api/agent/tour，SPEC §3.5）。 */
+export async function getTour(worldId: string, sessionId: string, listingId?: string): Promise<TourResponse> {
+  const res = await fetch(`${BASE}/api/agent/tour`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ world_id: worldId, session_id: sessionId, ...(listingId ? { listing_id: listingId } : {}) }),
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return (await res.json()) as TourResponse
 }

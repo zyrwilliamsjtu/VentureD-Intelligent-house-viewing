@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useAppStore } from '../store/useAppStore'
-import { agentChat, getSessionId } from '../services/agent'
-import { playTts } from './agentActions'
+import { getNarration, getSessionId } from '../services/agent'
+import { speakText } from './agentActions'
 
 // ==== 进房主动讲解（SPEC §3.1 event=enter_room / §3.4 narration）====
 // 订阅 store.player.room_id（视口 200ms 节流发布的房间归因，点云系 polygon 判定），
@@ -38,21 +38,12 @@ export function useRoomNarration(): void {
         narrated.add(room)
         void (async () => {
           try {
-            const res = await agentChat({
-              session_id: getSessionId(),
-              world_id: p.world_id,
-              listing_id: st.listing?.id ?? null, // 讲解口径与挂牌对齐（联调指南 §3.3）
-              user_text: null,
-              player_position: p.position,
-              player_facing: p.facing,
-              room_id: room,
-              event: 'enter_room',
-            })
+            const res = await getNarration(p.world_id, room, getSessionId(), st.listing?.id ?? undefined)
             if (!alive || !res.reply_text) return
             // 房名取自 store.house（scene zones，id 与 room_id 同源）；拿不到用兜底词
             const name = st.house?.zones.find((z) => z.id === room)?.label ?? '当前房间'
             st.showToast(name, res.reply_text)
-            playTts(res.tts_url)
+            void speakText(res.reply_text)
           } catch {
             /* 讲解失败静默：不影响漫游与对话 */
           }

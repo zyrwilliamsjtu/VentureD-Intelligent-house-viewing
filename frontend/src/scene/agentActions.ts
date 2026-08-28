@@ -1,5 +1,6 @@
 import type { AgentAction } from '../types/api'
 import { resolveTeleportCloud } from './coords'
+import { getSessionId, getTour, synthesizeTts } from '../services/agent'
 import { useAppStore } from '../store/useAppStore'
 
 // ==== Agent 动作执行器（SPEC §4 / docs/agent-api.md）====
@@ -48,5 +49,34 @@ export async function executeAgentActions(
       const hit = await resolveTeleportCloud(a, worldId)
       s.showToast('已标记', hit?.label ?? a.tp_id ?? '高亮目标')
     }
+  }
+}
+
+/** 无 tts_url 时的兜底：调后端 /api/agent/tts 合成再播放；失败静默（降级矩阵） */
+export async function speakText(text: string): Promise<void> {
+  if (!text.trim()) return
+  try {
+    const { audio_url } = await synthesizeTts(text)
+    if (audio_url) playTts(audio_url)
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 全屋带看：按 tour steps 依次传送到语义锚点 + 讲解 + 朗读 */
+export async function runTour(worldId: string, listingId?: string): Promise<void> {
+  const s = useAppStore.getState()
+  try {
+    const { steps } = await getTour(worldId, getSessionId(), listingId)
+    for (const step of steps) {
+      const target = await resolveTeleportCloud({ tp_id: step.trajectory_point_id }, worldId)
+      if (target) s.requestTeleport(target.position, `带您去${step.room_id}`)
+      const text = step.narration || step.selling_points?.join('；') || `带您去${step.room_id}`
+      s.showToast('带看', text)
+      void speakText(text)
+      await new Promise((r) => setTimeout(r, 4500))
+    }
+  } catch (e) {
+    s.showToast('带看不可用', e instanceof Error ? e.message : '请稍后再试')
   }
 }

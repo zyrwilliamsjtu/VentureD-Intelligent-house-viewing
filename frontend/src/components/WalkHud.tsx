@@ -3,7 +3,7 @@ import { useAppStore } from '../store/useAppStore'
 import { agentChat, getSessionId } from '../services/agent'
 import { agentAsr } from '../services/asr'
 import { PttRecorder, type Recording } from '../services/recorder'
-import { executeAgentActions, playTts } from '../scene/agentActions'
+import { executeAgentActions, playTts, runTour, speakText } from '../scene/agentActions'
 import { useRoomNarration } from '../scene/narration'
 import type { House } from '../types/api'
 
@@ -46,6 +46,19 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
     if (!text || busy) return
     setInput('')
     await sendText(text)
+  }
+
+  function speak(text: string) {
+    void speakText(text)
+  }
+
+  function tour() {
+    const listing = useAppStore.getState().listing
+    if (listing) {
+      void runTour(listing.worldId, listing.id)
+    } else {
+      useAppStore.getState().showToast('请先选择房源', '再开始全屋带看')
+    }
   }
 
   /** 统一发送入口：打字与语音识别结果都走这里 */
@@ -165,6 +178,9 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
     <div className="agent-panel">
       <div className="agent-head">
         <span className="ah-title">AI 置业顾问</span>
+        <button className="tour-btn" onClick={tour}>
+          一键带看
+        </button>
         <button className="agent-close" onClick={() => setOpen(false)}>
           收起
         </button>
@@ -173,7 +189,12 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
         {msgs.length === 0 && <div className="agent-tip">试试：「介绍一下这套房」「主卧在哪」「多少钱」<br />也可以按住 🎙 说话</div>}
         {msgs.map((m, i) => (
           <div key={i} className={`msg ${m.role}`}>
-            {m.text}
+            <span className="msg-text">{m.text}</span>
+            {m.role === 'assistant' && (
+              <button className="msg-speak" onClick={() => speak(m.text)} title="朗读">
+                🔊
+              </button>
+            )}
           </div>
         ))}
         {busy && <div className="msg assistant pending">思考中…</div>}

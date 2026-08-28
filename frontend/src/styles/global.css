@@ -225,3 +225,44 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .hud-tl-row { display: flex; align-items: center; gap: 8px; }
 .back-btn { display: inline-flex; align-items: center; background: var(--frost-bg); border-radius: 0; box-shadow: var(--shadow), inset 0 0 0 1px var(--frost-line), inset 0 1px 0 var(--frost-hi); color: var(--ink); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; padding: 9px 16px; -webkit-backdrop-filter: blur(var(--frost-blur)) saturate(var(--frost-sat)); backdrop-filter: blur(var(--frost-blur)) saturate(var(--frost-sat)); transition: color 0.15s ease, box-shadow 0.15s ease; }
 .back-btn:hover { color: var(--brand-deep); box-shadow: var(--shadow), inset 0 0 0 1px rgba(176, 81, 46, 0.5); }
+
+/* ---- 对话朗读 / 一键带看 ---- */
+.tour-btn {
+  background: var(--brand-grad);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 12px;
+  border-radius: 999px;
+  margin-right: 8px;
+  transition: opacity 0.15s ease;
+}
+
+.tour-btn:hover {
+  opacity: 0.9;
+}
+
+.msg {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.msg-text {
+  flex: 1;
+}
+
+.msg-speak {
+  background: var(--frost-fill);
+  color: var(--ink-2);
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  margin-top: 2px;
+  transition: all 0.15s ease;
+}
+
+.msg-speak:hover {
+  color: var(--ink);
+  background: var(--frost-bg-strong);
+}

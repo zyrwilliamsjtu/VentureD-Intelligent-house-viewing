@@ -105,6 +105,27 @@ export interface AgentChatResponse {
   actions?: AgentAction[]
 }
 
+export interface NarrationResponse {
+  reply_text: string
+  tts_url?: string | null
+}
+
+export interface TtsResponse {
+  audio_url?: string
+}
+
+export interface TourStep {
+  index: number
+  room_id: string
+  trajectory_point_id?: string
+  narration?: string
+  selling_points?: string[]
+}
+
+export interface TourResponse {
+  steps: TourStep[]
+}
+
 // ==== ASR 契约（SPEC v2.2 §3.2 · POST /api/agent/asr）====
 export interface AsrResponse {
   /** 识别文本；空语音/纯噪音为 ""（正常返回，非错误，前端按「没听清」处理） */

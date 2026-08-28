@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import {
   createViewer,
+  createViewerContext,
   setViewerConfig,
   PerspectiveCamera,
   BackgroundMode,
@@ -8,7 +9,6 @@ import {
   Color,
   SplatUtils,
   type Viewer,
-  type IViewerContext,
 } from '@manycore/aholo-viewer'
 import { loadVoxelCollision, type VoxelCollision } from './voxel'
 import { loadRoomPolys, roomAtCloud, cloudRuleFor, loadTpTable, type RoomPoly, type TpTable } from './coords'
@@ -190,7 +190,7 @@ export function AholoViewport() {
         window.clearTimeout(metaTimer)
       }
       if (!lodMeta) throw new Error('点云索引解析失败（空内容）')
-      lod = new SplatUtils.LodSplat(lodMeta, undefined, viewer as unknown as IViewerContext)
+      lod = new SplatUtils.LodSplat(lodMeta, undefined, createViewerContext(viewer))
       scene.add(lod.container)
       lod.start()
       setStatus('加载点云…（视网络 10–60 秒，期间画面逐块出现）')
