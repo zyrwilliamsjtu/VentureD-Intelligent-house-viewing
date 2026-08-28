@@ -15,15 +15,7 @@ const VOXEL_META_URL =
   import.meta.env.VITE_AHOLO_VOXEL_META_URL ||
   `${import.meta.env.BASE_URL || '/'}collision/voxel-meta.json`
 
-/** 当前加载点云对应的业务 world_id（Agent 契约/坐标映射按它索引）。
- *  唯一来源 VITE_WORLD_ID，缺省回退 w_0330_840483（PI 决策 2：demo 统一 0330 真实场景，
- *  与后端 GT / camera_poses / App.tsx 同一套 id；未登记世界恒等降级）。 */
-const WORLD_ID = (import.meta.env.VITE_WORLD_ID as string | undefined) || 'w_0330_840483'
-
-/** InteriorGS 场景目录名 = world_id 去掉 w_ 前缀（如 w_0330_840483 → 0330_840483）。
- *  生产托管 URL 用 VITE_SPLAT_URL 覆盖。# 待确认 5 套对象存储地址 */
-const SCENE_DIR = WORLD_ID.replace(/^w_/, '')
-const SPLAT_URL = (import.meta.env.VITE_SPLAT_URL as string | undefined) || `/ply/${SCENE_DIR}.ply`
+import { splatUrlForWorld, worldListing } from './worlds'
 
 const EYE = 1.6
 const WALK = 2.6
@@ -52,7 +44,7 @@ function clamp(n: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, n))
 }
 
-export function AholoViewport() {
+export function AholoViewport({ worldId }: { worldId: string }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const errRef = useRef<HTMLDivElement>(null)
   const statusRef = useRef<HTMLDivElement>(null)
@@ -76,14 +68,16 @@ export function AholoViewport() {
     let raf = 0
     let disposed = false
     const st = { yaw: 0, pitch: 0, vx: 0, vz: 0, keys: new Set<string>() }
-    const rule = cloudRuleFor(WORLD_ID)
-    // 轴向无关：竖直分量下标（y-up=1 / z-up=2），水平两轴 = 其余下标
-    const upAxis: 1 | 2 = rule?.up === 'z' ? 2 : 1
+    const listing = worldListing(worldId)
+    const splatUrl = splatUrlForWorld(worldId)
+    const rule = cloudRuleFor(worldId)
+    // InteriorGS 5 套均为 Z-up；coords CLOUD_RULES 目前只登记了 0330，其余用 worlds.ts
+    const upAxis: 1 | 2 = rule?.up === 'z' || listing?.up === 'z' ? 2 : 1
     const h1 = 0
     const h2 = upAxis === 1 ? 2 : 1
     // 侧移符号：z-up 右手系叉积推导为 -1；旧 Y-up 素材保持 +1
     const sideSign = upAxis === 2 ? -1 : SIDE_SIGN
-    const voxelEnabled = rule ? rule.voxel !== false : true
+    const voxelEnabled = listing ? listing.voxel : rule ? rule.voxel !== false : false
     let vox: VoxelCollision | null = null
     let upSign: 1 | -1 = upAxis === 2 ? 1 : -1 // y-up 时由体素网格自动校正
     let tpTable: TpTable | null = null
@@ -113,8 +107,8 @@ export function AholoViewport() {
 
       // ---- tp 表（z-up 世界出生点用；与点云同帧，对拍产物）----
       let tpReady: Promise<void> | null = null
-      if (WORLD_ID) {
-        tpReady = loadTpTable(WORLD_ID)
+      if (worldId) {
+        tpReady = loadTpTable(worldId)
           .then((t) => {
             tpTable = t
             if (Object.keys(t).length) console.info('[coords] tp 表就绪 %d 点', Object.keys(t).length)
@@ -168,20 +162,20 @@ export function AholoViewport() {
       camera.up.set(0, upAxis === 2 ? 0 : upSign, upAxis === 2 ? 1 : 0)
 
       // ---- 房间归因数据（对拍世界 polygon；加载失败不阻塞，room_id 降级 null）----
-      if (WORLD_ID) {
-        loadRoomPolys(WORLD_ID)
+      if (worldId) {
+        loadRoomPolys(worldId)
           .then((ps) => {
             roomPolys = ps
-            if (ps.length) console.info('[coords] 房间归因就绪 world=%s rooms=%d', WORLD_ID, ps.length)
+            if (ps.length) console.info('[coords] 房间归因就绪 world=%s rooms=%d', worldId, ps.length)
           })
           .catch(() => {})
       }
 
       // ---- Spark 加载 InteriorGS compressed ply（dev：Vite 只读映射数据盘）----
       const tLoad0 = performance.now()
-      setStatus(`加载点云… ${SPLAT_URL}`)
+      setStatus(`加载点云… ${splatUrl}`)
       splats = new SplatMesh({
-        url: SPLAT_URL,
+        url: splatUrl,
         onProgress: (ev) => {
           if (!ev.lengthComputable || !ev.total) return
           const pct = ((ev.loaded / ev.total) * 100).toFixed(0)
@@ -305,13 +299,13 @@ export function AholoViewport() {
 
         // ---- Agent 上下文发布（节流）：眼位/视线取点云原生坐标，房间按对拍映射归因 ----
         const ctxNow = performance.now()
-        if (WORLD_ID && ctxNow - ctxLast > CTX_INTERVAL) {
+        if (worldId && ctxNow - ctxLast > CTX_INTERVAL) {
           ctxLast = ctxNow
           useAppStore.getState().setPlayer({
-            world_id: WORLD_ID,
+            world_id: worldId,
             position: [p.x, p.y, p.z],
             facing: [look.x, look.y, look.z],
-            room_id: roomPolys.length ? roomAtCloud([p.x, p.y, p.z], WORLD_ID, roomPolys) : null,
+            room_id: roomPolys.length ? roomAtCloud([p.x, p.y, p.z], worldId, roomPolys) : null,
           })
         }
 
@@ -428,7 +422,7 @@ export function AholoViewport() {
       const onMove = (e: MouseEvent) => {
         const c = canvas()
         if (!c || document.pointerLockElement !== c) return
-        st.yaw -= e.movementX * SENS
+        st.yaw += e.movementX * SENS
         st.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, st.pitch - e.movementY * SENS))
       }
       document.addEventListener('mousemove', onMove)
@@ -489,7 +483,7 @@ export function AholoViewport() {
         renderer = null
       }
     }
-  }, [])
+  }, [worldId])
 
   return (
     <>

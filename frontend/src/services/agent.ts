@@ -1,4 +1,5 @@
 import type { AgentAction, AgentChatRequest, AgentChatResponse } from '../types/api'
+import { listingIdForWorld } from '../scene/worlds'
 
 // ==== Agent 服务（SPEC v2.2 §3.1 · docs/agent-api.md v1.1）====
 // real：POST {VITE_API_BASE}/api/agent/chat（JSON，30s 超时，错误顶层 {code,message}）
@@ -20,6 +21,15 @@ export function getSessionId(): string {
   }
 }
 
+/** 换房时清会话，避免上一套 world 的对话状态串台 */
+export function resetAgentSession(): void {
+  try {
+    sessionStorage.removeItem(SESSION_KEY)
+  } catch {
+    /* noop */
+  }
+}
+
 /** 统一入口：VITE_API_MODE=real 走后端网关，否则 mock */
 export function agentChat(req: AgentChatRequest): Promise<AgentChatResponse> {
   return import.meta.env.VITE_API_MODE === 'real' ? realAgentChat(req) : mockAgentChat(req)
@@ -38,7 +48,10 @@ export async function realAgentChat(req: AgentChatRequest): Promise<AgentChatRes
     const res = await fetch(`${BASE}/api/agent/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
+      body: JSON.stringify({
+        ...req,
+        listing_id: listingIdForWorld(req.world_id),
+      }),
       signal: ctrl.signal,
     })
     if (!res.ok) {

@@ -50,6 +50,14 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .canvas-host { position: absolute; inset: 0; }
 .canvas-host canvas { display: block; }
 
+.world-bar { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 45; display: flex; gap: 6px; pointer-events: auto; flex-wrap: wrap; justify-content: center; max-width: min(96vw, 920px); }
+.world-chip { pointer-events: auto; background: var(--frost-bg-strong); color: var(--ink); font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--frost-line); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); display: inline-flex; align-items: center; gap: 6px; }
+.world-chip.on { background: var(--brand-grad); color: #fff; box-shadow: var(--shadow-btn); }
+.world-price { font-weight: 500; opacity: 0.75; font-variant-numeric: tabular-nums; }
+.world-chip.on .world-price { opacity: 0.9; }
+.canvas-host { position: absolute; inset: 0; }
+.canvas-host canvas { display: block; }
+
 /* ---- 开场页（亮纸底 + 品牌橙 CTA）---- */
 .splash { position: absolute; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: radial-gradient(1200px 700px at 50% 34%, #ffffff 0%, #f4f1ec 55%, #e9e5de 100%); }
 .splash-card { text-align: center; padding: 0 24px; animation: rise 0.6s ease both; }

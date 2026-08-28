@@ -1,22 +1,33 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useAppStore } from './store/useAppStore'
 import { getHouse } from './services/api'
+import { resetAgentSession } from './services/agent'
 import { AholoViewport } from './scene/AholoViewport'
+import { DEFAULT_WORLD_ID, WORLD_LISTINGS, loadListings, type WorldListing } from './scene/worlds'
 import { Splash } from './components/Splash'
 import { WalkHud } from './components/WalkHud'
 
-// PI 决策 2（2026-08-28）：demo 统一 0330 真实场景；world_id 唯一来源 VITE_WORLD_ID
-// （.env 缺省也回退 w_0330_840483，与 3D 视口/后端 GT/camera_poses 同一套 id）
-const WORLD_ID = (import.meta.env.VITE_WORLD_ID as string | undefined) || 'w_0330_840483'
-
 export default function App() {
   const entered = useAppStore((s) => s.entered)
+  const [worldId, setWorldId] = useState(DEFAULT_WORLD_ID)
+  const [listings, setListings] = useState<WorldListing[]>(WORLD_LISTINGS)
 
   useEffect(() => {
     let alive = true
+    loadListings().then((rows) => {
+      if (alive) setListings(rows)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let alive = true
+    useAppStore.getState().setHouse(null, true, null)
     ;(async () => {
       try {
-        const h = await getHouse(WORLD_ID)
+        const h = await getHouse(worldId)
         if (!alive) return
         useAppStore.getState().setHouse(h)
       } catch (e) {
@@ -28,11 +39,31 @@ export default function App() {
     return () => {
       alive = false
     }
-  }, [])
+  }, [worldId])
+
+  const selectWorld = (id: string) => {
+    if (id === worldId) return
+    resetAgentSession()
+    setWorldId(id)
+    console.info('[world] switch → %s', id)
+  }
 
   return (
     <div className="app">
-      <AholoViewport />
+      <AholoViewport key={worldId} worldId={worldId} />
+      <div className="world-bar" role="navigation" aria-label="选择房源">
+        {(listings.length ? listings : WORLD_LISTINGS).map((w) => (
+          <button
+            key={w.world_id}
+            type="button"
+            className={w.world_id === worldId ? 'world-chip on' : 'world-chip'}
+            onClick={() => selectWorld(w.world_id)}
+          >
+            {w.title.replace('InteriorGS ', '')}
+            <span className="world-price">{w.price}</span>
+          </button>
+        ))}
+      </div>
       {entered && <WalkHud />}
       {!entered && <Splash />}
     </div>

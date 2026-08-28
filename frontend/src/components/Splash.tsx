@@ -25,7 +25,7 @@ export function Splash() {
             {house.meta.area}㎡ · {house.meta.orientation} · {house.meta.floor} 层
           </div>
         )}
-        <div className="splash-note">第一视角漫游 · 群核 3DGS 点云渲染（Aholo Viewer）</div>
+        <div className="splash-note">第一视角漫游 · Spark 3DGS（选上方房源后进入）</div>
         {error ? (
           <button className="splash-btn" disabled>
             场景加载失败：{error}
