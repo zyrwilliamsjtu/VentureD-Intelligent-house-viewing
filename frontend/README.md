@@ -6,6 +6,14 @@
 
 > **接管/协作前必读：[WORKLOG.md](./WORKLOG.md)** —— 全程执行日志（时间线、关键决策 D1-D6、已验证事实、接管指引、跨域待办）。任何 AI 或人接手先读它。
 
+## 文档导航
+
+| 你是 | 先读 |
+|---|---|
+| 后端 / Agent 同学 | **[docs/backend-handbook.md](./docs/backend-handbook.md)**（联调三步 + 数据字典 + 坐标铁律 + 已知坑） |
+| 要实现 chat/asr 接口 | [docs/agent-api.md](./docs/agent-api.md)（Agent 契约实现版）+ 根目录 `SPEC.md` §3（唯一事实源） |
+| 改 UI | 本 README 的目录结构节 + WORKLOG D6（UI 与逻辑已解耦） |
+
 ## 快速开始
 
 ```bash
