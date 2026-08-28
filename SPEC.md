@@ -152,8 +152,8 @@
 | `world_id` | string | ✅ | 群核世界 ID，Agent 索引对应房源知识库 |
 | `user_text` | string | 否 | 用户问题文本；`event=enter_room` 时可为 null |
 | `audio` | file | 否 | 录音（webm/opus 或 mp4，≤15s）；**前端直接传音频，不做文字处理**；与 `user_text` 二选一，同时存在以 `user_text` 为准 |
-| `player_position` | number[3] | 可选 | 玩家眼位（**点云坐标系，-Y up**，米） |
-| `player_facing` | number[3] | 可选 | 视线方向单位向量（同坐标系） |
+| `player_position` | number[3] | 可选 | 玩家眼位。`player_position` / `player_facing` 为点云系（**IG 原生 Z-up**，米；实测见附录 A），agent 可忽略或仅日志，不用于坐标计算。 |
+| `player_facing` | number[3] | 可选 | 视线方向单位向量（同坐标系；agent 可忽略，不用于坐标计算） |
 | `room_id` | string | 可选 | 当前房间；**对拍完成前恒为 null**，房间归因由 Agent 用位置粗处理或省略 |
 | `event` | string | 可选 | `button_press`（主动问）/ `enter_room`（进房主动讲，配合 §3.4） |
 

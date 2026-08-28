@@ -12,7 +12,8 @@ PI 在网关内实现 SPEC v2.2 五接口：
 
 | 接口 | 本阶段 | 目标 |
 |------|--------|------|
-| `POST /api/agent/chat` | **stub**（落 session + 加载 facts，不跑完整意图） | M1 规则版 |
+| `POST /api/agent/chat` | **M1 规则版**（intent → grounding → responder → actions） | L1 LLM 增强 |
+
 | `POST /api/agent/asr` | P0 stub `{text:"", duration_ms:0}` | 有 key 后真实 ASR |
 | `POST /api/agent/tts` | P0 stub `{}`（omit `audio_url`） | 有 key 后真实 TTS |
 | `GET /api/agent/narration` | 简单实现：`story_card` / `selling_points` | M2 打磨 |
@@ -51,7 +52,7 @@ app.services.agent.service             # handle_chat / asr / tts / narration / t
 2. **动作只输出 `tp_id`**（scene JSON 里已有的 `trajectory_point_id`）。**禁止编造 tp_id。**
 3. **不输出 `position` 型 teleport/highlight**（点云系由前端用网关 `GET /api/camera_poses/{world_id}` 或本地表换算）。
 4. **不翻轴、不混算** scene 与点云。点云 Z-up 映射只存在于 A 的 `coords.ts` / PI 的 camera_poses 表。
-5. `player_position` 若出现在请求里：可忽略或仅日志；**不要拿它去乘旋转矩阵**。SPEC §3.1 仍写「点云 -Y up」，与附录 A / 前端对拍结论（IG **Z-up**）不一致——**待确认**以附录 A 为准；agent 不依赖该字段也能工作。
+5. `player_position` 若出现在请求里：可忽略或仅日志；**不要拿它去乘旋转矩阵**。坐标系以 SPEC 附录 A 为准（点云 **Z-up**）。
 
 ---
 
@@ -117,8 +118,9 @@ HUD 动作：`teleport.tp_id` → `coords.resolveTeleportCloud` → 体素贴地
 
 | ID | 内容 | 状态 |
 |----|------|------|
-| **M0** | 骨架 + facts/session + asr/tts stub + narration 简单实现 + chat stub + AGENT_DEV | **本提交** |
-| **M1** | 规则版 `handle_chat`：intent / grounding / responder / actions | 下一阶段 |
+| **M0** | 骨架 + facts/session + asr/tts stub + narration 简单实现 + chat stub + AGENT_DEV | ✅ |
+| **M1** | 规则版 `handle_chat`：intent / grounding / responder / actions | ✅ |
+
 | **M2** | narration 打磨；`handle_tour` 接入 `build_tour` | 未开始 |
 | **M3** | router 与契约测试对齐（本提交已把 router 接到 handle_* stub） | 进行中 |
 | **M4** | L1 LLM 增强（需 key） | 未开始 |
@@ -144,7 +146,7 @@ HUD 动作：`teleport.tp_id` → `coords.resolveTeleportCloud` → 体素贴地
 2. **独立可测**：`backend/tests/test_agent_service.py` 不依赖 LLM。
 3. **GT 兜底**：事实只来自入库 JSON；理解层换 DualEngine 后仍可先绑 GT world。
 4. **契约稳定**：先 SPEC 再改字段；omit 空可选。
-5. **小步提交**：chat 逻辑不塞进本阶段。
+5. **小步提交**：chat 规则版不接 LLM。
 
 ---
 
@@ -156,7 +158,7 @@ backend/app/services/agent/
 ├── service.py           # 统一入口
 ├── facts.py             # load + 简单检索
 ├── session/store.py     # 内存 load/save/clear
-├── chat/                # 意图枚举 + 签名（NotImplementedError）
+├── chat/                # M1 规则版：understand / retrieve / generate / build
 ├── narration/service.py
 ├── tour/service.py      # build_tour（handle_tour 尚未接入）
 ├── asr/service.py
@@ -172,3 +174,4 @@ backend/app/services/agent/
 | 日期 | 变更 |
 |------|------|
 | 2026-08-28 | 建立骨架、facts/session、asr/tts stub、narration 简单实现、chat stub、router 接入 handle_* |
+| 2026-08-28 | M1 规则版 handle_chat（intent/grounding/responder/actions）；SPEC §3.1 改为点云 Z-up |

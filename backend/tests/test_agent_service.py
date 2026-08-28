@@ -121,7 +121,10 @@ def test_handle_chat_stub_spec_shape() -> None:
     assert isinstance(body["reply_text"], str)
     assert body["reply_text"]
     assert "tts_url" not in body
-    assert "actions" not in body
+    # M1：导航问句可带 actions；空则 omit
+    if "actions" in body:
+        assert isinstance(body["actions"], list)
+        assert body["actions"]
     sess = session_store.load(sid)
     assert sess is not None
     assert sess["world_id"] == WORLD_0330

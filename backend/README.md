@@ -72,7 +72,7 @@ GET /api/scene/{world_id}
 
 - **拍板**：agent 由我方用 Python 做在网关内（`backend/app/services/agent/`），与理解层任务解耦并行。
 - **单一事实源**：`docs/AGENT_DEV.md`（架构、坐标铁律、事实约束、L0/L1、里程碑）。
-- **本阶段**：骨架 + facts/session + asr/tts stub + narration 简单实现 + `handle_chat` stub；**完整 chat 规则版见 M1**。
+- **本阶段**：M1 规则版 `handle_chat` 已通；asr/tts 仍 stub；narration 简单实现。
 - **消费**：A 前端 `agent.ts` / `asr.ts`；演示世界 `w_0330_840483`；tp 落点用 `GET /api/camera_poses`，agent 只出 `tp_id`。
 
 ## 2. 技术栈与运行
@@ -134,6 +134,7 @@ A 前端 ──POST /api/agent/chat|asr|tts|tour / GET narration──> backend 
 | 2026-08-28 | camera / agent 网关 stub | `GET /api/camera_poses/{world_id}`；agent 五路由契约层 stub（SPEC §4 新增 camera_poses） |
 | 2026-08-28 | 验收 Y 项清理 | README 架构图/GT 钩子/schemas 表述对齐代码；agent stub 空可选字段 omit；SPEC §0 点云层改为 Z-up |
 | 2026-08-28 | agent 服务骨架 | 建立 `services/agent/`（facts/session/stub）+ `docs/AGENT_DEV.md`；router 改调 handle_* |
+| 2026-08-28 | M1 规则版 chat | intent/grounding/responder/actions；问主卧 → teleport `tp_bedroom_master` |
 
 ## 8. 与本仓库其他板块的关系
 
