@@ -364,3 +364,67 @@ export async function resolveObserveCloud(
   }
   return { stand, lookAt, fallback }
 }
+
+/** 房间级 tp：`tp_living` / `tp_bedroom_master`（非实例） */
+export function isRoomTpId(tpId: string | undefined | null): boolean {
+  return !!tpId && tpId.startsWith('tp_') && !isInstanceTpId(tpId)
+}
+
+/**
+ * 房间导航朝向：站锚点，lookAt 房间 polygon 质心（面向屋内，避免面壁）。
+ * 锚点已在中心 → 朝屋子中心再看一点；polygon 不可用 → 朝屋子中心。
+ */
+export async function resolveRoomLookAt(
+  roomTp: string,
+  worldId: string,
+): Promise<{ stand: V3; lookAt: V3 } | null> {
+  const table = await loadTpTable(worldId)
+  const stand = table[roomTp]
+  if (!stand) return null
+  const rooms = await loadRoomPolys(worldId)
+  const guessedId = roomTp.startsWith('tp_') ? `room_${roomTp.slice(3)}` : roomTp
+  const byCloud = roomAtCloud(stand, worldId, rooms)
+  const host = rooms.find((r) => r.id === byCloud) || rooms.find((r) => r.id === guessedId)
+  const centers = rooms
+    .map((r) => {
+      const sc = roomCentroidScene(r.polygon)
+      return sc ? sceneToCloud(sc, worldId) : null
+    })
+    .filter((c): c is V3 => !!c)
+  let house: V3 | null = null
+  if (centers.length) {
+    house = [
+      centers.reduce((s, c) => s + c[0], 0) / centers.length,
+      centers.reduce((s, c) => s + c[1], 0) / centers.length,
+      0.5,
+    ]
+  }
+  const centerScene = host ? roomCentroidScene(host.polygon) : null
+  const center = centerScene ? sceneToCloud(centerScene, worldId) : house
+  const eye = stand[2]
+  if (!center) {
+    const target = house ?? ([stand[0] + 1.2, stand[1], eye] as V3)
+    return { stand, lookAt: [r3(target[0]), r3(target[1]), eye] }
+  }
+  const dx = center[0] - stand[0]
+  const dy = center[1] - stand[1]
+  const len = Math.hypot(dx, dy)
+  let lookAt: V3
+  if (len > 0.35) {
+    lookAt = [r3(center[0]), r3(center[1]), eye]
+  } else {
+    let nx = 1
+    let ny = 0
+    if (house) {
+      const hx = house[0] - stand[0]
+      const hy = house[1] - stand[1]
+      const hl = Math.hypot(hx, hy)
+      if (hl > 0.08) {
+        nx = hx / hl
+        ny = hy / hl
+      }
+    }
+    lookAt = [r3(stand[0] + nx * 1.6), r3(stand[1] + ny * 1.6), eye]
+  }
+  return { stand, lookAt }
+}

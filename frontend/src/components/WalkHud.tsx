@@ -3,7 +3,7 @@ import { useAppStore } from '../store/useAppStore'
 import { agentChat, getSessionId } from '../services/agent'
 import { agentAsr } from '../services/asr'
 import { PttRecorder, type Recording } from '../services/recorder'
-import { executeAgentActions, playReplyVoice } from '../scene/agentActions'
+import { executeAgentActions, onTtsBlocked, playReplyVoice, playTts, unlockAudio } from '../scene/agentActions'
 import { useRoomNarration } from '../scene/narration'
 import { TourBar } from './TourBar'
 import { InfoCard } from './InfoCard'
@@ -15,6 +15,12 @@ import type { WorldListing } from '../scene/worlds'
 // Agent 面板：占位按钮 → 真接线（services/agent.ts mock/real 一键切换）
 // 请求带玩家上下文（store.player，点云系），响应动作走 executeAgentActions
 // 语音：按住说话（PttRecorder）→ /api/agent/asr 转文字 → 复用 sendText 走 chat 链路
+
+const FAST_Q = /在哪|带我|去看看|户型|面积|价格|朝向|多大|有没有|有无|你好|您好|冰箱|沙发|洗衣机|厨房|主卧|卫生间|洗手间|厕所|客厅|餐桌|桌子/
+
+function looksOpenQuestion(q: string): boolean {
+  return !FAST_Q.test(q)
+}
 
 function lockCanvas() {
   const canvas = document.querySelector('canvas')
@@ -28,10 +34,13 @@ interface Msg {
 
 function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
   const [msgs, setMsgs] = useState<Msg[]>([])
+  const [ttsReplay, setTtsReplay] = useState<string | null>(null)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => onTtsBlocked(setTtsReplay), [])
 
   // 打开面板：释放指针锁定（要打字），聚焦输入框
   useEffect(() => {
@@ -57,6 +66,9 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
     const q = text.trim()
     if (!q || busy) return
     setMsgs((m) => [...m, { role: 'user', text: q }])
+    if (looksOpenQuestion(q)) {
+      useAppStore.getState().showToast('让我想想…', '正在理解您的问题')
+    }
     setBusy(true)
     try {
       const player = useAppStore.getState().player
@@ -73,6 +85,7 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
       })
       setMsgs((m) => [...m, { role: 'assistant', text: res.reply_text }])
       await executeAgentActions(res.actions, worldId)
+      unlockAudio()
       playReplyVoice(res.reply_text, res.tts_url)
     } catch (e) {
       const msg = e instanceof Error ? e.message : '网络错误'
@@ -94,6 +107,7 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
   }
 
   async function startVoice() {
+    unlockAudio()
     if (busy || voice !== 'idle') return
     const seq = ++pressSeq.current
     try {
@@ -173,8 +187,20 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
             {m.text}
           </div>
         ))}
-        {busy && <div className="msg assistant pending">思考中…</div>}
+        {busy && <div className="msg assistant pending">让我想想…</div>}
         {voice === 'recognizing' && !busy && <div className="msg assistant pending">语音识别中…</div>}
+        {ttsReplay && (
+          <button
+            className="tts-replay"
+            type="button"
+            onClick={() => {
+              unlockAudio()
+              playTts(ttsReplay)
+            }}
+          >
+            🔊 播报
+          </button>
+        )}
       </div>
       <div className="agent-input">
         <input

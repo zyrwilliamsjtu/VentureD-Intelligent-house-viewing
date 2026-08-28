@@ -6,6 +6,7 @@ from enum import Enum
 from typing import Any
 
 from app.services.agent import facts as facts_mod
+from app.services.agent.synonyms import INSTANCE_ALIAS_KEYS, ROOM_ALIAS_KEYS
 
 # SPEC §1.2 类别 → 中文（含本图中可能不存在的 stove，便于「灶台」问句落到 grounding 而非瞎编）
 CATEGORY_ZH: dict[str, str] = {
@@ -37,6 +38,7 @@ _NAV_HINTS = ("在哪", "在哪儿", "带我去", "去看看", "怎么去", "位
 _PROP_HINTS = ("户型", "面积", "几室", "朝向", "价格", "楼层", "层高", "多少平", "总价", "这套房", "建面", "多少钱")
 _ATTR_HINTS = ("多大", "是什么", "什么牌子", "什么品牌", "容量")
 _SMALLTALK = ("你好", "您好", "谢谢", "在吗", "嗨", "早上好", "hello", "hi")
+_EXIST_HINTS = ("有没有", "有无", "有没有啊")
 
 
 class Intent(str, Enum):
@@ -61,8 +63,21 @@ def room_names_of(graph: dict) -> list[str]:
     return [str(r.get("name") or "") for r in facts_mod.rooms_of(graph) if r.get("name")]
 
 
+def is_existence_query(text: str) -> bool:
+    """「有没有X / 有X吗」存在性问句。"""
+    t = (text or "").strip()
+    if not t:
+        return False
+    if any(h in t for h in _EXIST_HINTS):
+        return True
+    if t.startswith("有") and t.endswith(("吗", "么", "没", "嘛")):
+        return True
+    return False
+
+
 def instance_keywords_of(graph: dict) -> list[str]:
     keys = list(CATEGORY_ZH.values())
+    keys.extend(INSTANCE_ALIAS_KEYS)
     for inst in facts_mod.instances_of(graph):
         tag = inst.get("tag")
         if tag:
@@ -93,12 +108,14 @@ def understand(
         return Intent.UNKNOWN
 
     graph = scene_graph or {}
-    room_hit = _longest_in_text(text, room_names_of(graph))
+    room_names = room_names_of(graph) + list(ROOM_ALIAS_KEYS)
+    room_hit = _longest_in_text(text, room_names)
     inst_hit = _longest_in_text(text, instance_keywords_of(graph))
     has_nav = any(h in text for h in _NAV_HINTS)
     has_prop = any(h in text for h in _PROP_HINTS)
     has_attr = any(h in text for h in _ATTR_HINTS)
     has_entity = bool(room_hit or inst_hit)
+    has_exist = is_existence_query(text)
 
     if is_vague_overview(text):
         return Intent.CLARIFY
@@ -112,6 +129,9 @@ def understand(
         return Intent.NAVIGATION
     if inst_hit:
         return Intent.INSTANCE if has_attr else Intent.NAVIGATION
+    if has_exist:
+        # 有没有X：走导航取证（命中正答 / 未命中引导），不丢给 LLM 编造
+        return Intent.NAVIGATION
     if has_prop:
         return Intent.PROPERTY
     if any(s in text.lower() for s in _SMALLTALK) and not has_entity:

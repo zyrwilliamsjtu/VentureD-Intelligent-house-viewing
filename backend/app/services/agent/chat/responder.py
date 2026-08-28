@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.services.agent.chat.grounding import Facts, is_placeholder_field, is_placeholder_value, offer_topics
-from app.services.agent.chat.intent import CATEGORY_ZH, Intent
+from app.services.agent.chat.intent import CATEGORY_ZH, Intent, is_existence_query
 
 _SKIP_ATTR_KEYS = frozenset({"source_label"})
 
@@ -50,6 +50,52 @@ def _public_attrs(inst: dict) -> dict[str, str]:
             continue
         out[str(key)] = text
     return out
+
+
+def _host_name(graph: dict, inst: dict) -> str:
+    iid = inst.get("id")
+    for room in graph.get("rooms") or []:
+        if not isinstance(room, dict):
+            continue
+        for item in room.get("instances") or []:
+            if isinstance(item, dict) and (item is inst or item.get("id") == iid):
+                return str(room.get("name") or "屋里")
+    return "屋里"
+
+
+def _existence_reply(facts: Facts, scene_graph: dict, salt: int) -> str:
+    insts = list(facts.get("instances") or [])
+    if facts.get("instance") and facts["instance"] not in insts:
+        insts.insert(0, facts["instance"])
+    if insts:
+        bits: list[str] = []
+        seen: set[str] = set()
+        for inst in insts:
+            name = _zh_category(inst)
+            where = _host_name(scene_graph, inst)
+            key = f"{where}:{name}"
+            if key in seen:
+                continue
+            seen.add(key)
+            bits.append(f"{where}有{name}")
+        core = "，".join(bits)
+        variants = (
+            f"有的，{core}。",
+            f"有的，{core}，我可以带您去看。",
+        )
+        return _pick(variants, salt)
+    rooms = list(facts.get("room_hits") or [])
+    if facts.get("room") and facts["room"] not in rooms:
+        rooms.insert(0, facts["room"])
+    if rooms:
+        names: list[str] = []
+        for room in rooms:
+            n = str(room.get("name") or "").strip()
+            if n and n not in names:
+                names.append(n)
+        label = "、".join(names) if names else "相关房间"
+        return f"有的，这套房有{label}。"
+    return MISSING_REPLY.format(q=facts.get("query") or "这项") + _guide_tail(scene_graph)
 
 
 def _guide_tail(graph: dict) -> str:
@@ -103,6 +149,8 @@ def generate(
 
     if facts["missing"]:
         q = facts.get("query") or "这项"
+        if is_existence_query(str(facts.get("query") or "")):
+            return f"这套房暂未找到「{q}」相关信息，这项暂未提供。" + _guide_tail(scene_graph)
         return MISSING_REPLY.format(q=q) + _guide_tail(scene_graph)
 
     if intent == Intent.ENTER_ROOM:
@@ -116,6 +164,8 @@ def generate(
         return MISSING_REPLY.format(q=room.get("name") or "这个房间") + _guide_tail(scene_graph)
 
     if intent == Intent.NAVIGATION:
+        if is_existence_query(str(facts.get("query") or "")):
+            return _existence_reply(facts, scene_graph, salt)
         inst = facts["instance"]
         if inst is not None:
             host = facts["host_room"] or {}

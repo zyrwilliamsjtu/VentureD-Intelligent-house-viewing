@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import time
 from typing import Any
 
 from app.schemas.errors import GatewayError
@@ -17,8 +18,9 @@ from app.services.agent.facts import load as load_facts
 from app.services.agent.facts import load_listing, overlay_listing
 from app.services.agent.narration.service import get_narration
 from app.services.agent.session import store as session_store
+from app.services.agent.synonyms import normalize_query
 from app.services.agent.tour.service import build_tour
-from app.services.agent.tts.service import synthesize
+from app.services.agent.tts.service import attach_tts_url, synthesize
 
 _INTENT_FROM_LLM = {
     "navigation": Intent.NAVIGATION,
@@ -30,6 +32,33 @@ _INTENT_FROM_LLM = {
 }
 
 _BANNED = ("学区", "地铁", "物业费", "得房率", "容积率")
+_ROUTE_TTL = 600.0
+_ROUTE_CACHE_MAX = 256
+_ROUTE_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
+
+
+def clear_route_cache() -> None:
+    _ROUTE_CACHE.clear()
+
+
+def _cached_route(
+    world_id: str,
+    user_text: str | None,
+    catalog: str,
+    history: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    key = f"{world_id}::{normalize_query(user_text or '')}"
+    now = time.monotonic()
+    hit = _ROUTE_CACHE.get(key)
+    if hit and now - hit[0] < _ROUTE_TTL:
+        return hit[1]
+    routed = get_chat_llm_provider().route(user_text, catalog, history)
+    if isinstance(routed, dict):
+        if len(_ROUTE_CACHE) >= _ROUTE_CACHE_MAX:
+            oldest = min(_ROUTE_CACHE, key=lambda k: _ROUTE_CACHE[k][0])
+            _ROUTE_CACHE.pop(oldest, None)
+        _ROUTE_CACHE[key] = (now, routed)
+    return routed
 
 
 def _nums(text: str) -> set[str]:
@@ -126,7 +155,8 @@ def handle_chat(
 
     if needs_llm_route(intent):
         try:
-            routed = get_chat_llm_provider().route(
+            routed = _cached_route(
+                world_id,
                 user_text,
                 catalog_brief(graph),
                 history if isinstance(history, list) else [],
@@ -187,14 +217,7 @@ def handle_chat(
     body: dict[str, Any] = {"reply_text": reply}
     if actions:
         body["actions"] = actions
-    try:
-        tts_body = synthesize(reply)
-        url = tts_body.get("audio_url") if isinstance(tts_body, dict) else None
-        if url:
-            body["tts_url"] = str(url)
-    except Exception:
-        pass
-    return body
+    return attach_tts_url(body, reply)
 
 
 def handle_asr(audio: object | None = None) -> dict:
@@ -211,7 +234,8 @@ def handle_narration(
     session_id: str | None = None,
     listing_id: str | None = None,
 ) -> dict:
-    return get_narration(world_id, room_id, session_id=session_id, listing_id=listing_id)
+    body = get_narration(world_id, room_id, session_id=session_id, listing_id=listing_id)
+    return attach_tts_url(body, str(body.get("reply_text") or ""))
 
 
 def handle_tour(world_id: str, session_id: str | None = None) -> dict:
@@ -230,4 +254,5 @@ def handle_tour(world_id: str, session_id: str | None = None) -> dict:
     }
     sess["world_id"] = world_id
     session_store.save(session_id, sess)
+    # 待确认：tour 步骤多，构建时全量 TTS 会拖慢带看；逐步播放由前端 POST /tts 合成
     return build_tour(scene_graph=graph)

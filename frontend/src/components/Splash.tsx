@@ -1,4 +1,5 @@
 import { useAppStore } from '../store/useAppStore'
+import { unlockAudio } from '../scene/agentActions'
 
 // ==== 开场页：点击进入（同时完成 Pointer Lock 所需的用户手势）====
 export function Splash() {
@@ -9,6 +10,7 @@ export function Splash() {
   const showToast = useAppStore((s) => s.showToast)
 
   const onEnter = () => {
+    unlockAudio()
     enter()
     const canvas = document.querySelector('canvas')
     void canvas?.requestPointerLock()

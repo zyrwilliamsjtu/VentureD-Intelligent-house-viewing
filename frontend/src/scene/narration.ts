@@ -3,7 +3,7 @@ import { useAppStore } from '../store/useAppStore'
 import { agentChat, getSessionId, loadScene } from '../services/agent'
 import { fetchNarration } from '../services/narration'
 import { listingIdForWorld } from './worlds'
-import { playTts } from './agentActions'
+import { playReplyVoice } from './agentActions'
 
 // 进房讲解：优先 GET /api/agent/narration（story_card + selling_points）；
 // 失败/404 回落 chat event=enter_room。带看中跳过，避免与 tour 双讲。
@@ -73,7 +73,7 @@ export function useRoomNarration(worldId: string): void {
             const scene = await loadScene(p.world_id)
             const name = scene?.rooms.find((r) => r.id === room)?.name ?? '当前房间'
             st.showToast(name, text)
-            playTts(tts)
+            playReplyVoice(text, tts)
             console.info('[narration] %s %s via %s', p.world_id, room, source)
           } catch {
             /* 讲解失败静默 */

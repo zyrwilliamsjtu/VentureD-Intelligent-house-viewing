@@ -1,6 +1,6 @@
 import { fetchTour } from '../services/tour'
-import { resolveTeleportCloud } from './coords'
-import { playTts, stopTts } from './agentActions'
+import { resolveRoomLookAt, resolveTeleportCloud } from './coords'
+import { playTts, stopTts, unlockAudio } from './agentActions'
 import { useAppStore } from '../store/useAppStore'
 
 // 自主带看：拉 steps → 依次 teleport（当前 world 的 camera_poses）+ toast + 可选 TTS。
@@ -80,15 +80,17 @@ export async function startTour(worldId: string): Promise<void> {
       )
       if (token !== generation) return
       if (hit) {
-        useAppStore.getState().requestTeleport(hit.position, hit.label)
+        const look = await resolveRoomLookAt(step.trajectory_point_id, worldId)
+        useAppStore.getState().requestTeleport(hit.position, hit.label, look?.lookAt)
       } else {
         useAppStore.getState().showToast('传送点不可用', step.trajectory_point_id)
       }
       const narr = step.narration || step.room_id
       useAppStore.getState().showToast(`带看 ${label}`, narr)
+      unlockAudio()
       const url = await tryTtsUrl(step.narration)
       if (token !== generation) return
-      playTts(url)
+      if (url) playTts(url)
       await sleep(DWELL_MS, token)
     }
     if (token !== generation) return

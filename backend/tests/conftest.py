@@ -14,3 +14,8 @@ def _isolate_agent_external_providers(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ASR_PROVIDER", "stub")
     monkeypatch.setenv("TTS_PROVIDER", "stub")
     monkeypatch.setenv("CHAT_PROVIDER", "stub")
+    from app.services.agent.service import clear_route_cache
+
+    clear_route_cache()
+    yield
+    clear_route_cache()

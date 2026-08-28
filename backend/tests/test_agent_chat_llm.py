@@ -219,3 +219,114 @@ def test_system_prompt_sales_and_no_hallucination() -> None:
     assert "暂未提供" in _SYSTEM
     assert "编造" in _SYSTEM
     assert "销售" in _SYSTEM or "置业顾问" in _SYSTEM
+
+
+def test_route_uses_agent_route_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CHAT_PROVIDER", "openai_compat")
+    monkeypatch.setenv("LLM_API_KEY", "ark-test-not-real")
+    monkeypatch.setenv("LLM_BASE_URL", "https://example.invalid/api/v3")
+    monkeypatch.setenv("LLM_MODEL", "doubao-pro-test")
+    monkeypatch.setenv("AGENT_ROUTE_MODEL", "doubao-lite-test")
+    seen: dict[str, str] = {}
+
+    class _Resp:
+        status_code = 200
+
+        def json(self) -> dict:
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": '{"intent":"clarify","confidence":0.9,"clarify":true,"reply":"您更关心户型、价格还是朝向？"}'
+                        }
+                    }
+                ]
+            }
+
+    class _Client:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            _ = args
+            seen["timeout"] = str(kwargs.get("timeout"))
+
+        def __enter__(self) -> "_Client":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def post(self, url: str, headers: dict, json: dict) -> _Resp:
+            _ = url, headers
+            seen["model"] = str(json.get("model"))
+            return _Resp()
+
+    monkeypatch.setattr("app.services.agent.chat.llm_provider.httpx.Client", _Client)
+    sid = "s_route_lite"
+    session_store.clear(sid)
+    body = handle_chat(session_id=sid, world_id=WORLD, user_text="帮我参谋怎么住比较合适")
+    assert seen.get("model") == "doubao-lite-test"
+    assert "8" in str(seen.get("timeout") or "")
+    assert "户型" in body["reply_text"]
+    session_store.clear(sid)
+
+
+def test_route_timeout_falls_back_to_rules(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CHAT_PROVIDER", "openai_compat")
+    monkeypatch.setenv("LLM_API_KEY", "ark-test-not-real")
+    monkeypatch.setenv("LLM_BASE_URL", "https://example.invalid/api/v3")
+    monkeypatch.setenv("LLM_MODEL", "ep-test")
+
+    class _Client:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            _ = args, kwargs
+
+        def __enter__(self) -> "_Client":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def post(self, *args: object, **kwargs: object) -> None:
+            _ = args, kwargs
+            raise httpx.TimeoutException("route timeout")
+
+    monkeypatch.setattr("app.services.agent.chat.llm_provider.httpx.Client", _Client)
+    sid = "s_route_to"
+    session_store.clear(sid)
+    body = handle_chat(session_id=sid, world_id=WORLD, user_text="帮我参谋怎么住比较合适")
+    assert body["reply_text"]
+    assert "户型" in body["reply_text"] or "房间" in body["reply_text"] or "家具" in body["reply_text"]
+    assert "actions" not in body
+    session_store.clear(sid)
+
+
+def test_route_cache_second_call_skips_llm(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.services.agent.service import clear_route_cache
+
+    clear_route_cache()
+    calls = {"n": 0}
+
+    class _Fake:
+        def route(self, user_text, catalog, history):
+            _ = user_text, catalog, history
+            calls["n"] += 1
+            return {
+                "intent": "navigation",
+                "room": "主卧",
+                "confidence": 0.9,
+                "clarify": False,
+                "reply": "好的，带您去主卧看看。",
+            }
+
+        def enhance(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr("app.services.agent.service.get_chat_llm_provider", lambda: _Fake())
+    sid = "s_cache_1"
+    session_store.clear(sid)
+    a = handle_chat(session_id=sid, world_id=WORLD, user_text="帮我参谋怎么住比较合适")
+    b = handle_chat(session_id="s_cache_2", world_id=WORLD, user_text="帮我参谋怎么住比较合适")
+    assert calls["n"] == 1
+    assert "主卧" in a["reply_text"] and "主卧" in b["reply_text"]
+    clear_route_cache()
+    session_store.clear(sid)
+    session_store.clear("s_cache_2")

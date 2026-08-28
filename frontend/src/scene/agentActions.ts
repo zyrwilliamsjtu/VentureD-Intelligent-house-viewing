@@ -1,9 +1,9 @@
 import type { AgentAction } from '../types/api'
-import { isInstanceTpId, resolveObserveCloud, resolveTeleportCloud } from './coords'
+import { isInstanceTpId, resolveObserveCloud, resolveRoomLookAt, resolveTeleportCloud } from './coords'
 import { useAppStore } from '../store/useAppStore'
 
 // ==== Agent 动作执行器（SPEC §4 / docs/agent-api.md）====
-// teleport：房间锚点直接飞；实例观察位 = 退 2m + lookAt（前端计算，不改契约）
+// teleport：房间锚点 + lookAt 房间中心；实例观察位 = 退 2m + lookAt（前端计算，不改契约）
 // show_card：HUD InfoCard
 // highlight：点云系光柱
 
@@ -13,15 +13,54 @@ function cardOf(a: Extract<AgentAction, { type: 'show_card' }>): { title: string
 }
 
 let audio: HTMLAudioElement | null = null
+let audioCtx: AudioContext | null = null
+
+type TtsBlockedFn = (url: string | null) => void
+let ttsBlockedFn: TtsBlockedFn | null = null
+
+export function onTtsBlocked(fn: TtsBlockedFn): () => void {
+  ttsBlockedFn = fn
+  return () => {
+    if (ttsBlockedFn === fn) ttsBlockedFn = null
+  }
+}
+
+/** 用户手势时解锁自动播放（进入漫游 / PTT / 键鼠） */
+export function unlockAudio(): void {
+  try {
+    const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (AC) {
+      if (!audioCtx) audioCtx = new AC()
+      if (audioCtx.state === 'suspended') void audioCtx.resume()
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function mediaUrl(url: string): string {
+  if (/^(https?:|data:|blob:)/i.test(url)) return url
+  const base = (import.meta.env.VITE_API_BASE ?? '').replace(/\/+$/, '')
+  if (base) return `${base}${url.startsWith('/') ? url : `/${url}`}`
+  return url.startsWith('/') ? url : `/${url}`
+}
 
 export function playTts(url?: string | null): void {
   if (!url) return
+  const abs = mediaUrl(url)
   try {
+    unlockAudio()
     audio?.pause()
-    audio = new Audio(url)
-    void audio.play().catch(() => {})
+    audio = new Audio(abs)
+    audio.preload = 'auto'
+    const p = audio.play()
+    if (p && typeof p.then === 'function') {
+      void p
+        .then(() => ttsBlockedFn?.(null))
+        .catch(() => ttsBlockedFn?.(abs))
+    }
   } catch {
-    /* ignore */
+    ttsBlockedFn?.(abs)
   }
 }
 
@@ -90,7 +129,8 @@ export async function executeAgentActions(
       if (usedObserve) continue
       const hit = await resolveTeleportCloud(a, worldId)
       if (hit) {
-        s.requestTeleport(hit.position, hit.label)
+        const look = a.tp_id && !isInstanceTpId(a.tp_id) ? await resolveRoomLookAt(a.tp_id, worldId) : null
+        s.requestTeleport(hit.position, hit.label, look?.lookAt)
       } else {
         s.showToast('传送点不可用', a.tp_id ? `tp_id「${a.tp_id}」不在映射表` : '动作缺 tp_id / position')
       }

@@ -55,6 +55,11 @@ def llm_model() -> str:
     return _opt("LLM_MODEL")
 
 
+def llm_route_model() -> str:
+    # 待确认：lite 接入点（如 doubao-1.5-lite-32k-... / ep-...）；未开通则回落 LLM_MODEL
+    return _opt("AGENT_ROUTE_MODEL") or llm_model()
+
+
 def asr_api_key() -> str:
     return _opt("ASR_API_KEY") or llm_api_key()
 

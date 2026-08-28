@@ -207,3 +207,40 @@ def test_context_mentions_previous_turn() -> None:
     assert "主卧在哪" in body["reply_text"] or "刚提到" in body["reply_text"]
     session_store.clear(sid)
 
+
+def test_existence_table_alias_0330() -> None:
+    body = _chat("这里有没有桌子")
+    text = body["reply_text"]
+    assert "有的" in text
+    assert "餐桌" in text
+    assert "501" not in text
+    tps = {a.get("tp_id") for a in body.get("actions") or []}
+    assert any(isinstance(t, str) and t.startswith("tp_dining_table") for t in tps)
+    for a in body.get("actions") or []:
+        assert "position" not in a
+
+
+def test_existence_table_alias_0469() -> None:
+    body = _chat("有没有桌子", world="w_0469_840829")
+    assert "有的" in body["reply_text"]
+    assert "餐桌" in body["reply_text"]
+    tps = {a.get("tp_id") for a in body.get("actions") or []}
+    assert any(isinstance(t, str) and t.startswith("tp_dining_table") for t in tps)
+
+
+def test_existence_bathroom_alias() -> None:
+    body = _chat("有没有洗手间")
+    assert "有的" in body["reply_text"]
+    assert "卫生间" in body["reply_text"]
+    tps = {a.get("tp_id") for a in body.get("actions") or []}
+    assert any(isinstance(t, str) and "bathroom" in t for t in tps)
+
+
+def test_existence_washer_0469_honest() -> None:
+    body = _chat("有没有洗衣机", world="w_0469_840829")
+    text = body["reply_text"]
+    assert "洗衣机" in text
+    assert "暂未" in text or "没有" in text
+    assert "有的" not in text
+    assert "actions" not in body
+

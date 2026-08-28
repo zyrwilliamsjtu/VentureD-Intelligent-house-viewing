@@ -5,6 +5,7 @@ import { loadVoxelCollision, type VoxelCollision } from './voxel'
 import { loadRoomPolys, roomAtCloud, cloudRuleFor, loadTpTable, type RoomPoly, type TpTable } from './coords'
 import { makeHighlightMarker } from './highlightMarker'
 import { useAppStore } from '../store/useAppStore'
+import { unlockAudio } from './agentActions'
 
 // ==== 命令式视口：Spark 3DGS + 体素碰撞 + 点击传送 + 对拍出生点 ====
 // 渲染：THREE.WebGLRenderer + SparkRenderer + SplatMesh（InteriorGS compressed ply）
@@ -519,6 +520,7 @@ export function AholoViewport({ worldId }: { worldId: string }) {
       // ---- 键鼠 ----
       const canvas = () => host.querySelector('canvas')
       const requestLock = () => {
+        unlockAudio()
         if (!useAppStore.getState().entered || document.pointerLockElement) return
         void canvas()?.requestPointerLock()
       }
@@ -548,6 +550,7 @@ export function AholoViewport({ worldId }: { worldId: string }) {
       document.addEventListener('mousemove', onMove)
 
       const onDown = (e: KeyboardEvent) => {
+        unlockAudio()
         st.keys.add(e.code)
         if (e.code.startsWith('Arrow')) e.preventDefault()
         if (e.code === 'KeyV' && upAxis === 2 && useAppStore.getState().entered) cycleSpawn()

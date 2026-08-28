@@ -9,11 +9,11 @@ from typing import Any
 
 import httpx
 
-from app.config import chat_provider_name, llm_api_key, llm_base_url, llm_model
+from app.config import chat_provider_name, llm_api_key, llm_base_url, llm_model, llm_route_model
 from app.services.agent._openai_http import bearer_headers, join_url
 from app.services.agent.chat.grounding import Facts, is_placeholder_value
 
-_ROUTE_TIMEOUT = 12.0
+_ROUTE_TIMEOUT = 8.0
 _TIMEOUT = 30.0
 _ROUTE_SYSTEM = (
     "你是置业顾问小安的意图分类器。只根据【目录】里出现的房间名、家具类、户型字段作答，禁止编造目录没有的内容。"
@@ -38,6 +38,7 @@ _SYSTEM = (
 
 # 最近一次成功调用的路径，便于验收记录（不含密钥）
 last_chat_api: str = ""
+last_route_model: str = ""
 
 
 class ChatLLMProvider(ABC):
@@ -181,9 +182,13 @@ def _try_chat_completions(
     model: str,
     messages: list[dict[str, str]],
     headers: dict[str, str],
+    *,
+    max_tokens: int | None = None,
 ) -> str | None:
     url = join_url(base, _COMPLETIONS_PATH)
-    payload = {"model": model, "messages": messages, "temperature": 0.2}
+    payload: dict[str, object] = {"model": model, "messages": messages, "temperature": 0.2}
+    if max_tokens is not None:
+        payload["max_tokens"] = max_tokens
     resp = client.post(url, headers=headers, json=payload)
     try:
         data = resp.json()
@@ -200,6 +205,8 @@ def _try_responses(
     model: str,
     messages: list[dict[str, str]],
     headers: dict[str, str],
+    *,
+    instructions: str | None = None,
 ) -> str | None:
     url = join_url(base, _RESPONSES_PATH)
     input_items: list[dict[str, object]] = []
@@ -213,7 +220,7 @@ def _try_responses(
         input_items.append({"role": role, "content": [{"type": ctype, "text": text}]})
     payload: dict[str, object] = {
         "model": model,
-        "instructions": _SYSTEM,
+        "instructions": instructions or _SYSTEM,
         "input": input_items,
         "temperature": 0.2,
     }
@@ -274,7 +281,7 @@ class OpenAICompatChatLLMProvider(ChatLLMProvider):
     ) -> dict[str, Any] | None:
         key = llm_api_key()
         base = llm_base_url()
-        model = llm_model()
+        model = llm_route_model()
         if not key or not base or not model:
             return None
         user_block = (
@@ -290,20 +297,27 @@ class OpenAICompatChatLLMProvider(ChatLLMProvider):
                 messages.append({"role": str(role), "content": str(text)[:200]})
         messages.append({"role": "user", "content": user_block})
         headers = {**bearer_headers(key), "Content-Type": "application/json"}
-        global last_chat_api
+        global last_chat_api, last_route_model
         last_chat_api = ""
+        last_route_model = model
         try:
             with httpx.Client(timeout=_ROUTE_TIMEOUT) as client:
-                text = _try_chat_completions(client, base, model, messages, headers)
+                text = _try_chat_completions(
+                    client, base, model, messages, headers, max_tokens=220
+                )
                 if text:
                     last_chat_api = "chat/completions"
                     parsed = parse_route_json(text)
                     if parsed:
                         return parsed
-                text = _try_responses(client, base, model, messages, headers)
+                text = _try_responses(
+                    client, base, model, messages, headers, instructions=_ROUTE_SYSTEM
+                )
                 if text:
                     last_chat_api = "responses"
                     return parse_route_json(text)
+        except httpx.TimeoutException:
+            return None
         except Exception:
             return None
         return None
