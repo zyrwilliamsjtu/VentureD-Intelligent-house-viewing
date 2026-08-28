@@ -119,6 +119,7 @@ AholoViewport（仍用此文件名，避免大范围改 import）
 | `highlight` 3D 标记 | `tp_id` → camera_poses 点云落点上的陶土橙光柱（8s）；无 tp 则 toast |
 | `show_card` | HUD `InfoCard`（可关 / 6s） |
 | `GET /api/agent/narration` | 前端走 chat `event=enter_room`，未打独立 GET（步 4） |
+| 常驻房源/房间卡 | `PlaceFacts`：listings 户型面积卖点 + `player.room_id` 对应 zone 讲解 |
 
 ---
 

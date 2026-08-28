@@ -67,7 +67,12 @@ export default function App() {
           </button>
         ))}
       </div>
-      {entered && <WalkHud worldId={worldId} />}
+      {entered && (
+        <WalkHud
+          worldId={worldId}
+          listing={(listings.length ? listings : WORLD_LISTINGS).find((w) => w.world_id === worldId)}
+        />
+      )}
       {!entered && <Splash />}
     </div>
   )

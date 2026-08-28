@@ -7,7 +7,9 @@ import { executeAgentActions, playTts } from '../scene/agentActions'
 import { useRoomNarration } from '../scene/narration'
 import { TourBar } from './TourBar'
 import { InfoCard } from './InfoCard'
+import { PlaceFacts } from './PlaceFacts'
 import type { House } from '../types/api'
+import type { WorldListing } from '../scene/worlds'
 
 // ==== 极简漫游 HUD：房源信息 · 当前房间 · Agent 对话 · 操作提示 ====
 // Agent 面板：占位按钮 → 真接线（services/agent.ts mock/real 一键切换）
@@ -235,24 +237,20 @@ function CenterToast() {
   )
 }
 
-export function WalkHud({ worldId }: { worldId: string }) {
-  const house = useAppStore((s) => s.house) as House | null
-  const currentZone = useAppStore((s) => s.currentZone)
+export function WalkHud({ worldId, listing }: { worldId: string; listing?: WorldListing }) {
   const locked = useAppStore((s) => s.pointerLocked)
   const [agentOpen, setAgentOpen] = useState(false)
-  const zone = house?.zones.find((z) => z.id === currentZone) ?? null
+  const roomId = useAppStore((s) => s.player?.room_id ?? null)
+  const house = useAppStore((s) => s.house) as House | null
+  const zone = house?.zones.find((z) => z.id === roomId) ?? null
   useRoomNarration() // 进房主动讲解：room_id 切换 → enter_room → toast + TTS
 
   return (
     <div className="walk-hud">
       {/* 左上：房源信息 */}
       <div className="hud-tl">
-        <div className="house-chip">
-          {house ? house.meta.title : '场景加载中…'}
-          {house && <span className="meta">{house.meta.area}㎡ · {house.meta.floor}层</span>}
-        </div>
+        <PlaceFacts listing={listing} />
         <TourBar worldId={worldId} />
-        <div className="badge-placeholder">Spark 3DGS · 点击传送</div>
       </div>
 
       {/* 右上：当前房间 + Agent 对话 */}

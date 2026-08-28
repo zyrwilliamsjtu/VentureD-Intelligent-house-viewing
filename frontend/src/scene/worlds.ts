@@ -8,6 +8,10 @@ export interface WorldListing {
   layout: string
   area: number
   price: string
+  orientation?: string
+  floor?: string
+  highlight?: string
+  tags?: string[]
   /** InteriorGS 点云均为 Z-up；体素与 0330 一样不同帧，默认关 */
   up: 'z'
   voxel: boolean
@@ -23,6 +27,10 @@ export const WORLD_LISTINGS: WorldListing[] = [
     layout: '三室一厅',
     area: 120.1,
     price: '430万',
+    orientation: '南向',
+    floor: '12/28',
+    highlight: '三室一厅约120平，客厅南向连阳台。',
+    tags: ['南北通透', '全明户型', '近地铁'],
     up: 'z',
     voxel: false,
   },
@@ -34,6 +42,10 @@ export const WORLD_LISTINGS: WorldListing[] = [
     layout: '四室一厅',
     area: 135.9,
     price: '490万',
+    orientation: '南向',
+    floor: '8/18',
+    highlight: '四室一厅约136平，客厅约47平。',
+    tags: ['四房', '客厅开间大', '适合三代'],
     up: 'z',
     voxel: false,
   },
@@ -45,6 +57,10 @@ export const WORLD_LISTINGS: WorldListing[] = [
     layout: '三室一厅',
     area: 135.9,
     price: '460万',
+    orientation: '南北',
+    floor: '6/22',
+    highlight: '三室一厅带书房约136平，主卧约22平。',
+    tags: ['带书房', '双卫', '面积宽裕'],
     up: 'z',
     voxel: false,
   },
@@ -56,6 +72,10 @@ export const WORLD_LISTINGS: WorldListing[] = [
     layout: '三室一厅',
     area: 85.9,
     price: '320万',
+    orientation: '东南',
+    floor: '3/11',
+    highlight: '三室一厅约86平，总价门槛相对低。',
+    tags: ['小三房', '低楼层', '层高2.65米'],
     up: 'z',
     voxel: false,
   },
@@ -67,6 +87,10 @@ export const WORLD_LISTINGS: WorldListing[] = [
     layout: '三室一厅',
     area: 92.9,
     price: '340万',
+    orientation: '南向',
+    floor: '15/26',
+    highlight: '三室一厅约93平，客餐厨开间约32平。',
+    tags: ['客餐厨一体', '三房', '高楼层'],
     up: 'z',
     voxel: false,
   },
@@ -126,6 +150,10 @@ export async function loadListings(): Promise<WorldListing[]> {
         layout: String(row.layout ?? known?.layout ?? ''),
         area: typeof row.area === 'number' ? row.area : (known?.area ?? 0),
         price: String(row.price ?? known?.price ?? ''),
+        orientation: String(row.orientation ?? known?.orientation ?? ''),
+        floor: String(row.floor ?? known?.floor ?? ''),
+        highlight: String(row.highlight ?? known?.highlight ?? ''),
+        tags: Array.isArray(row.tags) ? row.tags.map(String) : known?.tags,
         up: 'z',
         voxel: false,
       })
