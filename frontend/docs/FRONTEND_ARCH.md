@@ -1,9 +1,11 @@
 # 前端架构（FRONTEND_ARCH）
 
-> **性质**：前端板块**唯一总览**。接口字段仍以根目录 `SPEC.md` 为准；本文记视口、坐标、HUD、8 接口用法。  
-> **日期**：2026-08-29 · `feat/agent-ux`（三层流转 + 选房详情弹窗；**尚未合 main**）  
+> **性质**：前端板块**唯一总览**。接口字段仍以根目录 `SPEC.md` 为准；本文记视口、坐标、HUD、九接口用法。  
+> **日期**：2026-08-29 · **已合 `main` 的最终版**。  
+> **打开**：Cursor **Simple Browser** → `http://localhost:5173`（根 [`README.md`](../../README.md)）。  
 > **不可违反**：命令式 3D（不挂 R3F Canvas）；不改 agent/后端/SPEC 字段语义；ply 不入库。  
 > **执行日志**：[`../WORKLOG.md`](../WORKLOG.md)（决策史 D1–D7，接手先读）。  
+> UX 历轮：[`../../docs/AGENT_UX_收官记录.md`](../../docs/AGENT_UX_收官记录.md)。  
 > 旧稿 [`RENDER_ARCH.md`](./RENDER_ARCH.md) 已并入本文，仅作渲染层对照。
 
 ---

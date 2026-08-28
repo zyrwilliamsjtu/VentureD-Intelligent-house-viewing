@@ -4,11 +4,24 @@ __pycache__/
 .venv/
 venv/
 .env
+.env.local
+.env.*.local
+.pytest_cache/
 
 # Node / 前端
 node_modules/
 dist/
 .vite/
+
+# 点云与大媒体（禁止入库）
+*.ply
+*.spz
+*.ksplat
+*.sog
+*.m4a
+
+# 可选本地克隆（不作为本仓库子模块）
+SpatialLM/
 
 # 系统
 .DS_Store

@@ -1,8 +1,9 @@
 # 项目总览（PROJECT_OVERVIEW）
 
 > **性质**：PI / 全队一页看全。接口字段仍以根目录 `SPEC.md` 为准；本文记板块、数据流与 demo 路径。  
-> **日期**：2026-08-29 · `feat/agent-ux`（三层页面 + 选房详情；**尚未合 main**）  
-> **不虚构**：未合 main 的标 `# 待合入`；未拍板的标 `# 待确认`。
+> **日期**：2026-08-29 · **已合 `main` 的最终版**（含 `feat/agent-ux` 全部成果）。  
+> **打开网页**：请用 **Cursor IDE 内置 Simple Browser / Preview** 打开 `http://localhost:5173`（步骤见根目录 [`README.md`](../README.md)）。  
+> **不虚构**：未拍板的标 `# 待确认`。
 
 ---
 
@@ -31,7 +32,7 @@
 |------|------|--------|----------|----------|
 | **理解层 GT** | `backend/app/services/understanding/` | `GET /api/scene` 产出 `scene_graph`（GT 透传；Provider 可换双引擎） | 现场生成点云；demo 不依赖 SpatialLM | [`backend/README.md`](../backend/README.md) |
 | **AI Agent** | `backend/app/services/agent/` | chat / asr / tts / narration / tour；只出 `tp_id` | 不感知点云坐标；根目录 `agent/`（队友 Node）不合并不改 | 同上 + [`AGENT_DEV.md`](./AGENT_DEV.md) |
-| **前端 Spark** | `frontend/` | 命令式 THREE + Spark 出画、WASD、HUD、8 接口播放 | 不改契约字段；ply 不入库 | [`frontend/docs/FRONTEND_ARCH.md`](../frontend/docs/FRONTEND_ARCH.md) |
+| **前端 Spark** | `frontend/` | 命令式 THREE + Spark 出画、WASD、HUD、九接口播放 | 不改契约字段；ply 不入库 | [`frontend/docs/FRONTEND_ARCH.md`](../frontend/docs/FRONTEND_ARCH.md) |
 
 三端只经网关对接，不直连。
 
@@ -62,11 +63,11 @@
 
 ---
 
-## 8 接口 → SPEC
+## 9 接口 → SPEC
 
 契约定义只在 `SPEC.md`。实现与用法见后端 / 前端唯一文档。
 
-| # | 接口 | SPEC | main 状态 |
+| # | 接口 | SPEC | 最终版 |
 |---|------|------|-----------|
 | 1 | `GET /api/listings` | §2.6 | 已接；可选筛选参数；失败前端硬编码兜底 |
 | 2 | `GET /api/scene/{world_id}` | §2 | 已接；5 套 GT + `w_mock_001` |
@@ -88,34 +89,37 @@
 
 ---
 
-## main 已绿（对照 HEAD `e10f7d7`）
+## main 最终版（2026-08-29）
 
+- 三层流转：Splash → 列表（筛选 + **问问小驻**）→ 2D 详情 → 3D
 - 5 套真实世界切换出画（Spark 2.1 + three 0.180；命令式 rAF，不挂 R3F）
-- 选房 listings + `listing_id` 挂牌优先
-- chat Golden Path：问房间/家具 → `teleport(tp_id)` 瞬移
-- `show_card` HUD 卡、`highlight` 点云光柱
-- 常驻房源/房间卡 PlaceFacts
-- 自主带看 tour + 漫游中 **B** 键开关
-- 进房讲解：GET narration → 回落 `enter_room`
-- 理解层 GT；SpatialLM S0 **受阻**，demo 不依赖（见 `REFACTOR_PLAN.md`）
+- 选房 listings + `listing_id` 挂牌优先；户型图真实 polygon、不画家具门窗
+- chat Golden Path：问房间/家具 → `teleport(tp_id)`；小驻人设；当前房介绍；别名
+- `show_card` HUD、`highlight` 点云光柱；PlaceFacts 去重
+- 自主带看 tour + **B**；进房 narration；**M** 俯瞰定位；**V** 回起点
+- `POST /api/agent/recommend` 只从真实 5 套荐 1 套
+- 局域网：FastAPI 托管 `dist` + `/ply` 映射（ply 仍不入库）
+- 理解层 GT；SpatialLM S0 **受阻**，demo 不依赖
+- 演示打开方式：**Cursor 内置预览**（外置 Chrome 易卡，见根 README）
 
-**# 待确认（不是未合分支）**
+**# 待确认（不是未合功能）**
 
-- 生产 ply 对象存储 bucket / 权限（骨架 `VITE_SPLAT_*` 已在；未配则本地 `/ply`）
-- `0309` / `0836` 无独立客厅：`tp_living` 复用已对拍 `tp_kitchen`（非编造）
+- 生产 ply 对象存储 bucket / 权限（未配则本地 `/ply` 或 3D 失败层）
+- `0309` / `0836` 无独立客厅：`tp_living` 复用已对拍 `tp_kitchen`
 - `0469` 无冰箱实例
 - TTS 独立接口常返回 `{}`（chat 内 `tts_url` 才有声）
-- SPEC §7 会话隔离：world 不一致是否 400 — **未改契约**，当前覆盖写入
+- SPEC §7 会话隔离：world 不一致是否 400 — **未改契约**
+- 开源许可证若需非 MIT：替换根目录 `LICENSE`
 
 ---
 
 ## 分支状态
 
-任务 0 已把 `feat/narration-hud`（`80f4c76` + `e10f7d7`）快进合入 `main` 并推送。演示相关功能分支均已在 main 上，**无 `# 待合入` 功能残留**。
+收官：`feat/agent-ux` **快进合入 `main` 并推送**（PI 授权）。演示以 `main` HEAD 为准。
 
-远程仍留着已合过的主题分支（`feat/frontend-spark`、`feat/agent-actions`、`feat/room-info-card`、`feat/narration-hud` 等），仅作历史指针，不要当未交付缺口。
+远程可能仍留主题分支作历史指针。根目录 `agent/`（队友 Node）仍空，**不合并不改**。
 
-根目录 `agent/`（队友 Node）仍空，**不合并不改**。
+UX 历轮说明：[`AGENT_UX_收官记录.md`](./AGENT_UX_收官记录.md)。
 
 ---
 
@@ -130,16 +134,18 @@
 | 前端对接 roadmap | [`FE_后端对接方案.md`](./FE_后端对接方案.md) |
 | Agent 实现 / 真实 API | [`AGENT_DEV.md`](./AGENT_DEV.md) |
 | 理解层重构 / SpatialLM | [`REFACTOR_PLAN.md`](./REFACTOR_PLAN.md) |
-| 前端视口 / HUD / 8 接口用法 | [`frontend/docs/FRONTEND_ARCH.md`](../frontend/docs/FRONTEND_ARCH.md) |
+| 前端视口 / HUD / 九接口用法 | [`frontend/docs/FRONTEND_ARCH.md`](../frontend/docs/FRONTEND_ARCH.md) |
+| Agent UX 历轮 | [`AGENT_UX_收官记录.md`](./AGENT_UX_收官记录.md) |
 | 后端边界 / 测试 / 里程碑 | [`backend/README.md`](../backend/README.md) |
 | 局域网部署（P1） | [`DEPLOY_局域网.md`](./DEPLOY_局域网.md) |
+| 开源 README / Cursor 预览 | [`../README.md`](../README.md) |
 
 ---
 
 ## 一条 demo 路径
 
-1. **进入** — 开发：`cd frontend && npm run dev` + `cd backend && uvicorn app.main:app --reload`。局域网给他人看：先 `frontend` 里 `npm run build`，再 `uvicorn ... --host 0.0.0.0 --port 8000`（见 [`DEPLOY_局域网.md`](./DEPLOY_局域网.md)）。前端联调网关：`VITE_API_MODE=real`。
-2. **Splash** — 品牌「小驻看房」/ inNest，点「进入看房」。`# 待合入 feat/agent-ux`
+1. **进入** — Cursor 打开仓库。终端：`cd frontend && npm run dev`；`cd backend && python -m uvicorn app.main:app --reload --port 8000`。前端 `.env.local`：`VITE_API_MODE=real`。命令面板 **Simple Browser: Show** → `http://localhost:5173`（详见根 README）。局域网：[`DEPLOY_局域网.md`](./DEPLOY_局域网.md)。
+2. **Splash** — 品牌「小驻看房」/ inNest，点「进入看房」。
 3. **HouseList** — `GET /api/listings`，卡片显示楼盘名 + 编号；可点 **问问小驻** 说需求 → 推荐 1 套 → 查看详情。
 4. **详情弹窗** — 点卡片或推荐结果：2D 户型图（真实 polygon 墙体/功能配色，居中；不画家具；无门窗数据不编造）+ 挂牌介绍 + 房间清单；点「进入3D空间」才进漫游。
 5. **3D WalkHud** — Spark 加载 ply；WASD + 鼠标（Pointer Lock）；左上 PlaceFacts +「返回列表」；右上「小驻AI·询问」；**M** 俯瞰图（去文字 + 当前位置光点）。

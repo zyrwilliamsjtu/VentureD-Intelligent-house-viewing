@@ -1,6 +1,8 @@
 # 局域网部署（P1）
 
 > 目标：同一 Wi-Fi / 有线网的他人用浏览器打开 `http://<你的局域网IP>:8000`，**不依赖 Cursor**。  
+> **本机演示仍推荐 Cursor 内置预览**（`npm run dev` + Simple Browser），见仓库根 [`README.md`](../README.md)。  
+> 接口契约不变。ply / `.env` / key **不入库**。  
 > 接口契约不变。ply / `.env` / key **不入库**。  
 > **P2**（云服务器 + 对象存储）后置，见文末 `# 待确认`。
 

@@ -4,7 +4,7 @@
 
 第一人称 3DGS 漫游 + 网关 Agent（传送 / 带看 / 讲解 / PTT）。桌面 Chrome / Edge 优先。
 
-> **前端唯一文档：[`docs/FRONTEND_ARCH.md`](./docs/FRONTEND_ARCH.md)** — 视口、坐标、HUD（PlaceFacts / InfoCard / TourBar / B 键）、8 接口用法。  
+> **前端唯一文档：[`docs/FRONTEND_ARCH.md`](./docs/FRONTEND_ARCH.md)**。打开网页用 Cursor 内置预览，见仓库根 [`README.md`](../README.md)。  
 > **项目总览**：[`../docs/PROJECT_OVERVIEW.md`](../docs/PROJECT_OVERVIEW.md)。接口字段：根目录 [`SPEC.md`](../SPEC.md)。  
 > **接管日志**：[`WORKLOG.md`](./WORKLOG.md)（决策史；先读 FRONTEND_ARCH 再查时间线）。
 

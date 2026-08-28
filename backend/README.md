@@ -1,6 +1,7 @@
 # Backend 开发技术文档（PI 后端板块）
 
-> 本文件是 backend 板块的**唯一总览**。项目一页见 [`docs/PROJECT_OVERVIEW.md`](../docs/PROJECT_OVERVIEW.md)；接口字段以根目录 [`SPEC.md`](../SPEC.md) 为准。  
+> 本文件是 backend 板块的**唯一总览**（**最终版**，已合 main）。项目一页见 [`docs/PROJECT_OVERVIEW.md`](../docs/PROJECT_OVERVIEW.md)；接口字段以根目录 [`SPEC.md`](../SPEC.md) 为准。  
+> 本地打开前端请用 Cursor 内置预览，见仓库根 [`README.md`](../README.md)。  
 > 实现细节（不在本文展开）：[`docs/AGENT_DEV.md`](../docs/AGENT_DEV.md) · [`docs/REFACTOR_PLAN.md`](../docs/REFACTOR_PLAN.md) · [`docs/REPO_STRUCTURE.md`](../docs/REPO_STRUCTURE.md)。  
 > 任何代码结构、接口、数据流的变更：先更新本文件与 SPEC（若动契约）、再改代码。
 
@@ -159,7 +160,7 @@ A 浏览器 ──GET /──> frontend/dist（需先 npm run build）
 | `acceptance/test_backend_acceptance.py` | L1 契约 + L2 数据 |
 | `acceptance/test_agent_full_link.py` | agent 全链路（可 skip 无 key） |
 
-跑：`cd backend && python -m pytest tests/ -q`。不把 live 语音当 CI 必过。本文不虚构某一时刻的 passed 条数。
+跑：`cd backend && python -m pytest tests/ -q`（收官时约 182 passed / 6 skipped，以当次输出为准）。不把 live 语音当 CI 必过。
 
 ## 8. 里程碑
 
@@ -175,7 +176,7 @@ A 浏览器 ──GET /──> frontend/dist（需先 npm run build）
 | P1 TTS | V3 SeedTTS2.0 | ⏳ 已冒烟；独立接口常 `{}` |
 | P2 chat LLM | 方舟 ep `chat/completions` | ⏳ 失败回规则版 |
 
-前端消费（main 已接，不在本目录改）：tour 播放、show_card、highlight、narration GET、B 键。见 `frontend/docs/FRONTEND_ARCH.md`。
+前端消费：tour、show_card、highlight、narration、B/M/V、问问小驻。见 `frontend/docs/FRONTEND_ARCH.md`。
 
 ## 9. 变更记录
 
@@ -192,6 +193,7 @@ A 浏览器 ──GET /──> frontend/dist（需先 npm run build）
 | 2026-08-29 | listings 筛选 | `GET /api/listings` 可选 `layout`/`price_min`/`price_max`/`q`（只增；无参兼容） |
 | 2026-08-29 | 楼盘名 + code | listings `title` 改为楼盘名；只增 `code`（0330 等编号） |
 | 2026-08-29 | 局域网托管 | `GET /ply/{scene}.ply` 只读数据盘；可选 mount `frontend/dist` |
+| 2026-08-29 | 收官 | 文档终版 + 开源 README；`feat/agent-ux` 合 main |
 
 ## 10. 与其他板块
 
