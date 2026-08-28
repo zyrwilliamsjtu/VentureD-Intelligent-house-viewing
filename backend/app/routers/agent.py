@@ -60,12 +60,14 @@ async def chat(request: Request) -> dict:
         raise GatewayError(400, "AGENT_ERROR", "user_text 与 audio 二选一")
 
     room_id = _form_str(body.get("room_id"))
+    listing_id = _form_str(body.get("listing_id"))
     return handle_chat(
         session_id=session_id,
         world_id=world_id,
         user_text=user_text if isinstance(user_text, str) else None,
         event=event,
         room_id=room_id,
+        listing_id=listing_id,
         audio=audio,
     )
 
@@ -98,10 +100,11 @@ def narration(
     world_id: str | None = None,
     room_id: str | None = None,
     session_id: str | None = None,
+    listing_id: str | None = None,
 ) -> dict:
     if not world_id or not room_id:
         raise GatewayError(400, "AGENT_ERROR", "world_id 与 room_id 必填")
-    return handle_narration(world_id, room_id, session_id=session_id)
+    return handle_narration(world_id, room_id, session_id=session_id, listing_id=listing_id)
 
 
 @router.post("/tour")

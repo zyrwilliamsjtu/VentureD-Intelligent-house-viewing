@@ -9,6 +9,10 @@ from app.config import REPO_ROOT
 WORLD_POSE_FILES: dict[str, Path] = {
     "w_mock_001": REPO_ROOT / "mock" / "camera_poses.json",
     "w_0330_840483": REPO_ROOT / "mock" / "real_0330" / "camera_poses.json",
+    "w_0469_840829": REPO_ROOT / "mock" / "0469_840829" / "camera_poses.json",
+    "w_0259_840804": REPO_ROOT / "mock" / "0259_840804" / "camera_poses.json",
+    "w_0309_840544": REPO_ROOT / "mock" / "0309_840544" / "camera_poses.json",
+    "w_0836_841149": REPO_ROOT / "mock" / "0836_841149" / "camera_poses.json",
 }
 
 

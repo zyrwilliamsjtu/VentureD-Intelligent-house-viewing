@@ -12,6 +12,7 @@ from app.services.agent.chat.intent import Intent, understand
 from app.services.agent.chat.llm_provider import get_chat_llm_provider
 from app.services.agent.chat.responder import generate
 from app.services.agent.facts import load as load_facts
+from app.services.agent.facts import load_listing, overlay_listing
 from app.services.agent.narration.service import get_narration
 from app.services.agent.session import store as session_store
 from app.services.agent.tour.service import build_tour
@@ -25,12 +26,15 @@ def handle_chat(
     user_text: str | None = None,
     event: str | None = None,
     room_id: str | None = None,
+    listing_id: str | None = None,
     **_: Any,
 ) -> dict:
     """intent → grounding → responder → actions；可选 tts_url/actions 空则 omit。"""
     graph = load_facts(world_id)
     if graph is None:
         raise GatewayError(404, "WORLD_NOT_FOUND", "世界不存在")
+    listing = load_listing(listing_id)
+    graph = overlay_listing(graph, listing)
 
     sess = session_store.load(session_id) or {
         "world_id": world_id,
@@ -39,6 +43,8 @@ def handle_chat(
         "tour_index": 0,
     }
     sess["world_id"] = world_id
+    if listing_id:
+        sess["listing_id"] = listing_id
     if room_id:
         sess["current_room"] = room_id
 
@@ -92,8 +98,13 @@ def handle_tts(text: str, *, voice: str | None = None) -> dict:
     return synthesize(text, voice=voice)
 
 
-def handle_narration(world_id: str, room_id: str, session_id: str | None = None) -> dict:
-    return get_narration(world_id, room_id, session_id=session_id)
+def handle_narration(
+    world_id: str,
+    room_id: str,
+    session_id: str | None = None,
+    listing_id: str | None = None,
+) -> dict:
+    return get_narration(world_id, room_id, session_id=session_id, listing_id=listing_id)
 
 
 def handle_tour(world_id: str, session_id: str | None = None) -> dict:

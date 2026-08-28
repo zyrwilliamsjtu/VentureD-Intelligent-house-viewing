@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.data.listing_store import get_listing
 from app.data.scene_store import load_scene_graph
 
 
@@ -66,6 +67,41 @@ def find_instances_by_query(graph: dict, query: str) -> list[dict]:
         if needle in blob:
             hits.append(inst)
     return hits
+
+
+def load_listing(listing_id: str | None) -> dict | None:
+    """按 listing_id 取挂牌；未知 id 返回 None（chat 回退 scene_graph）。"""
+    return get_listing(listing_id)
+
+
+def overlay_listing(graph: dict, listing: dict | None) -> dict:
+    """挂牌覆盖 house 的价格/面积/朝向/楼层等。world_id 不一致则不覆盖（待确认：当前保守）。"""
+    if not listing or not isinstance(listing, dict):
+        return graph
+    listing_world = listing.get("world_id")
+    if listing_world and listing_world != graph.get("world_id"):
+        return graph
+    house = dict(house_of(graph))
+    if listing.get("title"):
+        house["title"] = listing["title"]
+    if listing.get("layout"):
+        house["type"] = listing["layout"]
+    if listing.get("area") is not None:
+        house["total_area"] = listing["area"]
+    for key in ("orientation", "floor", "price"):
+        if listing.get(key):
+            house[key] = listing[key]
+    if isinstance(listing.get("tags"), list):
+        house["tags"] = listing["tags"]
+    facts_blob = dict(house.get("facts") or {}) if isinstance(house.get("facts"), dict) else {}
+    if listing.get("floor"):
+        facts_blob["floor"] = listing["floor"]
+    if listing.get("highlight"):
+        facts_blob["highlight"] = listing["highlight"]
+    house["facts"] = facts_blob
+    out = dict(graph)
+    out["house"] = house
+    return out
 
 
 def house_of(graph: dict) -> dict[str, Any]:

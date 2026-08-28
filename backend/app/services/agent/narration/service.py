@@ -22,7 +22,12 @@ def _compose_reply(room: dict) -> str:
     return "；".join(parts)
 
 
-def get_narration(world_id: str, room_id: str, session_id: str | None = None) -> dict:
+def get_narration(
+    world_id: str,
+    room_id: str,
+    session_id: str | None = None,
+    listing_id: str | None = None,
+) -> dict:
     """GET /narration 契约仅 world_id+room_id。
 
     session_id 为可选扩展（只增不改）：有则按会话 narrated_rooms 去重；
@@ -48,6 +53,8 @@ def get_narration(world_id: str, room_id: str, session_id: str | None = None) ->
             "narrated_rooms": [],
         }
         sess["world_id"] = world_id
+        if listing_id:
+            sess["listing_id"] = listing_id
         narrated = sess.get("narrated_rooms")
         if not isinstance(narrated, list):
             narrated = []
