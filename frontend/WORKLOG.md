@@ -75,6 +75,12 @@ Pointer Lock + WASD；AABB 碰撞（后升级为体素）；程序化户型生�
 ### 阶段 8 · Agent 接线（2026-08-28）
 `AgentStub` 占位 → 真对话面板（`WalkHud.tsx`）。新增 `services/agent.ts`（session_id 管理 + mock/real 双实现，30s 超时，错误 `{code,message}`）与 `scene/agentActions.ts`（动作执行器 + TTS 播放）。mock 按当前 world 的 scene_graph 关键词匹配（房间名 → 传送+卡；20 类家具中文类别 → 传送+属性卡；元信息问答），动作引用真实 tp_id → 后端未就绪也能演练 Golden Path。浏览器实测 7/7 步通过（见 §5）。
 
+### 阶段 14 · 进房主动讲解 + dev 调试钩子（2026-08-28 深夜）
+`scene/narration.ts`：订阅 `player.room_id` 切换（视口 200ms 节流发布的 polygon 归因），防抖 700ms 触发 `agentChat(event='enter_room')`，回答 toast（房间名+讲解词）+ TTS；每房间每会话只讲一次（Set 去重防踱步刷屏），失败静默；未对拍世界 room_id=null 自然不触发（D3 恒等降级兼容）。`agent.ts` 导出 `loadScene` 复用做房间名映射。`main.tsx` 加 dev-only `window.__appStore` 调试钩子（生产构建不含，联调测试用）。浏览器实测：触发/单房间去重/切房触发全过，console 无红错（防抖快速切换未自动化，逻辑为计时器清除，人工复核即可）。
+
+### 阶段 15 · Pages 部署 + UI 护栏（2026-08-28 深夜）
+`.github/workflows/deploy-pages.yml`：推 main/dev/frontend 自动构建部署 GitHub Pages（vite `base:'./'` 已就绪）；env 从 repo Secrets 注入（VITE_AHOLO_API_KEY 等 4 项，见 workflow 头注释，首次需 Settings→Pages 选 GitHub Actions）。`docs/ui-handoff.md`：UI 重设计护栏（store 只读字段表、固定类名清单、pointer-events 层级不许破坏、事件绑定原样保留、体验底线清单、自测命令），交给 UI AI 防其改坏已实测链路。
+
 ### 阶段 12 · 语音按钮上线（2026-08-28 深夜）
 按住说话（PTT）→ `POST /api/agent/asr` → 识别文字自动发送走 chat 链路。`_parked/audio/recorder.ts` 回迁为 `services/recorder.ts`（PttRecorder，webm/mp4 自动探测）；新增 `services/asr.ts`（mock/real 双实现，asr 超时 10s 按 SPEC §0；mock 轮换「主卧在哪/冰箱在哪/这套房多大」演练 Golden Path）；`WalkHud.tsx` 抽出 `sendText()` 统一发送入口 + voice 状态机（pressSeq 防授权期孤儿录音、<300ms 误触丢弃、15s 自动停、`{"text":""}` 按「没听清」toast）；`types/api.ts` 追加 `AsrResponse`。CSS 类名 `voice-btn/voice-recording` 固定，UI 重设计只改样式。浏览器实测：打字链路无回归、权限拒绝降级 toast 正确、console 无红错；沙箱无麦克风，录音全流程待真机复测（本机 localhost 或 Pages HTTPS 均满足 getUserMedia 安全上下文）。
 
@@ -189,9 +195,9 @@ npm run build                    # 必过
 - [x] P1：TTS 播放（`tts_url` 直接播，失败静默降级）
 - [ ] P0：等后端 `/api/agent/chat` 真实现后联调（改 `.env.local` 的 `VITE_API_MODE=real` + `VITE_API_BASE`）
 - [x] P1：ASR 录音按钮（2026-08-28 上线，见阶段 12；`/api/agent/asr` 后端就绪后 real 模式即用）
-- [ ] P1：进房主动讲解（`event=enter_room` 请求体已支持，接 narration 或 chat 触发）
-- [ ] P2：GitHub Pages 部署（`vite.config.ts` 已设 `base: './'`）
-- [ ] P2：UI 重设计（架构已解耦，见 D6）
+- [x] P1：进房主动讲解（2026-08-28 上线，见阶段 14；`event=enter_room` → toast + TTS）
+- [x] P2：GitHub Pages 部署（workflow `deploy-pages.yml` 入库，见阶段 15；首次需配 Secrets + Pages Source）
+- [ ] P2：UI 重设计（架构已解耦，见 D6；护栏文档 `docs/ui-handoff.md` 已交 UI AI）
 
 ### 6.6 交付通道说明
 本沙箱无 git 推送凭证（终端 push 不可用），代码经 **git bundle** 交付：`frontend-dev-frontend.bundle`（含完整历史）。已由维护人推送到 `origin/dev/frontend`。后续会话若 GitHub 连接器可用则直接推。
@@ -218,3 +224,4 @@ npm run build                    # 必过
 | 2026-08-28 | 阶段 8 Agent 接线（对话面板 + mock/real 服务 + 动作执行器 + TTS）+ 阶段 9 远端同步确认；跨域待办 #1 标已办、新增 #5 SPEC 正文矛盾 | 本次提交 |
 | 2026-08-28 | 阶段 10 交接文档：`docs/backend-handbook.md`（联调三步+数据字典+坐标铁律+已知坑）+ `docs/agent-api.md` 入库，README 加文档导航；待办 #2 标已办 | 本次提交 |
 | 2026-08-28 | 阶段 12/13：语音按钮（PTT→ASR→自动发送）上线 + 修 resume-overlay 遮挡 AI 入口 | 本次提交 |
+| 2026-08-28 | 阶段 14/15：进房主动讲解（enter_room→toast+TTS）+ Pages 部署 workflow + UI 护栏文档 | 本次提交 |
