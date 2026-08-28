@@ -62,6 +62,12 @@ GET /api/scene/{world_id}
 - 对外契约（`GET /api/scene` 返回格式）由 SPEC v2.2 定义，理解层不改变它。
 - scene_graph 的数据来源（GT provider / 未来理解层）属内部实现。
 
+### 理解层重构（进行中）
+- 理解层当前为"GT 兜底为主"，正按**小步快跑**逐步替换为真引擎。
+- 完整重构计划、阶段状态、变更/踩坑记录见 **`docs/REFACTOR_PLAN.md`**（单一事实源）。
+- 每完成一个阶段：更新 `docs/REFACTOR_PLAN.md`（标 ✅）+ 本文件对应章节。
+- 原则：一次只换一个步骤；每步有验收（vs GT）+ 回退；demo 主线永不依赖理解层。
+
 ## 2. 技术栈与运行
 
 - 语言/框架：Python + FastAPI
