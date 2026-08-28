@@ -15,6 +15,8 @@
 | 想了解界面（设计语言/页面/全部文案/素材） | **[docs/ui-design.md](./docs/ui-design.md)**（UI 唯一整理稿） |
 | 想了解交互（每层有哪些按钮、怎么触发） | **[docs/interaction.md](./docs/interaction.md)**（交互说明文档） |
 | 想了解产品架构（系统/前端/后端/数据流） | **`../docs/architecture.md`**（五级 Mermaid 架构图） |
+| 想了解部署（本地 / Pages / 后端公网 / 点云） | **`../docs/deployment.md`**（部署文档） |
+| 演示前自测 / 联调清单 | **`../docs/testing.md`**（测试 + 自测清单） |
 | 承接 Agent 板块（新执行方） | 根目录 **`docs/agent-handoff.md`**（自包含需求书：接口契约/坐标铁律/数据字典/路线图/自测清单） |
 | 改 UI | **`../docs/ui-handoff.md`**（护栏说明：store 只读字段/固定类名/层级约定/体验底线）+ WORKLOG D6 |
 
