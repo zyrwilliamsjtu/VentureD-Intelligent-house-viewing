@@ -38,6 +38,7 @@ AI 代看房（48H 黑客松）：第一人称 3DGS 点云漫游 + Agent 语音�
 | 坐标映射 | ✓ 对拍转正（见 D3） |
 | 房间归因 | ✓ polygon point-in-polygon → `room_id` |
 | Agent 对话 | ✓ **已接线**（mock 模式 7/7 步浏览器实测通过；`VITE_API_MODE=real` 切后端） |
+| **语音输入（PTT）** | ✓ **已上线**（按住说话 → asr → 自动发送；mock 轮换预设问题；沙箱实测降级路径，录音全流程待真机） |
 | show_card / highlight | ✓ toast 承接（show_card 兼容平铺/嵌套两种载荷） |
 | TTS 播放 | ✓ `tts_url` 直播（失败静默降级） |
 | 卡点 | 后端 `/api/agent/chat` 真实现（B 侧 dev-agent 零进度）+ `/api/agent/asr` + CORS |
@@ -73,6 +74,12 @@ Pointer Lock + WASD；AABB 碰撞（后升级为体素）；程序化户型生�
 
 ### 阶段 8 · Agent 接线（2026-08-28）
 `AgentStub` 占位 → 真对话面板（`WalkHud.tsx`）。新增 `services/agent.ts`（session_id 管理 + mock/real 双实现，30s 超时，错误 `{code,message}`）与 `scene/agentActions.ts`（动作执行器 + TTS 播放）。mock 按当前 world 的 scene_graph 关键词匹配（房间名 → 传送+卡；20 类家具中文类别 → 传送+属性卡；元信息问答），动作引用真实 tp_id → 后端未就绪也能演练 Golden Path。浏览器实测 7/7 步通过（见 §5）。
+
+### 阶段 12 · 语音按钮上线（2026-08-28 深夜）
+按住说话（PTT）→ `POST /api/agent/asr` → 识别文字自动发送走 chat 链路。`_parked/audio/recorder.ts` 回迁为 `services/recorder.ts`（PttRecorder，webm/mp4 自动探测）；新增 `services/asr.ts`（mock/real 双实现，asr 超时 10s 按 SPEC §0；mock 轮换「主卧在哪/冰箱在哪/这套房多大」演练 Golden Path）；`WalkHud.tsx` 抽出 `sendText()` 统一发送入口 + voice 状态机（pressSeq 防授权期孤儿录音、<300ms 误触丢弃、15s 自动停、`{"text":""}` 按「没听清」toast）；`types/api.ts` 追加 `AsrResponse`。CSS 类名 `voice-btn/voice-recording` 固定，UI 重设计只改样式。浏览器实测：打字链路无回归、权限拒绝降级 toast 正确、console 无红错；沙箱无麦克风，录音全流程待真机复测（本机 localhost 或 Pages HTTPS 均满足 getUserMedia 安全上下文）。
+
+### 阶段 13 · 修 resume-overlay 遮挡 AI 入口（2026-08-28 深夜）
+测试语音按钮时发现的**既有 bug**：全屏 `resume-overlay` 在 DOM 末尾且无 z-index，指针未锁定时（如 ESC 后）物理遮挡"AI 讲解 · 询问"按钮，点击只会触发指针锁定、面板永远打不开。修复：`hud-tr` z-index:23、`resume-overlay` 显式 z-index:21，层叠意图显式化。复测面板可正常展开。
 
 ### 阶段 11 · B 板块交接（2026-08-28 晚）
 B 无法继续合作，agent 板块转由 A+PI 承接。整理自包含需求书 `docs/agent-handoff.md`（接口契约、坐标铁律、数据字典含真实房间全表、MOSS 选型、24h 最小可用路线、自测清单、Git 规范、已知坑），可直接交给任何 AI/开发者开工。示例坐标已按 `scene_graph.json` 实测值修正（room_id 真实格式 `room_bedroom_master`）。
@@ -181,7 +188,7 @@ npm run build                    # 必过
 - [x] P1：`show_card` / `highlight` 动作执行（toast 承接；3D 高亮标记可后续升级）
 - [x] P1：TTS 播放（`tts_url` 直接播，失败静默降级）
 - [ ] P0：等后端 `/api/agent/chat` 真实现后联调（改 `.env.local` 的 `VITE_API_MODE=real` + `VITE_API_BASE`）
-- [ ] P1：ASR 录音按钮（等 `/api/agent/asr`；当前打字输入）
+- [x] P1：ASR 录音按钮（2026-08-28 上线，见阶段 12；`/api/agent/asr` 后端就绪后 real 模式即用）
 - [ ] P1：进房主动讲解（`event=enter_room` 请求体已支持，接 narration 或 chat 触发）
 - [ ] P2：GitHub Pages 部署（`vite.config.ts` 已设 `base: './'`）
 - [ ] P2：UI 重设计（架构已解耦，见 D6）
@@ -210,3 +217,4 @@ npm run build                    # 必过
 | 2026-08-28 | 初版：阶段 1-7 全量记录 + D1-D6 决策 + 验证数据 | `d0eb8ce` |
 | 2026-08-28 | 阶段 8 Agent 接线（对话面板 + mock/real 服务 + 动作执行器 + TTS）+ 阶段 9 远端同步确认；跨域待办 #1 标已办、新增 #5 SPEC 正文矛盾 | 本次提交 |
 | 2026-08-28 | 阶段 10 交接文档：`docs/backend-handbook.md`（联调三步+数据字典+坐标铁律+已知坑）+ `docs/agent-api.md` 入库，README 加文档导航；待办 #2 标已办 | 本次提交 |
+| 2026-08-28 | 阶段 12/13：语音按钮（PTT→ASR→自动发送）上线 + 修 resume-overlay 遮挡 AI 入口 | 本次提交 |

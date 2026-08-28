@@ -48,7 +48,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .house-chip .meta { font-weight: 400; color: #aab1cf; font-size: 12px; margin-left: 10px; }
 .badge-placeholder { color: #d8b13c; background: rgba(242, 201, 76, 0.12); border: 1px solid rgba(242, 201, 76, 0.3); font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; padding: 3px 10px; border-radius: 999px; }
 
-.hud-tr { position: absolute; top: 18px; right: 18px; display: flex; align-items: center; gap: 10px; }
+.hud-tr { position: absolute; top: 18px; right: 18px; display: flex; align-items: center; gap: 10px; z-index: 23; }
 .room-chip { background: var(--glass); border: 1px solid var(--glass-border); color: #f0f2ff; font-weight: 700; font-size: 13.5px; padding: 8px 16px; border-radius: 999px; backdrop-filter: blur(10px); min-width: 64px; text-align: center; }
 .agent-stub { display: inline-flex; align-items: center; gap: 8px; background: var(--glass); border: 1px dashed rgba(124, 134, 242, 0.55); color: #aab4f5; font-size: 12.5px; font-weight: 600; padding: 8px 16px; border-radius: 999px; backdrop-filter: blur(10px); transition: all 0.15s ease; }
 .agent-stub:hover { color: #d5dafc; border-color: rgba(124, 134, 242, 0.9); background: rgba(30, 34, 54, 0.85); }
@@ -98,7 +98,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .hint-bar b { color: #d5dafc; font-weight: 700; margin-right: 4px; }
 
 /* 未锁定恢复层 */
-.resume-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(10, 11, 16, 0.45); backdrop-filter: blur(3px); cursor: pointer; pointer-events: auto; animation: fadeIn 0.25s ease both; }
+.resume-overlay { position: absolute; inset: 0; z-index: 21; display: flex; align-items: center; justify-content: center; background: rgba(10, 11, 16, 0.45); backdrop-filter: blur(3px); cursor: pointer; pointer-events: auto; animation: fadeIn 0.25s ease both; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .resume-card { text-align: center; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 18px; padding: 26px 46px; backdrop-filter: blur(12px); }
 .resume-title { color: #f2f4ff; font-size: 19px; font-weight: 700; letter-spacing: 0.14em; margin-bottom: 8px; }
