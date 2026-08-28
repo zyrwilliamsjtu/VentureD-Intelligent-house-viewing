@@ -247,3 +247,6 @@ npm run build                    # 必过
 6. **交付状态警告**：本沙箱 `dev/frontend` 一度领先 `origin/dev/frontend` **10 个提交**（含阶段 13 黑屏根因修复三连 `777a5ab`/`9f52aad`/`c63ce44`）——即线上/队友本地从未拿到黑屏修复。本次连同三决策修复一并出 bundle，**收到后必须 fetch+merge+push**，勿再积压。
 **验证**：`npm run build`（tsc + vite）✓；沙箱内起后端 + vite dev（proxy `/api`）实测：`GET /api/camera_poses/w_0330_840483` 返回 85 点（含 tp_living）、`GET /api/scene/w_0330_840483` 返回 10 房间 scene_graph（coord Y/m），与前端解析形状逐字段吻合；本地 fallback 文件同步后 HTTP 200 且 tp_living 已转正。
 
+
+### 阶段 18 · 架构决策：砍 TS agent，MOSS 三件套并入 PI 网关（2026-08-28 下午）
+**实测依据**：`dev-agent` 分支（agent/ 目录，TS）拉取实测为空壳——chat/asr/tts 全部 handler 写死（问"冰箱在哪"也回"带您去主卧"）、无 world_id 校验（invalid_world 返回 200）、ASR/TTS 假实现、提交信息虚标"CodeBuddy SDK + MOSS 双路"（代码零痕迹）。同期实测 PI 网关（`411b332`）全链路可用：chat 规则版 grounding 真定位（冰箱→`tp_refrigerator_582`+highlight）、tour 10 房间、narration 去重、camera_poses 85 点、25 单测全绿、错误契约正确。**决策（方案 A）**：agent 能力（MOSS LLM/ASR/TTS）并入 PI 的 Python 网关（插入点：`chat/responder.generate` 分层降级、`asr/service.py`、`tts/service.py`），规则版流水线保留为 LLM 故障兜底；`dev-agent` 分支不合并留档。作业书：`/workspace/pi-brief-moss-integration.md`（用户转交 PI）。另发现 `dev-backend` 的 SPEC §4.2 已把坐标约定修正为 IG 原生 Z-up、agent 只输出 tp_id——与前端 `coords.ts` 对拍结论一致，坐标系争议了结。待办：前端 bundle 重推（黑屏修复 `c63ce44`/`9baa3d3` 仍未上 origin）→ dev/frontend 合 main → dev-backend 合 main。
