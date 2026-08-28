@@ -75,6 +75,14 @@ Pointer Lock + WASD；AABB 碰撞（后升级为体素）；程序化户型生�
 ### 阶段 8 · Agent 接线（2026-08-28）
 `AgentStub` 占位 → 真对话面板（`WalkHud.tsx`）。新增 `services/agent.ts`（session_id 管理 + mock/real 双实现，30s 超时，错误 `{code,message}`）与 `scene/agentActions.ts`（动作执行器 + TTS 播放）。mock 按当前 world 的 scene_graph 关键词匹配（房间名 → 传送+卡；20 类家具中文类别 → 传送+属性卡；元信息问答），动作引用真实 tp_id → 后端未就绪也能演练 Golden Path。浏览器实测 7/7 步通过（见 §5）。
 
+### 阶段 16 · PI 网关联调打通（2026-08-28 深夜）
+PI 交付：scene/camera_poses 真实现 + agent 路由契约层 stub（chat 返回固定文案、asr 空文本，语义逻辑待 Agent AI 接入）。联调发现并修三处：
+1. **real 模式进入被锁死**：`api.ts getHouse` 打旧契约路径 `/api/houses/{id}`（后端只有 `/api/scene/`），失败即 `houseError` 禁用进入按钮。修复：real 失败自动降级本地 mock（house 本为前端展示数据），进入永不阻塞，Agent 仍走网关。
+2. **跨源 fetch 失败**：浏览器对回环地址的页面级 fetch 被 CORS/代理拦（导航可通、fetch 不通）。修复：`vite.config.ts` 加 `server.proxy`（`/api` → `127.0.0.1:8000`），`agent.ts`/`asr.ts` BASE 默认空=同源相对路径，`VITE_API_BASE` 仅跨机直连时填。**本机联调从此零 CORS 配置**。
+3. 修复过程中引入的 `@vite/plugin-react` 手误（少 js）导致 dev 起不来，字节级排查后已改回。
+实测（后端 uvicorn + 前端 real）：CORS 预检✓、chat 200 收到 stub 回复✓、asr multipart✓、错误格式 `{code,message}`✓、scene/camera_poses 数据与 tp 表一致✓、console 无红错✓。`/api/houses` 404 降级为预期行为。
+联调方式已写入 `.env.example` 注释（BASE 留空走代理）。
+
 ### 阶段 14 · 进房主动讲解 + dev 调试钩子（2026-08-28 深夜）
 `scene/narration.ts`：订阅 `player.room_id` 切换（视口 200ms 节流发布的 polygon 归因），防抖 700ms 触发 `agentChat(event='enter_room')`，回答 toast（房间名+讲解词）+ TTS；每房间每会话只讲一次（Set 去重防踱步刷屏），失败静默；未对拍世界 room_id=null 自然不触发（D3 恒等降级兼容）。`agent.ts` 导出 `loadScene` 复用做房间名映射。`main.tsx` 加 dev-only `window.__appStore` 调试钩子（生产构建不含，联调测试用）。浏览器实测：触发/单房间去重/切房触发全过，console 无红错（防抖快速切换未自动化，逻辑为计时器清除，人工复核即可）。
 

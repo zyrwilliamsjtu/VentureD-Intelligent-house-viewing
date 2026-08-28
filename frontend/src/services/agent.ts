@@ -27,7 +27,9 @@ export function agentChat(req: AgentChatRequest): Promise<AgentChatResponse> {
 
 // ---- real 实现 ----
 
-const BASE = (import.meta.env.VITE_API_BASE ?? 'http://localhost:8000').replace(/\/+$/, '')
+// 默认空 = 同源相对路径（dev 走 vite proxy /api → 后端网关，无跨源问题）；
+// 需直连时在 .env 设 VITE_API_BASE（如 http://192.168.x.x:8000）
+const BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/+$/, '')
 
 export async function realAgentChat(req: AgentChatRequest): Promise<AgentChatResponse> {
   const ctrl = new AbortController()

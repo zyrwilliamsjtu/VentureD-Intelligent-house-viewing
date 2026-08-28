@@ -6,7 +6,8 @@ import { audioExt, type Recording } from './recorder'
 // mock：sleep 800ms 返回轮换预设问题 → 后端未就绪也能全程演练语音 Golden Path
 // 空文本 {"text":""} 是正常返回（空语音/噪音），调用方按「没听清」处理，不是异常
 
-const BASE = (import.meta.env.VITE_API_BASE ?? 'http://localhost:8000').replace(/\/+$/, '')
+// 默认空 = 同源相对路径（dev 走 vite proxy /api → 后端网关）；与 agent.ts 同策略
+const BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/+$/, '')
 
 /** 统一入口：VITE_API_MODE=real 走后端网关，否则 mock */
 export function agentAsr(rec: Recording): Promise<AsrResponse> {

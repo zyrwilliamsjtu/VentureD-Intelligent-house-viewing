@@ -17,7 +17,19 @@ const tourCache = new Map<string, TourScript>()
 export async function getHouse(id: string): Promise<House> {
   const hit = houseCache.get(id)
   if (hit) return hit
-  const h = apiMode === 'mock' ? await mockGetHouse(id) : await real.realGetHouse(id)
+  let h: House
+  if (apiMode === 'real') {
+    // real 失败降级本地 mock（house 为前端展示数据，不阻塞进入；Agent chat 仍走网关）。
+    // 注：后端网关无 /api/houses 路由（scene_graph 走 /api/scene），故 real 路径常态即降级。
+    try {
+      h = await real.realGetHouse(id)
+    } catch {
+      console.warn('[api] realGetHouse 失败，降级本地 mock（不影响漫游与 Agent 联调）')
+      h = await mockGetHouse(id)
+    }
+  } else {
+    h = await mockGetHouse(id)
+  }
   houseCache.set(id, h)
   return h
 }
