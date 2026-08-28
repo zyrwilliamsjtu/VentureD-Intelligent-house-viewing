@@ -1,0 +1,2327 @@
+{
+  "world_id": "w_0469_840829",
+  "coord": {
+    "unit": "m",
+    "up": "Y",
+    "origin": "house_center",
+    "handedness": "right",
+    "polygon_axis": "XZ",
+    "polygon_winding": "ccw_top"
+  },
+  "house": {
+    "title": "InteriorGS 0469 · 四室一厅",
+    "type": "四室一厅",
+    "total_area": 135.9,
+    "orientation": "待对拍",
+    "floor": "待对拍",
+    "price": "待对拍",
+    "tags": [
+      "真实场景",
+      "InteriorGS"
+    ],
+    "facts": {
+      "ceiling_height": 2.8,
+      "floor": "待对拍"
+    }
+  },
+  "rooms": [
+    {
+      "id": "room_living",
+      "type": "living_room",
+      "name": "客厅",
+      "area": 46.9,
+      "polygon": [
+        [
+          -2.22,
+          -0.882
+        ],
+        [
+          1.12,
+          -0.882
+        ],
+        [
+          1.12,
+          -2.482
+        ],
+        [
+          1.994,
+          -2.482
+        ],
+        [
+          1.994,
+          0.218
+        ],
+        [
+          -2.22,
+          0.218
+        ],
+        [
+          -2.22,
+          4.118
+        ],
+        [
+          -5.52,
+          4.118
+        ],
+        [
+          -5.52,
+          0.788
+        ],
+        [
+          -6.72,
+          0.788
+        ],
+        [
+          -6.72,
+          -5.842
+        ],
+        [
+          -2.22,
+          -5.842
+        ]
+      ],
+      "adjacent_rooms": [
+        "room_bathroom_2",
+        "room_bedroom_3",
+        "room_bedroom_4",
+        "room_bedroom_master",
+        "room_bedroom_second",
+        "room_kitchen",
+        "room_other_1"
+      ],
+      "trajectory_point_id": "tp_living",
+      "story_card": "客厅约46.9平。",
+      "instances": [
+        {
+          "id": "inst_cabinet_212",
+          "category": "cabinet",
+          "position": [
+            -5.312,
+            1.35,
+            2.455
+          ],
+          "bbox3d": {
+            "center": [
+              -5.312,
+              1.35,
+              2.455
+            ],
+            "size": [
+              0.429,
+              2.7,
+              3.321
+            ]
+          },
+          "attrs": {
+            "source_label": "wine cabinet"
+          },
+          "trajectory_point_id": "tp_cabinet_212"
+        },
+        {
+          "id": "inst_plant_235",
+          "category": "plant",
+          "position": [
+            -5.357,
+            2.277,
+            3.06
+          ],
+          "bbox3d": {
+            "center": [
+              -5.357,
+              2.277,
+              3.06
+            ],
+            "size": [
+              0.124,
+              0.094,
+              0.209
+            ]
+          },
+          "attrs": {
+            "source_label": "flowerpot"
+          },
+          "trajectory_point_id": "tp_plant_235"
+        },
+        {
+          "id": "inst_plant_237",
+          "category": "plant",
+          "position": [
+            -5.36,
+            2.401,
+            3.066
+          ],
+          "bbox3d": {
+            "center": [
+              -5.36,
+              2.401,
+              3.066
+            ],
+            "size": [
+              0.183,
+              0.228,
+              0.333
+            ]
+          },
+          "attrs": {
+            "source_label": "plant"
+          },
+          "trajectory_point_id": "tp_plant_237"
+        },
+        {
+          "id": "inst_plant_238",
+          "category": "plant",
+          "position": [
+            -5.329,
+            1.569,
+            3.566
+          ],
+          "bbox3d": {
+            "center": [
+              -5.329,
+              1.569,
+              3.566
+            ],
+            "size": [
+              0.341,
+              0.304,
+              0.571
+            ]
+          },
+          "attrs": {
+            "source_label": "plant"
+          },
+          "trajectory_point_id": "tp_plant_238"
+        },
+        {
+          "id": "inst_chair_321",
+          "category": "chair",
+          "position": [
+            -3.368,
+            0.425,
+            2.947
+          ],
+          "bbox3d": {
+            "center": [
+              -3.368,
+              0.425,
+              2.947
+            ],
+            "size": [
+              0.543,
+              0.849,
+              0.561
+            ]
+          },
+          "attrs": {
+            "source_label": "chair"
+          },
+          "trajectory_point_id": "tp_chair_321"
+        },
+        {
+          "id": "inst_chair_322",
+          "category": "chair",
+          "position": [
+            -4.132,
+            0.425,
+            2.947
+          ],
+          "bbox3d": {
+            "center": [
+              -4.132,
+              0.425,
+              2.947
+            ],
+            "size": [
+              0.543,
+              0.849,
+              0.561
+            ]
+          },
+          "attrs": {
+            "source_label": "chair"
+          },
+          "trajectory_point_id": "tp_chair_322"
+        },
+        {
+          "id": "inst_chair_323",
+          "category": "chair",
+          "position": [
+            -3.374,
+            0.425,
+            1.716
+          ],
+          "bbox3d": {
+            "center": [
+              -3.374,
+              0.425,
+              1.716
+            ],
+            "size": [
+              0.543,
+              0.849,
+              0.561
+            ]
+          },
+          "attrs": {
+            "source_label": "chair"
+          },
+          "trajectory_point_id": "tp_chair_323"
+        },
+        {
+          "id": "inst_chair_324",
+          "category": "chair",
+          "position": [
+            -4.132,
+            0.425,
+            1.716
+          ],
+          "bbox3d": {
+            "center": [
+              -4.132,
+              0.425,
+              1.716
+            ],
+            "size": [
+              0.543,
+              0.849,
+              0.561
+            ]
+          },
+          "attrs": {
+            "source_label": "chair"
+          },
+          "trajectory_point_id": "tp_chair_324"
+        },
+        {
+          "id": "inst_dining_table_325",
+          "category": "dining_table",
+          "position": [
+            -3.758,
+            0.391,
+            2.357
+          ],
+          "bbox3d": {
+            "center": [
+              -3.758,
+              0.391,
+              2.357
+            ],
+            "size": [
+              1.603,
+              0.78,
+              0.936
+            ]
+          },
+          "attrs": {
+            "source_label": "dining table"
+          },
+          "trajectory_point_id": "tp_dining_table_325"
+        },
+        {
+          "id": "inst_plant_355",
+          "category": "plant",
+          "position": [
+            -3.902,
+            0.959,
+            2.369
+          ],
+          "bbox3d": {
+            "center": [
+              -3.902,
+              0.959,
+              2.369
+            ],
+            "size": [
+              0.207,
+              0.224,
+              0.208
+            ]
+          },
+          "attrs": {
+            "source_label": "flowers"
+          },
+          "trajectory_point_id": "tp_plant_355"
+        },
+        {
+          "id": "inst_lamp_419",
+          "category": "lamp",
+          "position": [
+            -6.106,
+            1.146,
+            -5.039
+          ],
+          "bbox3d": {
+            "center": [
+              -6.106,
+              1.146,
+              -5.039
+            ],
+            "size": [
+              0.417,
+              0.985,
+              0.417
+            ]
+          },
+          "attrs": {
+            "source_label": "table lamp"
+          },
+          "trajectory_point_id": "tp_lamp_419"
+        },
+        {
+          "id": "inst_plant_424",
+          "category": "plant",
+          "position": [
+            -6.126,
+            1.044,
+            -1.768
+          ],
+          "bbox3d": {
+            "center": [
+              -6.126,
+              1.044,
+              -1.768
+            ],
+            "size": [
+              0.352,
+              0.475,
+              0.122
+            ]
+          },
+          "attrs": {
+            "source_label": "flowers"
+          },
+          "trajectory_point_id": "tp_plant_424"
+        },
+        {
+          "id": "inst_chair_427",
+          "category": "chair",
+          "position": [
+            -4.791,
+            0.201,
+            -2.011
+          ],
+          "bbox3d": {
+            "center": [
+              -4.791,
+              0.201,
+              -2.011
+            ],
+            "size": [
+              0.672,
+              0.402,
+              0.685
+            ]
+          },
+          "attrs": {
+            "source_label": "stool"
+          },
+          "trajectory_point_id": "tp_chair_427"
+        },
+        {
+          "id": "inst_coffee_table_428",
+          "category": "coffee_table",
+          "position": [
+            -4.476,
+            0.256,
+            -3.18
+          ],
+          "bbox3d": {
+            "center": [
+              -4.476,
+              0.256,
+              -3.18
+            ],
+            "size": [
+              1.006,
+              0.464,
+              1.005
+            ]
+          },
+          "attrs": {
+            "source_label": "teatable"
+          },
+          "trajectory_point_id": "tp_coffee_table_428"
+        },
+        {
+          "id": "inst_chair_430",
+          "category": "chair",
+          "position": [
+            -4.933,
+            0.488,
+            -5.119
+          ],
+          "bbox3d": {
+            "center": [
+              -4.933,
+              0.488,
+              -5.119
+            ],
+            "size": [
+              1.039,
+              0.956,
+              1.143
+            ]
+          },
+          "attrs": {
+            "source_label": "chair"
+          },
+          "trajectory_point_id": "tp_chair_430"
+        },
+        {
+          "id": "inst_sofa_431",
+          "category": "sofa",
+          "position": [
+            -6.008,
+            0.478,
+            -3.437
+          ],
+          "bbox3d": {
+            "center": [
+              -6.008,
+              0.478,
+              -3.437
+            ],
+            "size": [
+              1.006,
+              0.922,
+              2.769
+            ]
+          },
+          "attrs": {
+            "source_label": "Multi person sofa"
+          },
+          "trajectory_point_id": "tp_sofa_431"
+        },
+        {
+          "id": "inst_tv_cabinet_460",
+          "category": "tv_cabinet",
+          "position": [
+            -2.45,
+            0.239,
+            -3.627
+          ],
+          "bbox3d": {
+            "center": [
+              -2.45,
+              0.239,
+              -3.627
+            ],
+            "size": [
+              0.394,
+              0.478,
+              2.219
+            ]
+          },
+          "attrs": {
+            "source_label": "TV cabinet"
+          },
+          "trajectory_point_id": "tp_tv_cabinet_460"
+        },
+        {
+          "id": "inst_tv_cabinet_567",
+          "category": "tv_cabinet",
+          "position": [
+            -2.241,
+            1.239,
+            -3.654
+          ],
+          "bbox3d": {
+            "center": [
+              -2.241,
+              1.239,
+              -3.654
+            ],
+            "size": [
+              0.042,
+              0.694,
+              1.214
+            ]
+          },
+          "attrs": {
+            "source_label": "tv"
+          },
+          "trajectory_point_id": "tp_tv_cabinet_567"
+        },
+        {
+          "id": "inst_cabinet_570",
+          "category": "cabinet",
+          "position": [
+            -5.97,
+            1.0,
+            -1.004
+          ],
+          "bbox3d": {
+            "center": [
+              -5.97,
+              1.0,
+              -1.004
+            ],
+            "size": [
+              1.5,
+              2.0,
+              0.335
+            ]
+          },
+          "attrs": {
+            "source_label": "Display cabinet"
+          },
+          "trajectory_point_id": "tp_cabinet_570"
+        },
+        {
+          "id": "inst_plant_573",
+          "category": "plant",
+          "position": [
+            -6.109,
+            1.347,
+            -1.012
+          ],
+          "bbox3d": {
+            "center": [
+              -6.109,
+              1.347,
+              -1.012
+            ],
+            "size": [
+              0.129,
+              0.216,
+              0.144
+            ]
+          },
+          "attrs": {
+            "source_label": "flowers"
+          },
+          "trajectory_point_id": "tp_plant_573"
+        },
+        {
+          "id": "inst_plant_576",
+          "category": "plant",
+          "position": [
+            -5.385,
+            1.495,
+            -1.012
+          ],
+          "bbox3d": {
+            "center": [
+              -5.385,
+              1.495,
+              -1.012
+            ],
+            "size": [
+              0.19,
+              0.093,
+              0.179
+            ]
+          },
+          "attrs": {
+            "source_label": "flowers"
+          },
+          "trajectory_point_id": "tp_plant_576"
+        },
+        {
+          "id": "inst_wardrobe_588",
+          "category": "wardrobe",
+          "position": [
+            -6.121,
+            1.35,
+            0.603
+          ],
+          "bbox3d": {
+            "center": [
+              -6.121,
+              1.35,
+              0.603
+            ],
+            "size": [
+              1.198,
+              2.7,
+              0.332
+            ]
+          },
+          "attrs": {
+            "source_label": "wardrobe"
+          },
+          "trajectory_point_id": "tp_wardrobe_588"
+        },
+        {
+          "id": "inst_plant_592",
+          "category": "plant",
+          "position": [
+            -6.542,
+            1.335,
+            0.587
+          ],
+          "bbox3d": {
+            "center": [
+              -6.542,
+              1.335,
+              0.587
+            ],
+            "size": [
+              0.162,
+              0.325,
+              0.221
+            ]
+          },
+          "attrs": {
+            "source_label": "plant"
+          },
+          "trajectory_point_id": "tp_plant_592"
+        }
+      ]
+    },
+    {
+      "id": "room_bedroom_master",
+      "type": "bedroom",
+      "name": "主卧",
+      "area": 17.7,
+      "polygon": [
+        [
+          1.12,
+          0.338
+        ],
+        [
+          1.994,
+          0.338
+        ],
+        [
+          1.994,
+          1.458
+        ],
+        [
+          4.42,
+          1.458
+        ],
+        [
+          4.42,
+          6.538
+        ],
+        [
+          1.12,
+          6.538
+        ]
+      ],
+      "adjacent_rooms": [
+        "room_bathroom",
+        "room_living"
+      ],
+      "trajectory_point_id": "tp_bedroom_master",
+      "story_card": "主卧约17.7平。",
+      "instances": [
+        {
+          "id": "inst_plant_205",
+          "category": "plant",
+          "position": [
+            4.195,
+            0.96,
+            6.093
+          ],
+          "bbox3d": {
+            "center": [
+              4.195,
+              0.96,
+              6.093
+            ],
+            "size": [
+              0.166,
+              0.397,
+              0.206
+            ]
+          },
+          "attrs": {
+            "source_label": "plant"
+          },
+          "trajectory_point_id": "tp_plant_205"
+        },
+        {
+          "id": "inst_wardrobe_376",
+          "category": "wardrobe",
+          "position": [
+            3.208,
+            1.39,
+            1.758
+          ],
+          "bbox3d": {
+            "center": [
+              3.208,
+              1.39,
+              1.758
+            ],
+            "size": [
+              2.423,
+              2.78,
+              0.6
+            ]
+          },
+          "attrs": {
+            "source_label": "wardrobe"
+          },
+          "trajectory_point_id": "tp_wardrobe_376"
+        },
+        {
+          "id": "inst_plant_381",
+          "category": "plant",
+          "position": [
+            2.224,
+            1.766,
+            1.726
+          ],
+          "bbox3d": {
+            "center": [
+              2.224,
+              1.766,
+              1.726
+            ],
+            "size": [
+              0.174,
+              0.148,
+              0.149
+            ]
+          },
+          "attrs": {
+            "source_label": "flowerpot"
+          },
+          "trajectory_point_id": "tp_plant_381"
+        },
+        {
+          "id": "inst_plant_382",
+          "category": "plant",
+          "position": [
+            2.23,
+            1.867,
+            1.726
+          ],
+          "bbox3d": {
+            "center": [
+              2.23,
+              1.867,
+              1.726
+            ],
+            "size": [
+              0.266,
+              0.113,
+              0.224
+            ]
+          },
+          "attrs": {
+            "source_label": "plant"
+          },
+          "trajectory_point_id": "tp_plant_382"
+        },
+        {
+          "id": "inst_plant_386",
+          "category": "plant",
+          "position": [
+            2.202,
+            1.456,
+            1.748
+          ],
+          "bbox3d": {
+            "center": [
+              2.202,
+              1.456,
+              1.748
+            ],
+            "size": [
+              0.161,
+              0.239,
+              0.195
+            ]
+          },
+          "attrs": {
+            "source_label": "plant"
+          },
+          "trajectory_point_id": "tp_plant_386"
+        },
+        {
+          "id": "inst_plant_387",
+          "category": "plant",
+          "position": [
+            2.298,
+            1.442,
+            1.723
+          ],
+          "bbox3d": {
+            "center": [
+              2.298,
+              1.442,
+              1.723
+            ],
+            "size": [
+              0.132,
+              0.186,
+              0.173
+            ]
+          },
+          "attrs": {
+            "source_label": "plant"
+          },
+          "trajectory_point_id": "tp_plant_387"
+        },
+        {
+          "id": "inst_plant_402",
+          "category": "plant",
+          "position": [
+            2.252,
+            0.599,
+            1.734
+          ],
+          "bbox3d": {
+            "center": [
+              2.252,
+              0.599,
+              1.734
+            ],
+            "size": [
+              0.174,
+              0.207,
+              0.164
+            ]
+          },
+          "attrs": {
+            "source_label": "flowerpot"
+          },
+          "trajectory_point_id": "tp_plant_402"
+        },
+        {
+          "id": "inst_plant_403",
+          "category": "plant",
+          "position": [
+            2.251,
+            0.741,
+            1.732
+          ],
+          "bbox3d": {
+            "center": [
+              2.251,
+              0.741,
+              1.732
+            ],
+            "size": [
+              0.226,
+              0.146,
+              0.223
+            ]
+          },
+          "attrs": {
+            "source_label": "plant"
+          },
+          "trajectory_point_id": "tp_plant_403"
+        },
+        {
+          "id": "inst_cabinet_531",
+          "category": "cabinet",
+          "position": [
+            4.177,
+            0.248,
+            2.586
+          ],
+          "bbox3d": {
+            "center": [
+              4.177,
+              0.248,
+              2.586
+            ],
+            "size": [
+              0.484,
+              0.496,
+              0.652
+            ]
+          },
+          "attrs": {
+            "source_label": "cabinet"
+          },
+          "trajectory_point_id": "tp_cabinet_531"
+        },
+        {
+          "id": "inst_plant_536",
+          "category": "plant",
+          "position": [
+            4.183,
+            0.643,
+            2.403
+          ],
+          "bbox3d": {
+            "center": [
+              4.183,
+              0.643,
+              2.403
+            ],
+            "size": [
+              0.23,
+              0.294,
+              0.208
+            ]
+          },
+          "attrs": {
+            "source_label": "flowers"
+          },
+          "trajectory_point_id": "tp_plant_536"
+        },
+        {
+          "id": "inst_chair_563",
+          "category": "chair",
+          "position": [
+            2.215,
+            0.172,
+            4.179
+          ],
+          "bbox3d": {
+            "center": [
+              2.215,
+              0.172,
+              4.179
+            ],
+            "size": [
+              0.487,
+              0.338,
+              0.7
+            ]
+          },
+          "attrs": {
+            "source_label": "stool"
+          },
+          "trajectory_point_id": "tp_chair_563"
+        },
+        {
+          "id": "inst_bed_566",
+          "category": "bed",
+          "position": [
+            3.384,
+            0.557,
+            3.932
+          ],
+          "bbox3d": {
+            "center": [
+              3.384,
+              0.557,
+              3.932
+            ],
+            "size": [
+              2.071,
+              1.089,
+              2.065
+            ]
+          },
+          "attrs": {
+            "source_label": "bed"
+          },
+          "trajectory_point_id": "tp_bed_566"
+        },
+        {
+          "id": "inst_chair_624",
+          "category": "chair",
+          "position": [
+            1.701,
+            0.494,
+            5.968
+          ],
+          "bbox3d": {
+            "center": [
+              1.701,
+              0.494,
+              5.968
+            ],
+            "size": [
+              1.406,
+              0.988,
+              1.4
+            ]
+          },
+          "attrs": {
+            "source_label": "chair"
+          },
+          "trajectory_point_id": "tp_chair_624"
+        }
+      ]
+    },
+    {
+      "id": "room_bedroom_second",
+      "type": "bedroom",
+      "name": "次卧",
+      "area": 16.7,
+      "polygon": [
+        [
+          -2.1,
+          -6.402
+        ],
+        [
+          1.0,
+          -6.402
+        ],
+        [
+          1.0,
+          -1.002
+        ],
+        [
+          -2.1,
+          -1.002
+        ],
+        [
+          -2.1,
+          -5.902
+        ]
+      ],
+      "adjacent_rooms": [
+        "room_living"
+      ],
+      "trajectory_point_id": "tp_bedroom_second",
+      "story_card": "次卧约16.7平。",
+      "instances": [
+        {
+          "id": "inst_bookshelf_101",
+          "category": "bookshelf",
+          "position": [
+            -1.957,
+            1.423,
+            -5.383
+          ],
+          "bbox3d": {
+            "center": [
+              -1.957,
+              1.423,
+              -5.383
+            ],
+            "size": [
+              0.286,
+              0.447,
+              1.217
+            ]
+          },
+          "attrs": {
+            "source_label": "bookshelf"
+          },
+          "trajectory_point_id": "tp_bookshelf_101"
+        },
+        {
+          "id": "inst_lamp_168",
+          "category": "lamp",
+          "position": [
+            -1.844,
+            0.899,
+            -6.027
+          ],
+          "bbox3d": {
+            "center": [
+              -1.844,
+              0.899,
+              -6.027
+            ],
+            "size": [
+              0.44,
+              0.403,
+              0.629
+            ]
+          },
+          "attrs": {
+            "source_label": "table lamp"
+          },
+          "trajectory_point_id": "tp_lamp_168"
+        },
+        {
+          "id": "inst_desk_169",
+          "category": "desk",
+          "position": [
+            -1.813,
+            0.351,
+            -5.415
+          ],
+          "bbox3d": {
+            "center": [
+              -1.813,
+              0.351,
+              -5.415
+            ],
+            "size": [
+              0.575,
+              0.702,
+              1.746
+            ]
+          },
+          "attrs": {
+            "source_label": "desk"
+          },
+          "trajectory_point_id": "tp_desk_169"
+        },
+        {
+          "id": "inst_bed_180",
+          "category": "bed",
+          "position": [
+            -0.051,
+            0.378,
+            -3.365
+          ],
+          "bbox3d": {
+            "center": [
+              -0.051,
+              0.378,
+              -3.365
+            ],
+            "size": [
+              1.845,
+              0.346,
+              1.82
+            ]
+          },
+          "attrs": {
+            "source_label": "mattress"
+          },
+          "trajectory_point_id": "tp_bed_180"
+        },
+        {
+          "id": "inst_bed_181",
+          "category": "bed",
+          "position": [
+            -0.007,
+            0.538,
+            -3.363
+          ],
+          "bbox3d": {
+            "center": [
+              -0.007,
+              0.538,
+              -3.363
+            ],
+            "size": [
+              2.013,
+              1.042,
+              1.879
+            ]
+          },
+          "attrs": {
+            "source_label": "bed"
+          },
+          "trajectory_point_id": "tp_bed_181"
+        },
+        {
+          "id": "inst_chair_182",
+          "category": "chair",
+          "position": [
+            -1.333,
+            0.179,
+            -3.68
+          ],
+          "bbox3d": {
+            "center": [
+              -1.333,
+              0.179,
+              -3.68
+            ],
+            "size": [
+              0.644,
+              0.352,
+              0.644
+            ]
+          },
+          "attrs": {
+            "source_label": "stool"
+          },
+          "trajectory_point_id": "tp_chair_182"
+        },
+        {
+          "id": "inst_bedside_table_192",
+          "category": "bedside_table",
+          "position": [
+            0.742,
+            0.252,
+            -4.633
+          ],
+          "bbox3d": {
+            "center": [
+              0.742,
+              0.252,
+              -4.633
+            ],
+            "size": [
+              0.47,
+              0.494,
+              0.637
+            ]
+          },
+          "attrs": {
+            "source_label": "bedside table"
+          },
+          "trajectory_point_id": "tp_bedside_table_192"
+        },
+        {
+          "id": "inst_lamp_199",
+          "category": "lamp",
+          "position": [
+            0.648,
+            0.802,
+            -4.661
+          ],
+          "bbox3d": {
+            "center": [
+              0.648,
+              0.802,
+              -4.661
+            ],
+            "size": [
+              0.306,
+              0.643,
+              0.408
+            ]
+          },
+          "attrs": {
+            "source_label": "table lamp"
+          },
+          "trajectory_point_id": "tp_lamp_199"
+        },
+        {
+          "id": "inst_chair_369",
+          "category": "chair",
+          "position": [
+            -1.233,
+            0.341,
+            -5.291
+          ],
+          "bbox3d": {
+            "center": [
+              -1.233,
+              0.341,
+              -5.291
+            ],
+            "size": [
+              0.515,
+              0.682,
+              0.537
+            ]
+          },
+          "attrs": {
+            "source_label": "chair"
+          },
+          "trajectory_point_id": "tp_chair_369"
+        },
+        {
+          "id": "inst_wardrobe_466",
+          "category": "wardrobe",
+          "position": [
+            -0.125,
+            1.4,
+            -1.342
+          ],
+          "bbox3d": {
+            "center": [
+              -0.125,
+              1.4,
+              -1.342
+            ],
+            "size": [
+              2.249,
+              2.8,
+              0.554
+            ]
+          },
+          "attrs": {
+            "source_label": "wardrobe"
+          },
+          "trajectory_point_id": "tp_wardrobe_466"
+        },
+        {
+          "id": "inst_plant_507",
+          "category": "plant",
+          "position": [
+            0.72,
+            0.853,
+            -5.907
+          ],
+          "bbox3d": {
+            "center": [
+              0.72,
+              0.853,
+              -5.907
+            ],
+            "size": [
+              0.558,
+              1.707,
+              0.989
+            ]
+          },
+          "attrs": {
+            "source_label": "plant"
+          },
+          "trajectory_point_id": "tp_plant_507"
+        }
+      ]
+    },
+    {
+      "id": "room_bedroom_3",
+      "type": "bedroom",
+      "name": "卧室3",
+      "area": 12.8,
+      "polygon": [
+        [
+          -2.1,
+          4.473
+        ],
+        [
+          -2.1,
+          0.338
+        ],
+        [
+          1.0,
+          0.338
+        ],
+        [
+          1.0,
+          4.473
+        ]
+      ],
+      "adjacent_rooms": [
+        "room_living"
+      ],
+      "trajectory_point_id": "tp_bedroom_3",
+      "story_card": "卧室3约12.8平。",
+      "instances": [
+        {
+          "id": "inst_bed_87",
+          "category": "bed",
+          "position": [
+            -1.173,
+            0.593,
+            2.368
+          ],
+          "bbox3d": {
+            "center": [
+              -1.173,
+              0.593,
+              2.368
+            ],
+            "size": [
+              1.801,
+              1.185,
+              2.001
+            ]
+          },
+          "attrs": {
+            "source_label": "bed"
+          },
+          "trajectory_point_id": "tp_bed_87"
+        },
+        {
+          "id": "inst_chair_211",
+          "category": "chair",
+          "position": [
+            0.344,
+            0.413,
+            4.032
+          ],
+          "bbox3d": {
+            "center": [
+              0.344,
+              0.413,
+              4.032
+            ],
+            "size": [
+              0.58,
+              0.827,
+              0.498
+            ]
+          },
+          "attrs": {
+            "source_label": "chair"
+          },
+          "trajectory_point_id": "tp_chair_211"
+        },
+        {
+          "id": "inst_bookshelf_239",
+          "category": "bookshelf",
+          "position": [
+            0.856,
+            1.573,
+            3.883
+          ],
+          "bbox3d": {
+            "center": [
+              0.856,
+              1.573,
+              3.883
+            ],
+            "size": [
+              0.288,
+              0.447,
+              1.165
+            ]
+          },
+          "attrs": {
+            "source_label": "bookshelf"
+          },
+          "trajectory_point_id": "tp_bookshelf_239"
+        },
+        {
+          "id": "inst_desk_306",
+          "category": "desk",
+          "position": [
+            0.71,
+            0.345,
+            3.892
+          ],
+          "bbox3d": {
+            "center": [
+              0.71,
+              0.345,
+              3.892
+            ],
+            "size": [
+              0.534,
+              0.834,
+              1.112
+            ]
+          },
+          "attrs": {
+            "source_label": "desk"
+          },
+          "trajectory_point_id": "tp_desk_306"
+        },
+        {
+          "id": "inst_plant_308",
+          "category": "plant",
+          "position": [
+            0.86,
+            0.816,
+            4.313
+          ],
+          "bbox3d": {
+            "center": [
+              0.86,
+              0.816,
+              4.313
+            ],
+            "size": [
+              0.071,
+              0.11,
+              0.072
+            ]
+          },
+          "attrs": {
+            "source_label": "flowerpot"
+          },
+          "trajectory_point_id": "tp_plant_308"
+        },
+        {
+          "id": "inst_lamp_317",
+          "category": "lamp",
+          "position": [
+            0.758,
+            1.061,
+            3.561
+          ],
+          "bbox3d": {
+            "center": [
+              0.758,
+              1.061,
+              3.561
+            ],
+            "size": [
+              0.437,
+              0.607,
+              0.313
+            ]
+          },
+          "attrs": {
+            "source_label": "table lamp"
+          },
+          "trajectory_point_id": "tp_lamp_317"
+        },
+        {
+          "id": "inst_plant_318",
+          "category": "plant",
+          "position": [
+            0.827,
+            0.947,
+            4.291
+          ],
+          "bbox3d": {
+            "center": [
+              0.827,
+              0.947,
+              4.291
+            ],
+            "size": [
+              0.289,
+              0.193,
+              0.214
+            ]
+          },
+          "attrs": {
+            "source_label": "plant"
+          },
+          "trajectory_point_id": "tp_plant_318"
+        },
+        {
+          "id": "inst_wardrobe_508",
+          "category": "wardrobe",
+          "position": [
+            -1.009,
+            1.4,
+            0.638
+          ],
+          "bbox3d": {
+            "center": [
+              -1.009,
+              1.4,
+              0.638
+            ],
+            "size": [
+              2.182,
+              2.8,
+              0.6
+            ]
+          },
+          "attrs": {
+            "source_label": "wardrobe"
+          },
+          "trajectory_point_id": "tp_wardrobe_508"
+        }
+      ]
+    },
+    {
+      "id": "room_bedroom_4",
+      "type": "bedroom",
+      "name": "卧室4",
+      "area": 12.5,
+      "polygon": [
+        [
+          1.12,
+          -2.602
+        ],
+        [
+          1.12,
+          -6.402
+        ],
+        [
+          4.42,
+          -6.402
+        ],
+        [
+          4.42,
+          -2.602
+        ]
+      ],
+      "adjacent_rooms": [
+        "room_living"
+      ],
+      "trajectory_point_id": "tp_bedroom_4",
+      "story_card": "卧室4约12.5平。",
+      "instances": [
+        {
+          "id": "inst_bed_462",
+          "category": "bed",
+          "position": [
+            3.0,
+            0.538,
+            -4.772
+          ],
+          "bbox3d": {
+            "center": [
+              3.0,
+              0.538,
+              -4.772
+            ],
+            "size": [
+              2.801,
+              1.075,
+              3.082
+            ]
+          },
+          "attrs": {
+            "source_label": "bed"
+          },
+          "trajectory_point_id": "tp_bed_462"
+        },
+        {
+          "id": "inst_wardrobe_630",
+          "category": "wardrobe",
+          "position": [
+            3.21,
+            1.4,
+            -2.902
+          ],
+          "bbox3d": {
+            "center": [
+              3.21,
+              1.4,
+              -2.902
+            ],
+            "size": [
+              2.387,
+              2.8,
+              0.602
+            ]
+          },
+          "attrs": {
+            "source_label": "wardrobe"
+          },
+          "trajectory_point_id": "tp_wardrobe_630"
+        }
+      ]
+    },
+    {
+      "id": "room_kitchen",
+      "type": "kitchen",
+      "name": "厨房",
+      "area": 7.6,
+      "polygon": [
+        [
+          -5.52,
+          6.538
+        ],
+        [
+          -5.52,
+          4.238
+        ],
+        [
+          -2.22,
+          4.238
+        ],
+        [
+          -2.22,
+          6.538
+        ]
+      ],
+      "adjacent_rooms": [
+        "room_living",
+        "room_other_2"
+      ],
+      "trajectory_point_id": "tp_kitchen",
+      "story_card": "厨房约7.6平。",
+      "instances": [
+        {
+          "id": "inst_cabinet_538",
+          "category": "cabinet",
+          "position": [
+            -3.694,
+            1.894,
+            6.327
+          ],
+          "bbox3d": {
+            "center": [
+              -3.694,
+              1.894,
+              6.327
+            ],
+            "size": [
+              2.945,
+              0.99,
+              0.422
+            ]
+          },
+          "attrs": {
+            "source_label": "wall cabinet"
+          },
+          "trajectory_point_id": "tp_cabinet_538"
+        },
+        {
+          "id": "inst_stove_539",
+          "category": "stove",
+          "position": [
+            -3.697,
+            0.805,
+            6.2
+          ],
+          "bbox3d": {
+            "center": [
+              -3.697,
+              0.805,
+              6.2
+            ],
+            "size": [
+              0.749,
+              0.04,
+              0.547
+            ]
+          },
+          "attrs": {
+            "source_label": "Gas stoves"
+          },
+          "trajectory_point_id": "tp_stove_539"
+        },
+        {
+          "id": "inst_sink_540",
+          "category": "sink",
+          "position": [
+            -5.35,
+            0.968,
+            5.326
+          ],
+          "bbox3d": {
+            "center": [
+              -5.35,
+              0.968,
+              5.326
+            ],
+            "size": [
+              0.174,
+              0.361,
+              0.208
+            ]
+          },
+          "attrs": {
+            "source_label": "faucet"
+          },
+          "trajectory_point_id": "tp_sink_540"
+        },
+        {
+          "id": "inst_sink_541",
+          "category": "sink",
+          "position": [
+            -5.194,
+            0.68,
+            5.319
+          ],
+          "bbox3d": {
+            "center": [
+              -5.194,
+              0.68,
+              5.319
+            ],
+            "size": [
+              0.543,
+              0.217,
+              0.973
+            ]
+          },
+          "attrs": {
+            "source_label": "Basin"
+          },
+          "trajectory_point_id": "tp_sink_541"
+        },
+        {
+          "id": "inst_cabinet_542",
+          "category": "cabinet",
+          "position": [
+            -3.871,
+            0.416,
+            5.381
+          ],
+          "bbox3d": {
+            "center": [
+              -3.871,
+              0.416,
+              5.381
+            ],
+            "size": [
+              3.3,
+              0.832,
+              2.277
+            ]
+          },
+          "attrs": {
+            "source_label": "cupboard"
+          },
+          "trajectory_point_id": "tp_cabinet_542"
+        }
+      ]
+    },
+    {
+      "id": "room_other_1",
+      "type": "living_room",
+      "name": "其他",
+      "area": 7.2,
+      "polygon": [
+        [
+          -2.22,
+          -7.562
+        ],
+        [
+          -2.22,
+          -5.962
+        ],
+        [
+          -6.72,
+          -5.962
+        ],
+        [
+          -6.72,
+          -7.562
+        ]
+      ],
+      "adjacent_rooms": [
+        "room_living"
+      ],
+      "trajectory_point_id": "tp_other_1",
+      "story_card": "其他约7.2平。",
+      "instances": [
+        {
+          "id": "inst_plant_458",
+          "category": "plant",
+          "position": [
+            -5.798,
+            0.308,
+            -7.348
+          ],
+          "bbox3d": {
+            "center": [
+              -5.798,
+              0.308,
+              -7.348
+            ],
+            "size": [
+              1.872,
+              0.617,
+              0.721
+            ]
+          },
+          "attrs": {
+            "source_label": "plant"
+          },
+          "trajectory_point_id": "tp_plant_458"
+        },
+        {
+          "id": "inst_plant_629",
+          "category": "plant",
+          "position": [
+            -2.677,
+            0.843,
+            -6.428
+          ],
+          "bbox3d": {
+            "center": [
+              -2.677,
+              0.843,
+              -6.428
+            ],
+            "size": [
+              0.945,
+              1.687,
+              0.933
+            ]
+          },
+          "attrs": {
+            "source_label": "plant"
+          },
+          "trajectory_point_id": "tp_plant_629"
+        }
+      ]
+    },
+    {
+      "id": "room_other_2",
+      "type": "living_room",
+      "name": "其他",
+      "area": 6.0,
+      "polygon": [
+        [
+          1.0,
+          6.538
+        ],
+        [
+          -2.1,
+          6.538
+        ],
+        [
+          -2.1,
+          4.593
+        ],
+        [
+          1.0,
+          4.593
+        ]
+      ],
+      "adjacent_rooms": [
+        "room_kitchen"
+      ],
+      "trajectory_point_id": "tp_other_2",
+      "story_card": "其他约6平。",
+      "instances": [
+        {
+          "id": "inst_plant_625",
+          "category": "plant",
+          "position": [
+            0.593,
+            0.789,
+            5.026
+          ],
+          "bbox3d": {
+            "center": [
+              0.593,
+              0.789,
+              5.026
+            ],
+            "size": [
+              0.706,
+              1.579,
+              0.872
+            ]
+          },
+          "attrs": {
+            "source_label": "plant"
+          },
+          "trajectory_point_id": "tp_plant_625"
+        }
+      ]
+    },
+    {
+      "id": "room_bathroom",
+      "type": "bathroom",
+      "name": "卫生间",
+      "area": 4.5,
+      "polygon": [
+        [
+          4.42,
+          -0.612
+        ],
+        [
+          4.42,
+          1.338
+        ],
+        [
+          2.114,
+          1.338
+        ],
+        [
+          2.114,
+          -0.612
+        ]
+      ],
+      "adjacent_rooms": [
+        "room_bedroom_master"
+      ],
+      "trajectory_point_id": "tp_bathroom",
+      "story_card": "卫生间约4.5平。",
+      "instances": [
+        {
+          "id": "inst_toilet_100",
+          "category": "toilet",
+          "position": [
+            4.15,
+            0.175,
+            0.807
+          ],
+          "bbox3d": {
+            "center": [
+              4.15,
+              0.175,
+              0.807
+            ],
+            "size": [
+              0.539,
+              0.35,
+              0.36
+            ]
+          },
+          "attrs": {
+            "source_label": "toilet"
+          },
+          "trajectory_point_id": "tp_toilet_100"
+        },
+        {
+          "id": "inst_shower_585",
+          "category": "shower",
+          "position": [
+            4.051,
+            1.166,
+            -0.42
+          ],
+          "bbox3d": {
+            "center": [
+              4.051,
+              1.166,
+              -0.42
+            ],
+            "size": [
+              0.573,
+              1.574,
+              0.385
+            ]
+          },
+          "attrs": {
+            "source_label": "shower head"
+          },
+          "trajectory_point_id": "tp_shower_585"
+        },
+        {
+          "id": "inst_shower_586",
+          "category": "shower",
+          "position": [
+            3.983,
+            0.976,
+            -0.162
+          ],
+          "bbox3d": {
+            "center": [
+              3.983,
+              0.976,
+              -0.162
+            ],
+            "size": [
+              0.871,
+              1.872,
+              0.894
+            ]
+          },
+          "attrs": {
+            "source_label": "Shower room partition"
+          },
+          "trajectory_point_id": "tp_shower_586"
+        },
+        {
+          "id": "inst_sink_612",
+          "category": "sink",
+          "position": [
+            2.517,
+            1.151,
+            -0.469
+          ],
+          "bbox3d": {
+            "center": [
+              2.517,
+              1.151,
+              -0.469
+            ],
+            "size": [
+              0.271,
+              0.08,
+              0.19
+            ]
+          },
+          "attrs": {
+            "source_label": "faucet"
+          },
+          "trajectory_point_id": "tp_sink_612"
+        },
+        {
+          "id": "inst_sink_619",
+          "category": "sink",
+          "position": [
+            2.514,
+            0.802,
+            -0.328
+          ],
+          "bbox3d": {
+            "center": [
+              2.514,
+              0.802,
+              -0.328
+            ],
+            "size": [
+              1.0,
+              0.404,
+              0.474
+            ]
+          },
+          "attrs": {
+            "source_label": "Basin cabinet"
+          },
+          "trajectory_point_id": "tp_sink_619"
+        }
+      ]
+    },
+    {
+      "id": "room_bathroom_2",
+      "type": "bathroom",
+      "name": "卫生间2",
+      "area": 4.0,
+      "polygon": [
+        [
+          2.114,
+          -0.732
+        ],
+        [
+          2.114,
+          -2.482
+        ],
+        [
+          4.42,
+          -2.482
+        ],
+        [
+          4.42,
+          -0.732
+        ]
+      ],
+      "adjacent_rooms": [
+        "room_living"
+      ],
+      "trajectory_point_id": "tp_bathroom_2",
+      "story_card": "卫生间2约4平。",
+      "instances": [
+        {
+          "id": "inst_shower_549",
+          "category": "shower",
+          "position": [
+            4.226,
+            1.166,
+            -1.101
+          ],
+          "bbox3d": {
+            "center": [
+              4.226,
+              1.166,
+              -1.101
+            ],
+            "size": [
+              0.385,
+              1.574,
+              0.573
+            ]
+          },
+          "attrs": {
+            "source_label": "shower head"
+          },
+          "trajectory_point_id": "tp_shower_549"
+        },
+        {
+          "id": "inst_shower_550",
+          "category": "shower",
+          "position": [
+            3.969,
+            0.976,
+            -1.168
+          ],
+          "bbox3d": {
+            "center": [
+              3.969,
+              0.976,
+              -1.168
+            ],
+            "size": [
+              0.894,
+              1.872,
+              0.871
+            ]
+          },
+          "attrs": {
+            "source_label": "Shower room partition"
+          },
+          "trajectory_point_id": "tp_shower_550"
+        },
+        {
+          "id": "inst_sink_601",
+          "category": "sink",
+          "position": [
+            2.783,
+            1.151,
+            -0.874
+          ],
+          "bbox3d": {
+            "center": [
+              2.783,
+              1.151,
+              -0.874
+            ],
+            "size": [
+              0.271,
+              0.08,
+              0.19
+            ]
+          },
+          "attrs": {
+            "source_label": "faucet"
+          },
+          "trajectory_point_id": "tp_sink_601"
+        },
+        {
+          "id": "inst_sink_608",
+          "category": "sink",
+          "position": [
+            2.786,
+            0.802,
+            -1.015
+          ],
+          "bbox3d": {
+            "center": [
+              2.786,
+              0.802,
+              -1.015
+            ],
+            "size": [
+              1.0,
+              0.404,
+              0.474
+            ]
+          },
+          "attrs": {
+            "source_label": "Basin cabinet"
+          },
+          "trajectory_point_id": "tp_sink_608"
+        },
+        {
+          "id": "inst_toilet_622",
+          "category": "toilet",
+          "position": [
+            4.184,
+            0.345,
+            -2.041
+          ],
+          "bbox3d": {
+            "center": [
+              4.184,
+              0.345,
+              -2.041
+            ],
+            "size": [
+              0.471,
+              0.689,
+              0.395
+            ]
+          },
+          "attrs": {
+            "source_label": "toilet"
+          },
+          "trajectory_point_id": "tp_toilet_622"
+        }
+      ]
+    }
+  ],
+  "tour_path": [
+    "room_living",
+    "room_kitchen",
+    "room_bedroom_master",
+    "room_bathroom",
+    "room_bathroom_2",
+    "room_bedroom_second",
+    "room_bedroom_3",
+    "room_bedroom_4",
+    "room_other_1",
+    "room_other_2"
+  ],
+  "topology": {
+    "adjacency": [
+      {
+        "from": "room_bedroom_master",
+        "to": "room_bathroom"
+      },
+      {
+        "from": "room_kitchen",
+        "to": "room_other_2"
+      },
+      {
+        "from": "room_living",
+        "to": "room_bathroom_2"
+      },
+      {
+        "from": "room_living",
+        "to": "room_bedroom_3"
+      },
+      {
+        "from": "room_living",
+        "to": "room_bedroom_4"
+      },
+      {
+        "from": "room_living",
+        "to": "room_bedroom_master"
+      },
+      {
+        "from": "room_living",
+        "to": "room_bedroom_second"
+      },
+      {
+        "from": "room_living",
+        "to": "room_kitchen"
+      },
+      {
+        "from": "room_living",
+        "to": "room_other_1"
+      }
+    ]
+  },
+  "_notes": [
+    "PLACEHOLDER house.title/orientation/floor/price/tags：数据集无这些字段",
+    "PLACEHOLDER house.facts 仅 ceiling_height=2.8 为 walls[].height 实测；物业费/得房率未填",
+    "house_center origin_xz=(2.839056,3.219509) 本场景独立标定，禁止套用 0330",
+    "coords: InteriorGS Z-up (x,y,z) -> SPEC Y-up (x, z, -y); origin=house_center",
+    "room types inferred from instance labels inside polygons (structure.json has no room_type)",
+    "downlights excluded; lamp = floor lamp / table lamp only",
+    "polygon simplified Douglas-Peucker eps=0.08m"
+  ]
+}

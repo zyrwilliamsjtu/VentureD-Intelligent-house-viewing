@@ -193,8 +193,9 @@ def test_l1_agent_chat_success_snake_case() -> None:
     _assert_snake_case_keys(body, case=case)
     assert "reply_text" in body, f"{case}: 缺少必填字段 reply_text"
     assert isinstance(body["reply_text"], str)
-    assert "tts_url" not in body, f"{case}: stub 无 tts 时应省略 tts_url，实际 {body}"
-    assert "actions" not in body, f"{case}: stub 无动作时应省略 actions，实际 {body}"
+    assert "tts_url" not in body, f"{case}: 无 tts 时应省略 tts_url，实际 {body}"
+    if "actions" in body:
+        assert isinstance(body["actions"], list), f"{case}: actions 应为 list，实际 {body}"
 
 
 def test_l1_agent_asr_multipart_audio() -> None:

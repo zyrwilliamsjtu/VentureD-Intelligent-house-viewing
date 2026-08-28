@@ -1,18 +1,20 @@
-"""Agent contract gateway (SPEC v2.2 §3). Stub only — no agent business logic.
-
-TODO: 待接入 B 的 agent 实现（透传 session_id，转发 chat/asr/tts/narration/tour）。
-"""
+"""Agent contract gateway (SPEC v2.2 §3). 语义实现：app.services.agent。"""
 from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, File, Request, UploadFile
 
 from app.schemas.errors import GatewayError
+from app.services.agent import (
+    handle_asr,
+    handle_chat,
+    handle_narration,
+    handle_tour,
+    handle_tts,
+)
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
-
-_STUB_REPLY = "（stub）契约测试回复，agent 逻辑待接入。"
 
 
 def _form_str(value: Any) -> str | None:
@@ -24,7 +26,6 @@ def _form_str(value: Any) -> str | None:
 
 @router.post("/chat")
 async def chat(request: Request) -> dict:
-    # TODO: 待接入 agent 实现（按 session_id 维护多轮上下文）
     ctype = (request.headers.get("content-type") or "").lower()
     audio = None
     body: dict[str, Any] = {}
@@ -58,52 +59,64 @@ async def chat(request: Request) -> dict:
     if not has_text and not has_audio and event != "enter_room":
         raise GatewayError(400, "AGENT_ERROR", "user_text 与 audio 二选一")
 
-    _ = session_id  # stub 阶段仅透传，不落会话存储
-    # SPEC §0：可选字段无值时省略（不发 null / 空数组）
-    return {"reply_text": _STUB_REPLY}
+    room_id = _form_str(body.get("room_id"))
+    listing_id = _form_str(body.get("listing_id"))
+    return handle_chat(
+        session_id=session_id,
+        world_id=world_id,
+        user_text=user_text if isinstance(user_text, str) else None,
+        event=event,
+        room_id=room_id,
+        listing_id=listing_id,
+        audio=audio,
+    )
 
 
 @router.post("/asr")
-async def asr(request: Request) -> dict:
-    # TODO: 待接入 agent ASR
+def asr(request: Request, audio: UploadFile | None = File(None)) -> dict:
+    """同步路由：FastAPI 放线程池执行，内部 asyncio.run 才不会撞上 uvicorn 事件循环。"""
     ctype = (request.headers.get("content-type") or "").lower()
     if "multipart/form-data" not in ctype:
         raise GatewayError(400, "ASR_FAILED", "需要 multipart/form-data 上传 audio")
-    form = await request.form()
-    if "audio" not in form:
+    if audio is None:
         raise GatewayError(400, "ASR_FAILED", "缺少 audio")
-    return {"text": "", "duration_ms": 0}
+    return handle_asr(audio)
 
 
 @router.post("/tts")
 async def tts(request: Request) -> dict:
-    # TODO: 待接入 agent TTS（同文本可缓存）
     try:
         body = await request.json()
     except Exception:
         raise GatewayError(400, "TTS_FAILED", "请求体无效") from None
     if not isinstance(body, dict) or not body.get("text"):
         raise GatewayError(400, "TTS_FAILED", "text 必填")
-    return {}
+    voice = body.get("voice")
+    return handle_tts(str(body["text"]), voice=str(voice) if voice else None)
 
 
 @router.get("/narration")
-def narration(world_id: str | None = None, room_id: str | None = None) -> dict:
-    # TODO: 待接入 agent 进房讲解；无内容时按 SPEC 可 404
+def narration(
+    world_id: str | None = None,
+    room_id: str | None = None,
+    session_id: str | None = None,
+    listing_id: str | None = None,
+) -> dict:
     if not world_id or not room_id:
         raise GatewayError(400, "AGENT_ERROR", "world_id 与 room_id 必填")
-    return {"reply_text": "（stub）"}
+    return handle_narration(world_id, room_id, session_id=session_id, listing_id=listing_id)
 
 
 @router.post("/tour")
 async def tour(request: Request) -> dict:
-    # TODO: 待接入 agent tour（主动讲解以 narration + enter_room 为主）
     try:
         body = await request.json()
     except Exception:
         raise GatewayError(400, "AGENT_ERROR", "请求体无效") from None
     if not isinstance(body, dict):
         raise GatewayError(400, "AGENT_ERROR", "请求体无效")
-    if not _form_str(body.get("world_id")) or not _form_str(body.get("session_id")):
+    world_id = _form_str(body.get("world_id"))
+    session_id = _form_str(body.get("session_id"))
+    if not world_id or not session_id:
         raise GatewayError(400, "AGENT_ERROR", "world_id 与 session_id 必填")
-    return {"steps": []}
+    return handle_tour(world_id, session_id)

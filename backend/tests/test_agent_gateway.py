@@ -21,7 +21,10 @@ def test_chat_stub_json() -> None:
     assert isinstance(body["reply_text"], str)
     assert body["reply_text"]
     assert "tts_url" not in body
-    assert "actions" not in body
+    assert "reply_text" in body
+    # M1 规则版：导航问句带 tp_id 动作；无 TTS
+    if "actions" in body:
+        assert isinstance(body["actions"], list)
 
 
 def test_chat_requires_session_and_world() -> None:
@@ -68,4 +71,6 @@ def test_tour_stub() -> None:
     )
     assert resp.status_code == 200
     body = resp.json()
-    assert body["steps"] == []
+    assert isinstance(body["steps"], list)
+    assert len(body["steps"]) >= 1
+    assert body["steps"][0].get("room_id")

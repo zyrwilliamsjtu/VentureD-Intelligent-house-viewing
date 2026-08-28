@@ -10,6 +10,10 @@ from app.config import REPO_ROOT
 WORLD_FILES: dict[str, Path] = {
     "w_mock_001": REPO_ROOT / "mock" / "scene_graph.json",
     "w_0330_840483": REPO_ROOT / "mock" / "real_0330" / "scene_graph.json",
+    "w_0469_840829": REPO_ROOT / "mock" / "0469_840829" / "scene_graph.json",
+    "w_0259_840804": REPO_ROOT / "mock" / "0259_840804" / "scene_graph.json",
+    "w_0309_840544": REPO_ROOT / "mock" / "0309_840544" / "scene_graph.json",
+    "w_0836_841149": REPO_ROOT / "mock" / "0836_841149" / "scene_graph.json",
 }
 
 
