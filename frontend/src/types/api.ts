@@ -123,6 +123,12 @@ export interface TourResponse {
   steps: TourStep[]
 }
 
+/** SPEC §3.4 GET /api/agent/narration */
+export interface NarrationResponse {
+  reply_text: string
+  tts_url?: string | null
+}
+
 export interface HistoryItem {
   role: 'user' | 'assistant'
   text: string

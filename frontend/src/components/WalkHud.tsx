@@ -243,7 +243,7 @@ export function WalkHud({ worldId, listing }: { worldId: string; listing?: World
   const roomId = useAppStore((s) => s.player?.room_id ?? null)
   const house = useAppStore((s) => s.house) as House | null
   const zone = house?.zones.find((z) => z.id === roomId) ?? null
-  useRoomNarration() // 进房主动讲解：room_id 切换 → enter_room → toast + TTS
+  useRoomNarration(worldId) // 进房主动讲解：room_id 切换 → enter_room → toast + TTS
 
   return (
     <div className="walk-hud">
@@ -272,6 +272,7 @@ export function WalkHud({ worldId, listing }: { worldId: string; listing?: World
         <span><b>鼠标</b> 视角</span>
         <span><b>点击</b> 传送</span>
         <span><b>Shift</b> 快走</span>
+        <span><b>B</b> 带看</span>
         <span><b>ESC</b> 释放鼠标</span>
       </div>
 

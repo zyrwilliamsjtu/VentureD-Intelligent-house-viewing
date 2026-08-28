@@ -1,17 +1,17 @@
 import { useEffect } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { agentChat, getSessionId, loadScene } from '../services/agent'
+import { fetchNarration } from '../services/narration'
+import { listingIdForWorld } from './worlds'
 import { playTts } from './agentActions'
 
-// ==== 进房主动讲解（SPEC §3.1 event=enter_room / §3.4 narration）====
-// 订阅 store.player.room_id（视口 200ms 节流发布的房间归因，点云系 polygon 判定），
-// 房间切换后防抖 700ms 触发一次 agentChat(event='enter_room')，回答走 toast + TTS。
-// 每房间每会话只讲一次（Set 去重，防止来回踱步刷屏）；失败静默，绝不打断漫游。
-// 注意：未对拍世界 room_id 恒为 null（WORKLOG D3 恒等降级）→ 本 hook 自然不触发。
+// 进房讲解：优先 GET /api/agent/narration（story_card + selling_points）；
+// 失败/404 回落 chat event=enter_room。带看中跳过，避免与 tour 双讲。
+// 每房间每会话只讲一次（前端 Set）；未对拍世界 room_id=null 不触发。
 
 const DEBOUNCE_MS = 700
 
-export function useRoomNarration(): void {
+export function useRoomNarration(worldId: string): void {
   const entered = useAppStore((s) => s.entered)
 
   useEffect(() => {
@@ -22,37 +22,61 @@ export function useRoomNarration(): void {
 
     const unsub = useAppStore.subscribe((s, prev) => {
       const room = s.player?.room_id ?? null
-      if (room === (prev.player?.room_id ?? null)) return // 只关心房间切换
+      if (room === (prev.player?.room_id ?? null)) return
       if (timer) window.clearTimeout(timer)
-      if (s.tourActive) return // 自主带看自己讲，避免 enter_room 双讲
-      if (!room) return // 走出房间（走廊/归因失败）：不触发
+      if (s.tourActive) return
+      if (!room) return
 
-      // 防抖：门口晃动不算进房；期间房间又变了则作废
       timer = window.setTimeout(() => {
         timer = null
         if (!alive) return
         const st = useAppStore.getState()
         const p = st.player
         if (!p || st.tourActive || p.room_id !== room || narrated.has(room)) return
-        narrated.add(room)
+
         void (async () => {
           try {
-            const res = await agentChat({
-              session_id: getSessionId(),
-              world_id: p.world_id,
-              user_text: null,
-              player_position: p.position,
-              player_facing: p.facing,
-              room_id: room,
-              event: 'enter_room',
-            })
-            if (!alive || !res.reply_text) return
+            const sid = getSessionId()
+            let text = ''
+            let tts: string | null | undefined
+            let source: 'narration' | 'enter_room' = 'narration'
+            try {
+              const nar = await fetchNarration({
+                worldId: p.world_id,
+                roomId: room,
+                sessionId: sid,
+                listingId: listingIdForWorld(p.world_id),
+              })
+              if (nar?.reply_text) {
+                text = nar.reply_text
+                tts = nar.tts_url
+              }
+            } catch (e) {
+              console.warn('[narration] GET 失败 → 回落 enter_room', e)
+            }
+            if (!text) {
+              source = 'enter_room'
+              const res = await agentChat({
+                session_id: sid,
+                world_id: p.world_id,
+                user_text: null,
+                player_position: p.position,
+                player_facing: p.facing,
+                room_id: room,
+                event: 'enter_room',
+              })
+              text = res.reply_text ?? ''
+              tts = res.tts_url
+            }
+            if (!alive || !text) return
+            narrated.add(room)
             const scene = await loadScene(p.world_id)
             const name = scene?.rooms.find((r) => r.id === room)?.name ?? '当前房间'
-            st.showToast(name, res.reply_text)
-            playTts(res.tts_url)
+            st.showToast(name, text)
+            playTts(tts)
+            console.info('[narration] %s %s via %s', p.world_id, room, source)
           } catch {
-            /* 讲解失败静默：不影响漫游与对话 */
+            /* 讲解失败静默 */
           }
         })()
       }, DEBOUNCE_MS)
@@ -63,5 +87,5 @@ export function useRoomNarration(): void {
       if (timer) window.clearTimeout(timer)
       unsub()
     }
-  }, [entered])
+  }, [entered, worldId])
 }

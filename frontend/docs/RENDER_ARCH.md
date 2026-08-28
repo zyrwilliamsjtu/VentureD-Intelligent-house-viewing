@@ -49,7 +49,7 @@ AholoViewport（仍用此文件名，避免大范围改 import）
 | `src/scene/coords.ts` | `CLOUD_RULES`、scene↔点云、tp 表、房间 polygon、`resolveTeleportCloud` |
 | `src/scene/voxel.ts` | splat-transform 体素查询（0330 规则级 `voxel:false`） |
 | `src/scene/agentActions.ts` | chat 动作：teleport / InfoCard / highlight 光柱 / TTS |
-| `src/scene/narration.ts` | `room_id` 切换 → `event=enter_room` |
+| `src/scene/narration.ts` | 进房：GET `/api/agent/narration`，失败回落 `enter_room` |
 | `src/scene/tourPlayer.ts` | `POST /api/agent/tour` 动线播放 |
 | `src/scene/highlightMarker.ts` | highlight 光柱 Mesh |
 | `src/components/InfoCard.tsx` | show_card HUD 卡 |
@@ -118,7 +118,7 @@ AholoViewport（仍用此文件名，避免大范围改 import）
 | 文件名 `AholoViewport` | 历史包袱，未改名以免大 diff |
 | `highlight` 3D 标记 | `tp_id` → camera_poses 点云落点上的陶土橙光柱（8s）；无 tp 则 toast |
 | `show_card` | HUD `InfoCard`（可关 / 6s） |
-| `GET /api/agent/narration` | 前端走 chat `event=enter_room`，未打独立 GET（步 4） |
+| `GET /api/agent/narration` | 进房优先 GET；404/失败回落 chat `enter_room`；带看中跳过 |
 | 常驻房源/房间卡 | `PlaceFacts`：listings 户型面积卖点 + `player.room_id` 对应 zone 讲解 |
 
 ---
