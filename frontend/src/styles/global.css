@@ -266,3 +266,561 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   color: var(--ink);
   background: var(--frost-bg-strong);
 }
+
+/* ================= 高端房产落地页（Splash.landing）================= */
+.splash.landing {
+  overflow-y: auto;
+  background:
+    radial-gradient(1000px 620px at 18% -8%, rgba(196, 97, 60, 0.22), transparent 60%),
+    radial-gradient(900px 560px at 92% 12%, rgba(120, 90, 40, 0.18), transparent 55%),
+    linear-gradient(180deg, #0c0d11 0%, #12141a 55%, #0b0c10 100%);
+  color: #f3f0ea;
+}
+
+.splash.landing * {
+  box-sizing: border-box;
+}
+
+.splash.landing a {
+  cursor: pointer;
+}
+
+/* ---- 顶部导航 ---- */
+.land-nav {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px clamp(20px, 5vw, 72px);
+  background: rgba(12, 13, 17, 0.55);
+  backdrop-filter: blur(18px) saturate(140%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.land-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.land-logo-mark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  font-family: var(--font-serif, 'Songti SC', serif);
+  font-size: 17px;
+  color: #211a10;
+  background: linear-gradient(135deg, #e6c98c, #c9a86a);
+  box-shadow: 0 6px 18px rgba(201, 168, 106, 0.35);
+}
+
+.land-logo-text {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #f6f3ec;
+}
+
+.land-menu {
+  display: flex;
+  gap: 28px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.land-menu a {
+  transition: color 0.15s ease;
+}
+
+.land-menu a:hover {
+  color: #e6c98c;
+}
+
+.land-cta {
+  padding: 9px 22px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #211a10;
+  background: linear-gradient(135deg, #e6c98c, #c9a86a);
+  box-shadow: 0 8px 24px rgba(201, 168, 106, 0.3);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.land-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(201, 168, 106, 0.42);
+}
+
+/* ---- Hero ---- */
+.land-hero {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 40px;
+  align-items: center;
+  padding: clamp(56px, 9vw, 120px) clamp(20px, 5vw, 72px) 60px;
+}
+
+.hero-kicker {
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  color: #e6c98c;
+  margin-bottom: 20px;
+}
+
+.hero-copy h1 {
+  margin: 0;
+  font-family: 'Songti SC', 'STSong', Georgia, serif;
+  font-weight: 600;
+  font-size: clamp(44px, 6.4vw, 84px);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  color: #f6f3ec;
+}
+
+.hero-copy h1 em {
+  font-style: italic;
+  background: linear-gradient(120deg, #e6c98c, #c9a86a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero-sub {
+  max-width: 480px;
+  margin: 22px 0 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.hero-btn {
+  padding: 13px 28px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: 0.18s ease;
+}
+
+.hero-btn.primary {
+  color: #211a10;
+  background: linear-gradient(135deg, #e6c98c, #c9a86a);
+  box-shadow: 0 10px 28px rgba(201, 168, 106, 0.32);
+}
+
+.hero-btn.primary:hover {
+  transform: translateY(-2px);
+}
+
+.hero-btn.ghost {
+  color: #f6f3ec;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+}
+
+.hero-btn.ghost:hover {
+  border-color: rgba(230, 201, 140, 0.7);
+  color: #e6c98c;
+}
+
+.hero-stats {
+  display: flex;
+  gap: 26px;
+  margin-top: 34px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.46);
+}
+
+/* ---- 实景预览（玻璃卡）---- */
+.glass-preview {
+  position: relative;
+  min-height: 360px;
+  border-radius: 24px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03)),
+    radial-gradient(600px 340px at 70% 20%, rgba(230, 201, 140, 0.16), transparent 60%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(20px) saturate(140%);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.preview-glow {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.06) 48%, transparent 62%),
+    radial-gradient(400px 240px at 50% 100%, rgba(201, 168, 106, 0.18), transparent 65%);
+  pointer-events: none;
+}
+
+.preview-badge {
+  position: relative;
+  align-self: flex-start;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: #e6c98c;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(230, 201, 140, 0.35);
+  background: rgba(12, 13, 17, 0.5);
+}
+
+.preview-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 14px;
+  padding: 60px 0;
+}
+
+.preview-hint {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+.preview-play {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  padding-left: 5px;
+  color: #211a10;
+  background: linear-gradient(135deg, #e6c98c, #c9a86a);
+  box-shadow: 0 14px 40px rgba(201, 168, 106, 0.45);
+  transition: transform 0.18s ease;
+}
+
+.preview-play:hover {
+  transform: scale(1.08);
+}
+
+.preview-meta {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* ---- 通用玻璃卡 / 区块 ---- */
+.glass-card {
+  border-radius: 20px;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow:
+    0 22px 60px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.land-section {
+  padding: 64px clamp(20px, 5vw, 72px);
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 30px;
+}
+
+.section-kicker {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: #e6c98c;
+  margin-bottom: 8px;
+}
+
+.section-head h2 {
+  margin: 0;
+  font-family: 'Songti SC', 'STSong', Georgia, serif;
+  font-size: clamp(28px, 3.6vw, 42px);
+  font-weight: 600;
+  color: #f6f3ec;
+}
+
+.section-more {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.62);
+  transition: color 0.15s ease;
+}
+
+.section-more:hover {
+  color: #e6c98c;
+}
+
+/* ---- 房源玻璃卡 ---- */
+.prop-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.prop-card {
+  text-align: left;
+  padding: 22px;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.prop-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(230, 201, 140, 0.55);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(230, 201, 140, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.prop-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.prop-badge {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: #e6c98c;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(230, 201, 140, 0.35);
+  background: rgba(12, 13, 17, 0.45);
+}
+
+.prop-price {
+  text-align: right;
+}
+
+.prop-price b {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+  color: #f6f3ec;
+  font-variant-numeric: tabular-nums;
+}
+
+.prop-price i {
+  font-style: normal;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.prop-plan {
+  display: flex;
+  gap: 10px;
+  margin: 18px 0 12px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.prop-plan span {
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.prop-name {
+  margin: 0 0 8px;
+  font-family: 'Songti SC', 'STSong', Georgia, serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: #f6f3ec;
+}
+
+.prop-highlight {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.prop-foot {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ---- 顾问团队 ---- */
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.agent-card {
+  padding: 26px 24px;
+}
+
+.agent-avatar {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  font-family: 'Songti SC', serif;
+  font-size: 22px;
+  color: #211a10;
+  background: linear-gradient(135deg, #e6c98c, #c9a86a);
+  margin-bottom: 16px;
+  box-shadow: 0 10px 26px rgba(201, 168, 106, 0.3);
+}
+
+.agent-role {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: #e6c98c;
+  margin-bottom: 8px;
+}
+
+.agent-card h3 {
+  margin: 0 0 8px;
+  font-family: 'Songti SC', 'STSong', Georgia, serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: #f6f3ec;
+}
+
+.agent-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ---- 预约表单 ---- */
+.contact-form {
+  max-width: 720px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.contact-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.contact-form input,
+.contact-form select,
+.contact-form textarea {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f6f3ec;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.contact-form input:focus,
+.contact-form select:focus,
+.contact-form textarea:focus {
+  border-color: rgba(230, 201, 140, 0.7);
+}
+
+.contact-form textarea {
+  resize: vertical;
+}
+
+.form-submit {
+  align-self: flex-start;
+  padding: 12px 30px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #211a10;
+  background: linear-gradient(135deg, #e6c98c, #c9a86a);
+  box-shadow: 0 10px 28px rgba(201, 168, 106, 0.32);
+  transition: transform 0.18s ease;
+}
+
+.form-submit:hover {
+  transform: translateY(-2px);
+}
+
+.form-note {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* ---- 页脚 ---- */
+.land-foot {
+  display: flex;
+  justify-content: space-between;
+  padding: 24px clamp(20px, 5vw, 72px) 40px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.35);
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+@media (max-width: 860px) {
+  .land-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .prop-grid,
+  .agent-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .land-menu {
+    display: none;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
