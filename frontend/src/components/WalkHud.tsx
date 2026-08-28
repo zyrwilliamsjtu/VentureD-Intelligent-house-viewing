@@ -4,6 +4,7 @@ import { agentChat, getSessionId } from '../services/agent'
 import { agentAsr } from '../services/asr'
 import { PttRecorder, type Recording } from '../services/recorder'
 import { executeAgentActions, playTts } from '../scene/agentActions'
+import { useRoomNarration } from '../scene/narration'
 import type { House } from '../types/api'
 
 // ==== 极简漫游 HUD：房源信息 · 当前房间 · Agent 对话 · 操作提示 ====
@@ -238,6 +239,7 @@ export function WalkHud() {
   const locked = useAppStore((s) => s.pointerLocked)
   const [agentOpen, setAgentOpen] = useState(false)
   const zone = house?.zones.find((z) => z.id === currentZone) ?? null
+  useRoomNarration() // 进房主动讲解：room_id 切换 → enter_room → toast + TTS
 
   return (
     <div className="walk-hud">

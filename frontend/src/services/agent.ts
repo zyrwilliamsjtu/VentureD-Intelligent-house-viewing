@@ -70,7 +70,7 @@ const ZH: Record<string, string> = {
   lamp: '灯', curtain: '窗帘', bedside_table: '床头柜', bookshelf: '书架', plant: '绿植',
 }
 
-interface MockScene {
+export interface MockScene {
   house: { title: string; type: string; total_area: number; orientation: string; price: string }
   rooms: Array<{
     id: string
@@ -91,8 +91,8 @@ interface MockScene {
 
 let sceneCache: MockScene | null = null
 
-/** 按世界加载 scene_graph（0330 真实数据 / 其余根目录手写 mock），与 coords.ts 同源 */
-async function loadScene(worldId: string): Promise<MockScene | null> {
+/** 按世界加载 scene_graph（0330 真实数据 / 其余根目录手写 mock），与 coords.ts 同源；narration 复用 */
+export async function loadScene(worldId: string): Promise<MockScene | null> {
   if (sceneCache) return sceneCache
   const sub = worldId === 'w_0330_840483' ? 'real_0330/' : ''
   try {
