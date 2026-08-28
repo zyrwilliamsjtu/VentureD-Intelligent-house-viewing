@@ -79,6 +79,14 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .agent-input .send { background: linear-gradient(135deg, #4f5bee, #0fb5a6); color: #fff; font-size: 12.5px; font-weight: 700; padding: 0 16px; border-radius: 10px; transition: opacity 0.15s ease; }
 .agent-input .send:hover:not(:disabled) { opacity: 0.88; }
 
+/* 语音按钮（Push-to-Talk）：类名固定，UI 重设计只改样式不改结构 */
+.agent-input .voice-btn { display: flex; align-items: center; justify-content: center; width: 38px; border-radius: 10px; background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.14); color: #8a90a8; transition: all 0.15s ease; touch-action: none; cursor: pointer; }
+.agent-input .voice-btn:hover:not(:disabled) { color: #d5dafc; border-color: rgba(124, 134, 242, 0.7); }
+.agent-input .voice-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.agent-input .voice-btn.recording { background: linear-gradient(135deg, #e5484d, #c93a3f); color: #fff; border-color: transparent; animation: voicePulse 1.2s ease-in-out infinite; }
+.agent-input .voice-btn.recognizing { color: #0fb5a6; border-color: rgba(15, 181, 166, 0.6); }
+@keyframes voicePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0.45); } 50% { box-shadow: 0 0 0 7px rgba(229, 72, 77, 0); } }
+
 /* 进房提示 */
 .center-toast { position: absolute; top: 84px; left: 50%; transform: translateX(-50%); text-align: center; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 14px; padding: 10px 26px; backdrop-filter: blur(10px); animation: toastIn 0.3s ease both; }
 @keyframes toastIn { from { opacity: 0; transform: translate(-50%, -6px); } to { opacity: 1; transform: translate(-50%, 0); } }

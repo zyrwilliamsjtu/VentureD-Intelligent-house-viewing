@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { agentChat, getSessionId } from '../services/agent'
+import { agentAsr } from '../services/asr'
+import { PttRecorder, type Recording } from '../services/recorder'
 import { executeAgentActions, playTts } from '../scene/agentActions'
 import type { House } from '../types/api'
 
 // ==== 极简漫游 HUD：房源信息 · 当前房间 · Agent 对话 · 操作提示 ====
 // Agent 面板：占位按钮 → 真接线（services/agent.ts mock/real 一键切换）
 // 请求带玩家上下文（store.player，点云系），响应动作走 executeAgentActions
+// 语音：按住说话（PttRecorder）→ /api/agent/asr 转文字 → 复用 sendText 走 chat 链路
 
 function lockCanvas() {
   const canvas = document.querySelector('canvas')
@@ -41,7 +44,14 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
     const text = input.trim()
     if (!text || busy) return
     setInput('')
-    setMsgs((m) => [...m, { role: 'user', text }])
+    await sendText(text)
+  }
+
+  /** 统一发送入口：打字与语音识别结果都走这里 */
+  async function sendText(text: string) {
+    const q = text.trim()
+    if (!q || busy) return
+    setMsgs((m) => [...m, { role: 'user', text: q }])
     setBusy(true)
     try {
       const player = useAppStore.getState().player
@@ -50,7 +60,7 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
       const res = await agentChat({
         session_id: getSessionId(),
         world_id: worldId,
-        user_text: text,
+        user_text: q,
         player_position: player?.position,
         player_facing: player?.facing,
         room_id: player?.room_id ?? null,
@@ -66,6 +76,73 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
       setBusy(false)
     }
   }
+
+  // ==== 语音按钮（Push-to-Talk）：按下录音 → 松开 ASR → 自动发送 ====
+  const [voice, setVoice] = useState<'idle' | 'recording' | 'recognizing'>('idle')
+  const recorderRef = useRef<PttRecorder | null>(null)
+  const pressSeq = useRef(0) // 每次按下/松开 +1；丢弃「松开早于麦克风授权」的孤儿录音
+  const autoStopRef = useRef<number | null>(null)
+
+  function recorder(): PttRecorder {
+    if (!recorderRef.current) recorderRef.current = new PttRecorder()
+    return recorderRef.current
+  }
+
+  async function startVoice() {
+    if (busy || voice !== 'idle') return
+    const seq = ++pressSeq.current
+    try {
+      await recorder().start() // 可能因权限被拒抛错
+    } catch {
+      useAppStore.getState().showToast('麦克风不可用', '请允许麦克风权限，或用打字输入')
+      return
+    }
+    if (seq !== pressSeq.current) {
+      void recorder().stop() // 授权期间用户已松开：丢弃
+      return
+    }
+    setVoice('recording')
+    autoStopRef.current = window.setTimeout(() => void finishVoice(), 15_000) // SPEC：音频 ≤15s
+  }
+
+  async function finishVoice() {
+    pressSeq.current++ // 使 startVoice 中尚未 resolve 的分支失效
+    if (autoStopRef.current) {
+      window.clearTimeout(autoStopRef.current)
+      autoStopRef.current = null
+    }
+    const rec: Recording | null = (await recorderRef.current?.stop()) ?? null
+    if (!rec || rec.durationMs < 300) {
+      setVoice('idle') // 未在录 / 误触短按：静默丢弃
+      return
+    }
+    setVoice('recognizing')
+    try {
+      const { text } = await agentAsr(rec)
+      if (!text.trim()) {
+        useAppStore.getState().showToast('没听清', '请再按住说一次') // {"text":""} 是正常返回
+        return
+      }
+      setVoice('idle')
+      await sendText(text) // 松开即发送，不留输入框确认
+      return
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '网络错误'
+      useAppStore.getState().showToast('语音识别失败', msg)
+    } finally {
+      setVoice('idle')
+    }
+  }
+
+  // 卸载：停录音、释放麦克风
+  useEffect(() => {
+    return () => {
+      pressSeq.current++
+      if (autoStopRef.current) window.clearTimeout(autoStopRef.current)
+      void recorderRef.current?.stop()
+      recorderRef.current?.release()
+    }
+  }, [])
 
   if (!open) {
     return (
@@ -85,25 +162,44 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
         </button>
       </div>
       <div className="agent-list" ref={listRef}>
-        {msgs.length === 0 && <div className="agent-tip">试试：「主卧在哪」「冰箱在哪」「这套房多大」</div>}
+        {msgs.length === 0 && <div className="agent-tip">试试：「主卧在哪」「冰箱在哪」「这套房多大」<br />也可以按住 🎙 说话</div>}
         {msgs.map((m, i) => (
           <div key={i} className={`msg ${m.role}`}>
             {m.text}
           </div>
         ))}
         {busy && <div className="msg assistant pending">思考中…</div>}
+        {voice === 'recognizing' && !busy && <div className="msg assistant pending">语音识别中…</div>}
       </div>
       <div className="agent-input">
         <input
           ref={inputRef}
           value={input}
-          placeholder="输入问题，回车发送"
+          placeholder={voice === 'recording' ? '正在录音…松开发送' : '输入问题，回车发送'}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') void send()
           }}
-          disabled={busy}
+          disabled={busy || voice !== 'idle'}
         />
+        <button
+          className={`voice-btn ${voice}`}
+          disabled={busy || voice === 'recognizing'}
+          onPointerDown={() => void startVoice()}
+          onPointerUp={() => void finishVoice()}
+          onPointerLeave={() => {
+            if (voice === 'recording') void finishVoice()
+          }}
+          onContextMenu={(e) => e.preventDefault()}
+          title={voice === 'recording' ? '松开发送（最多 15 秒）' : '按住说话'}
+          aria-label="按住说话"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="9" y="2" width="6" height="12" rx="3" />
+            <path d="M5 10v1a7 7 0 0 0 14 0v-1" />
+            <path d="M12 18v4" />
+          </svg>
+        </button>
         <button className="send" onClick={() => void send()} disabled={busy || !input.trim()}>
           发送
         </button>

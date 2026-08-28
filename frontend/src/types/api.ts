@@ -103,6 +103,13 @@ export interface AgentChatResponse {
   actions?: AgentAction[]
 }
 
+// ==== ASR 契约（SPEC v2.2 §3.2 · POST /api/agent/asr）====
+export interface AsrResponse {
+  /** 识别文本；空语音/纯噪音为 ""（正常返回，非错误，前端按「没听清」处理） */
+  text: string
+  duration_ms?: number
+}
+
 export interface HistoryItem {
   role: 'user' | 'assistant'
   text: string
