@@ -94,10 +94,14 @@ async def tts(request: Request) -> dict:
 
 
 @router.get("/narration")
-def narration(world_id: str | None = None, room_id: str | None = None) -> dict:
+def narration(
+    world_id: str | None = None,
+    room_id: str | None = None,
+    session_id: str | None = None,
+) -> dict:
     if not world_id or not room_id:
         raise GatewayError(400, "AGENT_ERROR", "world_id 与 room_id 必填")
-    return handle_narration(world_id, room_id)
+    return handle_narration(world_id, room_id, session_id=session_id)
 
 
 @router.post("/tour")

@@ -72,7 +72,7 @@ GET /api/scene/{world_id}
 
 - **拍板**：agent 由我方用 Python 做在网关内（`backend/app/services/agent/`），与理解层任务解耦并行。
 - **单一事实源**：`docs/AGENT_DEV.md`（架构、坐标铁律、事实约束、L0/L1、里程碑）。
-- **本阶段**：M1 规则版 `handle_chat` 已通；asr/tts 仍 stub；narration 简单实现。
+- **本阶段**：M2 `handle_tour` 已接入；narration 支持可选 session 去重；asr/tts 仍 stub。
 - **消费**：A 前端 `agent.ts` / `asr.ts`；演示世界 `w_0330_840483`；tp 落点用 `GET /api/camera_poses`，agent 只出 `tp_id`。
 
 ## 2. 技术栈与运行
@@ -135,6 +135,7 @@ A 前端 ──POST /api/agent/chat|asr|tts|tour / GET narration──> backend 
 | 2026-08-28 | 验收 Y 项清理 | README 架构图/GT 钩子/schemas 表述对齐代码；agent stub 空可选字段 omit；SPEC §0 点云层改为 Z-up |
 | 2026-08-28 | agent 服务骨架 | 建立 `services/agent/`（facts/session/stub）+ `docs/AGENT_DEV.md`；router 改调 handle_* |
 | 2026-08-28 | M1 规则版 chat | intent/grounding/responder/actions；问主卧 → teleport `tp_bedroom_master` |
+| 2026-08-28 | M2 tour + narration | `handle_tour` 接入 `build_tour`；narration session 去重；SPEC §4.2 Z-up |
 | 2026-08-28 | 理解层重构 S0 受阻 | SpatialLM 笔记本编译失败，止损存档；demo 主线继续 GT；后续主线转 agent |
 
 ## 8. 与本仓库其他板块的关系

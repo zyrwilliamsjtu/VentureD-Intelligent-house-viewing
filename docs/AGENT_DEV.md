@@ -16,8 +16,9 @@ PI 在网关内实现 SPEC v2.2 五接口：
 
 | `POST /api/agent/asr` | P0 stub `{text:"", duration_ms:0}` | 有 key 后真实 ASR |
 | `POST /api/agent/tts` | P0 stub `{}`（omit `audio_url`） | 有 key 后真实 TTS |
-| `GET /api/agent/narration` | 简单实现：`story_card` / `selling_points` | M2 打磨 |
-| `POST /api/agent/tour` | **handle 仍返回 `steps: []`**（保现有网关测试）；`tour.build_tour` 已能从 `tour_path` 拼 steps | M2 接入 handle_tour |
+| `GET /api/agent/narration` | story_card + selling_points；可选 `session_id` 去重 | M2 打磨 |
+
+| `POST /api/agent/tour` | **M2 已接入** `build_tour`（`tour_path` → `steps[]`） | 打磨文案 |
 
 前端只打网关，不直连其它服务。A 负责点云落点；agent **只决定讲什么、去哪个语义锚点（tp_id）**。
 
@@ -75,8 +76,8 @@ app.services.agent.service             # handle_chat / asr / tts / narration / t
 | `POST /chat` | `session_id`, `world_id`；`user_text` 与 `audio` 二选一（`enter_room` 可无文本） | `{reply_text}`；可选 `tts_url`, `actions` |
 | `POST /asr` | multipart `audio` | `{text, duration_ms?}`；空语音 `text=""` |
 | `POST /tts` | JSON `text` | `{audio_url}` 或 `{}` |
-| `GET /narration` | `world_id`, `room_id` | `{reply_text}`；无内容 **404** |
-| `POST /tour` | `world_id`, `session_id` | `{steps:[]}` |
+| `GET /narration` | `world_id`, `room_id`；**可选** `session_id`（只增不改，用于去重） | `{reply_text}`；无内容 **404** |
+| `POST /tour` | `world_id`, `session_id` | `{steps:[{index, room_id, trajectory_point_id, narration, selling_points?}]}` |
 
 超时：chat 30s / asr 10s / tts 15s。`session_id` **前端生成**，后端按它记 history / current_room / tour_index。
 
@@ -105,7 +106,8 @@ PI 已定（2026-08-28）：
 |------|--------|
 | `frontend/src/services/agent.ts` | `POST /api/agent/chat`（JSON，30s） |
 | `frontend/src/services/asr.ts` | `POST /api/agent/asr`（multipart，10s） |
-| `frontend/src/scene/narration.ts` | chat `event=enter_room` 为主；可选 `GET /api/agent/narration` |
+| `frontend/src/scene/narration.ts` | chat `event=enter_room` 为主；可选 `GET /api/agent/narration`（可带 `session_id` 去重；不带则每次都讲） |
+
 
 `VITE_API_MODE=real` 且 `VITE_API_BASE` 空 = 同源 `/api`（Vite 代理 8000）。  
 `frontend/src/services/realApi.ts` 仍含旧 `/api/houses`、`/api/chat`——**待确认**废弃，不在本模块处理。
@@ -121,7 +123,7 @@ HUD 动作：`teleport.tp_id` → `coords.resolveTeleportCloud` → 体素贴地
 | **M0** | 骨架 + facts/session + asr/tts stub + narration 简单实现 + chat stub + AGENT_DEV | ✅ |
 | **M1** | 规则版 `handle_chat`：intent / grounding / responder / actions | ✅ |
 
-| **M2** | narration 打磨；`handle_tour` 接入 `build_tour` | 未开始 |
+| **M2** | narration 打磨 + session 去重；`handle_tour` 接入 `build_tour` | ✅ |
 | **M3** | router 与契约测试对齐（本提交已把 router 接到 handle_* stub） | 进行中 |
 | **M4** | L1 LLM 增强（需 key） | 未开始 |
 
@@ -160,7 +162,7 @@ backend/app/services/agent/
 ├── session/store.py     # 内存 load/save/clear
 ├── chat/                # M1 规则版：understand / retrieve / generate / build
 ├── narration/service.py
-├── tour/service.py      # build_tour（handle_tour 尚未接入）
+├── tour/service.py      # build_tour（handle_tour 已接入）
 ├── asr/service.py
 └── tts/service.py
 ```
@@ -175,3 +177,4 @@ backend/app/services/agent/
 |------|------|
 | 2026-08-28 | 建立骨架、facts/session、asr/tts stub、narration 简单实现、chat stub、router 接入 handle_* |
 | 2026-08-28 | M1 规则版 handle_chat（intent/grounding/responder/actions）；SPEC §3.1 改为点云 Z-up |
+| 2026-08-28 | M2 handle_tour 接入 build_tour；narration 拼 selling_points + 可选 session 去重；SPEC §4.2 Z-up |

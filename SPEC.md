@@ -222,7 +222,7 @@
 
 ### 4.2 载荷约定
 
-- `position` 一律用**点云坐标系（-Y up，米）**。
+- `position` 一律用点云系：**IG 原生 Z-up**（米，实测见附录 A）；前端/网关处理坐标，agent 只输出 `tp_id`。
 - `tp_id` 是 scene JSON 里的 `trajectory_point_id`；**tp → 点云坐标的映射由 PI 提供（`mock/camera_poses.json` 或映射表）**，A 本地执行。
 - **B 输出时**：优先输出 `tp_id`（语义锚点，稳定）；若已拿到映射、对拍完成，可输出 `position`。**对拍完成前禁止 B 输出 `position` 型坐标。**
 
