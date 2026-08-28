@@ -27,7 +27,7 @@ flowchart TB
     end
 
     subgraph EXT["外部服务"]
-        LLM["MOSS / 火山方舟 doubao（LLM）"]
+        LLM["火山方舟 doubao（LLM）"]
         ASR["火山 ASR（openspeech.bytedance.com）"]
         TTS["火山 TTS V3（SeedTTS2.0）"]
     end

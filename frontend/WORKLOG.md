@@ -19,7 +19,7 @@
 
 ## 1. 项目一句话
 
-AI 代看房（48H 黑客松）：第一人称 3DGS 点云漫游 + Agent 语音带看。前端渲染/漫游/传送已全部跑通，等后端 chat 接口点亮 Agent。
+小驻看房（48H 黑客松）：第一人称 3DGS 点云漫游 + Agent 语音带看。前端渲染/漫游/传送已全部跑通，等后端 chat 接口点亮 Agent。
 
 ---
 
@@ -48,7 +48,7 @@ AI 代看房（48H 黑客松）：第一人称 3DGS 点云漫游 + Agent 语音�
 ## 3. 时间线
 
 ### 阶段 1 · 框架搭建
-React + Vite + Three.js 骨架；语音改按钮触发录制（非实时流）；规划 MOSS API（ASR/TTS/多模态，后端封装）。
+React + Vite + Three.js 骨架；语音改按钮触发录制（非实时流）；规划火山方舟/豆包语音（ASR/TTS，后端封装）。
 
 ### 阶段 2 · 架构转向（重要）
 从上帝视角带看转向**第一人称漫游**；下线 AI 讲解（旧代码归档 `_parked/`），UI 留占位块等 Agent；UI 与逻辑解耦（见 D6）。
@@ -96,7 +96,7 @@ PI 交付：scene/camera_poses 真实现 + agent 路由契约层 stub（chat 返
 测试语音按钮时发现的**既有 bug**：全屏 `resume-overlay` 在 DOM 末尾且无 z-index，指针未锁定时（如 ESC 后）物理遮挡"AI 讲解 · 询问"按钮，点击只会触发指针锁定、面板永远打不开。修复：`hud-tr` z-index:23、`resume-overlay` 显式 z-index:21，层叠意图显式化。复测面板可正常展开。
 
 ### 阶段 11 · B 板块交接（2026-08-28 晚）
-B 无法继续合作，agent 板块转由 A+PI 承接。整理自包含需求书 `docs/agent-handoff.md`（接口契约、坐标铁律、数据字典含真实房间全表、MOSS 选型、24h 最小可用路线、自测清单、Git 规范、已知坑），可直接交给任何 AI/开发者开工。示例坐标已按 `scene_graph.json` 实测值修正（room_id 真实格式 `room_bedroom_master`）。
+B 无法继续合作，agent 板块转由 A+PI 承接。整理自包含需求书 `docs/agent-handoff.md`（接口契约、坐标铁律、数据字典含真实房间全表、大模型/语音选型、24h 最小可用路线、自测清单、Git 规范、已知坑），可直接交给任何 AI/开发者开工。示例坐标已按 `scene_graph.json` 实测值修正（room_id 真实格式 `room_bedroom_master`）。
 
 ### 阶段 10 · 交接文档（2026-08-28 下午）
 后端接手视角缺口补齐：`frontend/docs/backend-handbook.md`（五分钟跑通、文档地图、接口清单+前端调用点、tp 表/scene_graph 数据字典、联调三步含硬编码冒烟响应、坐标铁律、5 条已知坑）+ `frontend/docs/agent-api.md` v1.1 入库。契约事实源仍是根目录 SPEC，手册只补实测行为不重复定义。
@@ -248,8 +248,8 @@ npm run build                    # 必过
 **验证**：`npm run build`（tsc + vite）✓；沙箱内起后端 + vite dev（proxy `/api`）实测：`GET /api/camera_poses/w_0330_840483` 返回 85 点（含 tp_living）、`GET /api/scene/w_0330_840483` 返回 10 房间 scene_graph（coord Y/m），与前端解析形状逐字段吻合；本地 fallback 文件同步后 HTTP 200 且 tp_living 已转正。
 
 
-### 阶段 18 · 架构决策：砍 TS agent，MOSS 三件套并入 PI 网关（2026-08-28 下午）
-**实测依据**：`dev-agent` 分支（agent/ 目录，TS）拉取实测为空壳——chat/asr/tts 全部 handler 写死（问"冰箱在哪"也回"带您去主卧"）、无 world_id 校验（invalid_world 返回 200）、ASR/TTS 假实现、提交信息虚标"CodeBuddy SDK + MOSS 双路"（代码零痕迹）。同期实测 PI 网关（`411b332`）全链路可用：chat 规则版 grounding 真定位（冰箱→`tp_refrigerator_582`+highlight）、tour 10 房间、narration 去重、camera_poses 85 点、25 单测全绿、错误契约正确。**决策（方案 A）**：agent 能力（MOSS LLM/ASR/TTS）并入 PI 的 Python 网关（插入点：`chat/responder.generate` 分层降级、`asr/service.py`、`tts/service.py`），规则版流水线保留为 LLM 故障兜底；`dev-agent` 分支不合并留档。作业书：`/workspace/pi-brief-moss-integration.md`（用户转交 PI）。另发现 `dev-backend` 的 SPEC §4.2 已把坐标约定修正为 IG 原生 Z-up、agent 只输出 tp_id——与前端 `coords.ts` 对拍结论一致，坐标系争议了结。待办：前端 bundle 重推（黑屏修复 `c63ce44`/`9baa3d3` 仍未上 origin）→ dev/frontend 合 main → dev-backend 合 main。
+### 阶段 18 · 架构决策：砍 TS agent，LLM/ASR/TTS 三件套并入 PI 网关（2026-08-28 下午）
+**实测依据**：`dev-agent` 分支（agent/ 目录，TS）拉取实测为空壳——chat/asr/tts 全部 handler 写死（问"冰箱在哪"也回"带您去主卧"）、无 world_id 校验（invalid_world 返回 200）、ASR/TTS 假实现、提交信息虚标"CodeBuddy SDK + 火山双路"（代码零痕迹）。同期实测 PI 网关（`411b332`）全链路可用：chat 规则版 grounding 真定位（冰箱→`tp_refrigerator_582`+highlight）、tour 10 房间、narration 去重、camera_poses 85 点、25 单测全绿、错误契约正确。**决策（方案 A）**：agent 能力（火山方舟 LLM / 豆包 ASR/TTS）并入 PI 的 Python 网关（插入点：`chat/responder.generate` 分层降级、`asr/service.py`、`tts/service.py`），规则版流水线保留为 LLM 故障兜底；`dev-agent` 分支不合并留档。作业书：`/workspace/pi-brief-volc-integration.md`（用户转交 PI）。另发现 `dev-backend` 的 SPEC §4.2 已把坐标约定修正为 IG 原生 Z-up、agent 只输出 tp_id——与前端 `coords.ts` 对拍结论一致，坐标系争议了结。待办：前端 bundle 重推（黑屏修复 `c63ce44`/`9baa3d3` 仍未上 origin）→ dev/frontend 合 main → dev-backend 合 main。
 
 ### 阶段 19 · UI 重设计落地：iOS 亮色磨砂（2026-08-28 傍晚）
 UI AI 外包一轮跑偏（交付了无关产品的营销落地页），改为前端侧直接落地：视觉基准 `ui-frost-preview.html` v2（亮色磨砂 + iOS 字阶 + Apple 字色 #1D1D1F/#6E6E73/#AEAEB2 + 陶土橙 #C4613C）。实现方式：**只重写 `global.css` 一个文件**，类名/DOM/z-index 层级（hud-tr 23 > agent-panel 22 > resume-overlay 21 > walk-hud 20，boot-status 25 / no-webgl 30）/pointer-events 架构与旧版逐项一致，组件 TSX 零改动（voice-btn 三态类名、boot-status.done、agent-stub.live 等 JS 引用全部保留）。性能约束：backdrop-filter 仅用于 chips/agent-panel/toast/恢复卡（小面积），气泡输入框按钮用不透明 --frost-fill；blur 26px 不参与动画；`@supports` 降级不透明面板。帧率不足时全局把 --frost-blur 降 16px 即可。旧 --glass/--glass-border 变量保留别名映射，防外部依赖。

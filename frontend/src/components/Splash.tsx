@@ -47,20 +47,20 @@ const WHY = [
 
 const AGENTS = [
   {
-    name: '小房 · 讲解官',
-    role: 'AI 置业讲解',
+    name: '小驻',
+    role: '进房讲解',
     desc: '进房自动讲解，把每个空间的亮点讲给你听。',
     icon: '讲',
   },
   {
-    name: '小房 · 带看向导',
+    name: '小驻',
     role: '全屋带看',
     desc: '一键带看，按动线逐房间走，想停就停，想去哪瞬移到哪。',
     icon: '带',
   },
   {
-    name: '小房 · 答疑顾问',
-    role: '24h 在线答疑',
+    name: '小驻',
+    role: '在线答疑',
     desc: '价格、户型、朝向、家具，文字或语音问，都按真实挂牌口径回答。',
     icon: '答',
   },
@@ -140,9 +140,9 @@ export function Splash() {
     <div className="splash landing">
       <nav className="land-nav">
         <div className="land-logo">
-          <span className="land-logo-mark">房</span>
+          <img className="land-logo-img" src="/assets/logo-clean.png" alt="小驻看房" />
           <span className="land-logo-text">
-            AI 代看房<i>VentureD</i>
+            小驻看房<i>inNest</i>
           </span>
         </div>
         <div className="land-menu">
@@ -170,8 +170,11 @@ export function Splash() {
             <br />
             <span className="gold-accent">实景看房</span>
           </h1>
+          <p className="hero-slogan">
+            先驻进去，再住下来 <em>Step In. Stay Longer.</em>
+          </p>
           <p className="hero-sub">
-            真实点云第一人称漫游，AI 置业顾问随行讲解。五套真实户型，价格口径不串房，信任看得见。
+            真实点云第一人称漫游，小驻随行讲解。五套真实户型，价格口径不串房，信任看得见。
           </p>
 
           <form
@@ -261,7 +264,7 @@ export function Splash() {
         <div className="section-head">
           <div>
             <div className="section-kicker mono">Why Choose Us</div>
-            <h2>为什么选择 AI 代看房</h2>
+            <h2>为什么选择小驻看房</h2>
           </div>
         </div>
         <div className="why-grid">
@@ -278,13 +281,13 @@ export function Splash() {
       <section className="land-section" id="agents">
         <div className="section-head">
           <div>
-            <div className="section-kicker mono">Our Team</div>
-            <h2>你的 AI 置业顾问团</h2>
+            <div className="section-kicker mono">Meet 小驻</div>
+            <h2>小驻 · 你的 AI 置业顾问</h2>
           </div>
         </div>
         <div className="agent-grid">
           {AGENTS.map((a) => (
-            <div className="agent-card" key={a.name}>
+            <div className="agent-card" key={a.role}>
               <span className="agent-avatar">{a.icon}</span>
               <div className="agent-role mono">{a.role}</div>
               <h3>{a.name}</h3>
@@ -304,13 +307,13 @@ export function Splash() {
               线上实景看房
             </h3>
             <p>
-              留下您的联系方式，AI 置业顾问会为您安排专属带看。支持语音与文字提问，全程 24
+              留下您的联系方式，小驻会为您安排专属带看。支持语音与文字提问，全程 24
               小时在线。
             </p>
             <div className="contact-line">
               <span className="contact-ico">🎙️</span>
               <div>
-                <b>AI 管家在线</b>
+                <b>小驻在线</b>
                 <span>进房即讲解 · 按住按钮提问</span>
               </div>
             </div>
@@ -325,7 +328,7 @@ export function Splash() {
               <span className="contact-ico">⚡</span>
               <div>
                 <b>48h 黑客松 Demo</b>
-                <span>群核 Aholo 3DGS × MOSS 大模型 × 多层语义识别</span>
+                <span>群核 Aholo 3DGS × 火山大模型 × 多层语义识别</span>
               </div>
             </div>
           </div>
@@ -375,7 +378,7 @@ export function Splash() {
       <footer className="land-foot">
         <div className="foot-grid">
           <div className="foot-brand">
-            <h3>AI 代看房 · VentureD</h3>
+            <h3>小驻看房 · inNest</h3>
             <p>真实点云实景漫游 + AI 置业顾问，让看房这件事，打开网页就能完成。</p>
           </div>
           {FOOT_COLS.map((col) => (
@@ -390,8 +393,8 @@ export function Splash() {
           ))}
         </div>
         <div className="foot-bottom">
-          <span>© 2026 AI 代看房 · VentureD. All rights reserved.</span>
-          <span>群核 Aholo 3DGS · MOSS 大模型 · 隐私政策 · 服务条款</span>
+          <span>© 2026 小驻看房 · inNest. All rights reserved.</span>
+          <span>群核 Aholo 3DGS · 火山大模型 · 隐私政策 · 服务条款</span>
         </div>
       </footer>
     </div>

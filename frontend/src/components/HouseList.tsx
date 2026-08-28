@@ -130,10 +130,10 @@ export function HouseList() {
     <div className="house-list">
       <header className="hl-head">
         <div className="hl-brand">
-          <span className="hl-logo">房</span>
+          <img className="hl-logo-img" src="/assets/logo-clean.png" alt="小驻看房" />
           <div>
-            <div className="hl-app">AI 代看房</div>
-            <div className="hl-slogan">VentureD · 实景漫游 × AI 管家带看</div>
+            <div className="hl-app">小驻看房</div>
+            <div className="hl-slogan">先驻进去，再住下来 · Step In. Stay Longer.</div>
           </div>
         </div>
         <div className="hl-city">
@@ -175,7 +175,7 @@ export function HouseList() {
         </div>
       )}
 
-      <footer className="hl-foot">3DGS 点云由群核 Aholo 提供 · AI 讲解由 MOSS 大模型驱动</footer>
+      <footer className="hl-foot">3DGS 点云由群核 Aholo 提供 · AI 讲解由火山大模型驱动</footer>
     </div>
   )
 }

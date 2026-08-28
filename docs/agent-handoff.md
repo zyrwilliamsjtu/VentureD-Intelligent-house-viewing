@@ -212,7 +212,7 @@ scene(Y-up) → 点云(Z-up)：  X = x + 0.573,  Y = 1.087 − z,  Z = y
 
 ## 7. LLM / ASR / TTS 选型
 
-- 团队持有 **MOSS API**（膜思智能：语音生成、识别、多模态理解）。**有 key 就用 MOSS** 做 chat 推理 + TTS + ASR；key 问题找 PI。
+- 团队持有 **火山方舟 / 豆包语音** API（火山引擎大模型 + 语音生成、识别）。**有 key 就用火山方舟做 chat 推理、豆包做 TTS + ASR**；key 问题找 PI。
 - 无 key / 超时的降级顺序（SPEC §8 降级矩阵，**demo 永远不挂**）：
   - chat → 关键词问答（规则匹配 scene_graph，前端 mock 已验证此逻辑可行，见 §8 第一版方案）
   - tts → 前端静音气泡；asr → 前端打字输入框（已上线）
@@ -235,7 +235,7 @@ scene(Y-up) → 点云(Z-up)：  X = x + 0.573,  Y = 1.087 − z,  Z = y
   "actions": [{ "type": "teleport", "tp_id": "tp_bedroom_master", "label": "带您去主卧" }] }
 ```
 
-**第二版（+4h）**：MOSS/LLM 接入，scene_graph 上下文注入 + 事实约束 prompt + 结构化输出；`session_id` 多轮记忆（当前房间指代消解，如「这屋多大」）。
+**第二版（+4h）**：火山方舟 LLM 接入，scene_graph 上下文注入 + 事实约束 prompt + 结构化输出；`session_id` 多轮记忆（当前房间指代消解，如「这屋多大」）。
 **第三版（+4h）**：TTS 内嵌 `tts_url`（同文本缓存）；ASR。
 **可选**：narration/enter_room、tour。
 
@@ -277,7 +277,7 @@ curl -s -X POST http://localhost:8000/api/agent/chat -H "Content-Type: applicati
 - 仓库：`VentureD-Intelligent-house-viewing`，你的分支：**`dev-agent`**（已存在但是空脚手架、落后 main 10+ 提交——**从最新 main 重建分支内容**再开工）。
 - 代码：`backend/app/routers/agent.py`（路由）+ `backend/app/services/agent/`（语义逻辑，可自建目录）；测试放 `backend/tests/`。
 - 提交规范（`docs/GIT_WORKFLOW.md`）：信息 `agent: 做了什么`；**禁止** `git add .`/`-A`、`push --force`、直推 main、提交 `.env`/token/大文件、改别人板块文件（`frontend/` 别碰）；push 前 pull；接口变更**先改 SPEC 再改代码**并群里通知。
-- `.env` 放 MOSS/LLM 的 key，绝不入库；PI 审查 PR 后合 main。
+- `.env` 放火山方舟 / 豆包语音的 key，绝不入库；PI 审查 PR 后合 main。
 
 ## 12. 联调支持（你随时可以找 A）
 

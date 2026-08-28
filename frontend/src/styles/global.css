@@ -1,4 +1,4 @@
-/* ==== AI 代看房 · 高端房产风（对齐 LuxeEstate Demo：浅色奢华 · 玻璃拟态 · 蓝色主按钮 + 金色点缀）====
+/* ==== 小驻看房 · 高端房产风（对齐 LuxeEstate Demo：浅色奢华 · 玻璃拟态 · 蓝色主按钮 + 金色点缀）====
    白底 + 近黑衬线大标题 + 等宽小标签 + 16px 圆角卡片 + 悬停上浮。
    类名/DOM 结构/z-index 层级/pointer-events 架构与旧版完全一致，只换皮肤。
    性能红线：backdrop-filter 仅用于小面积 chips + agent-panel + toast + 恢复卡。 */
@@ -181,10 +181,11 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .house-list::-webkit-scrollbar { width: 8px; }
 .house-list::-webkit-scrollbar-thumb { background: rgba(16, 24, 40, 0.14); border-radius: 999px; }
 .hl-head { display: flex; align-items: flex-end; justify-content: space-between; padding: 26px 0 18px; border-bottom: 1px solid var(--line); margin-bottom: 26px; position: relative; }
-.hl-brand { display: flex; align-items: center; gap: 13px; }
+.hl-brand { display: flex; align-items: flex-end; gap: 13px; }
 .hl-logo { width: 40px; height: 40px; background: linear-gradient(135deg, #1e293b, #334155); color: #fff; font-family: var(--font-display); font-size: 20px; font-weight: 700; display: flex; align-items: center; justify-content: center; border-radius: 10px; box-shadow: 0 8px 20px rgba(30, 41, 59, 0.22); }
-.hl-app { font-family: var(--font-display); font-size: 21px; font-weight: 700; letter-spacing: 0.03em; color: var(--ink); }
-.hl-slogan { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-3); margin-top: 3px; letter-spacing: 0.14em; text-transform: uppercase; }
+.hl-logo-img { height: 42px; width: auto; display: block; }
+.hl-app { font-family: var(--font-display); font-size: 21px; font-weight: 700; letter-spacing: 0.03em; color: var(--ink); line-height: 1; }
+.hl-slogan { font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); margin-top: 4px; letter-spacing: 0.1em; }
 .hl-city { font-family: var(--font-mono); display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2); background: #f8fafc; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--line-soft); }
 .hl-city-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px rgba(62, 155, 110, 0.16); }
 .hl-sub { display: flex; align-items: baseline; gap: 14px; margin-bottom: 20px; }
@@ -311,7 +312,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 
 .land-logo {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 11px;
 }
 
@@ -329,17 +330,22 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   box-shadow: 0 8px 20px rgba(30, 41, 59, 0.24);
 }
 
+.land-logo-img { height: 40px; width: auto; display: block; }
+
 .land-logo-text {
-  font-size: 16px;
+  font-family: var(--font-display);
+  font-size: 21px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   color: var(--ink);
+  line-height: 1;
+  margin-bottom: 4px;
 }
 
 .land-logo-text i {
   font-style: normal;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   color: var(--ink-3);
   letter-spacing: 0.2em;
   margin-left: 7px;
@@ -450,6 +456,24 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   color: rgba(255, 255, 255, 0.82);
   font-size: 17px;
   line-height: 1.85;
+}
+
+.hero-slogan {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 0.08em;
+  color: #fff;
+  margin: -4px 0 20px;
+}
+
+.hero-slogan em {
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-left: 10px;
 }
 
 /* ---- 通用玻璃卡（白色 90% + 16px 圆角 + 柔和投影，对齐 Demo）---- */

@@ -17,3 +17,5 @@ Thumbs.db
 # IDE
 .idea/
 .vscode/
+# 后端验收测试运行产物
+backend/tests/acceptance/_*_run.json

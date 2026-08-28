@@ -320,7 +320,7 @@ A 查询 `tp_id` → **点云坐标**映射，供 `teleport` / `highlight` 落�
 | # | 待拍板项 | 当前默认 |
 |---|---|---|
 | 1 | `tour` 是否实现 | 可选（P1），主动讲解以 narration 为主 |
-| 2 | 语音链路真实接入（MOSS ASR/TTS） | 按 A 意见：ASR P0、前端直传后端；**真实服务取决于后端是否持有可用 key**；无 key 则 stub + 前端降级 |
+| 2 | 语音链路真实接入（豆包 ASR/TTS） | 按 A 意见：ASR P0、前端直传后端；**真实服务取决于后端是否持有可用 key**；无 key 则 stub + 前端降级 |
 | 3 | **坐标对拍（scene Y-up ↔ 点云 -Y up）** | **待 A 实测**，完成前 `room_id` 恒 null、B 不输出坐标 |
 | 4 | `tp_id` → 点云坐标映射表由谁提供 | 默认 PI 提供（`mock/camera_poses.json` 或映射表） |
 

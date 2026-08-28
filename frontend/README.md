@@ -1,4 +1,4 @@
-# AI 代看房 · 前端（VentureD 黑客松 48H）
+# 小驻看房 · inNest · 前端（48H 黑客松）
 
 仓库：`VentureD-Intelligent-house-viewing` · 目录：`frontend/` · 分支：`dev/frontend`
 
