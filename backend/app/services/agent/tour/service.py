@@ -183,7 +183,7 @@ def _speech_of(
         if hl and not _is_placeholder(hl) and "InteriorGS" not in hl:
             sentences.append(hl if hl.endswith("。") else hl + "。")
 
-    lead = f"这里是{name}"
+    lead = f"小驻带您看看{name}"
     if isinstance(area, (int, float)):
         lead += f"，约{area}平"
     sentences.append(lead + "。")

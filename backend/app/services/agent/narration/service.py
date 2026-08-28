@@ -60,7 +60,7 @@ def get_narration(
             narrated = []
         if room_id in narrated:
             # 同会话已讲过：短句，不重复 story_card
-            return {"reply_text": f"这就是{name}。"}
+            return {"reply_text": f"小驻带您看看{name}。"}
         narrated.append(room_id)
         sess["narrated_rooms"] = narrated
         sess["current_room"] = room_id

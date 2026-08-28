@@ -29,3 +29,15 @@ def test_0330_bathroom_hits() -> None:
     rooms = find_rooms_in_text(graph, "有没有洗手间")
     names = {str(r.get("name")) for r in rooms}
     assert "卫生间" in names
+
+
+def test_sleep_place_alias() -> None:
+    needles = room_name_needles("我想看看睡觉的地方")
+    assert "主卧" in needles
+    assert "次卧" in needles
+
+
+def test_study_and_bath_aliases() -> None:
+    assert "书房" in room_name_needles("看书的地方")
+    assert "卫生间" in room_name_needles("上厕所")
+    assert "卫生间" in room_name_needles("洗漱")

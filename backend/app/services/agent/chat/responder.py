@@ -12,19 +12,19 @@ from app.services.agent.synonyms import INSTANCE_ALIAS_KEYS
 _SKIP_ATTR_KEYS = frozenset({"source_label"})
 
 SMALLTALK_VARIANTS = (
-    "您好，我是 AI 置业顾问小安。这套房我可以带您看房间、讲户型，您想先看哪一间？",
-    "您好，我是小安。想先逛房间，还是先听户型和面积？您开口就好。",
-    "您好，置业顾问小安在。房间、家具、户型我都能介绍，您想从哪问起？",
+    "您好，我是小驻，本项目的 AI 置业顾问。这套房小驻可以带您看房间、讲户型，您想先看哪一间？",
+    "您好，我是小驻。想先逛房间，还是先听户型和面积？您开口就好。",
+    "您好，小驻在。房间、家具、户型小驻都能介绍，您想从哪问起？",
 )
 UNKNOWN_VARIANTS = (
-    "这套房我可以带您看房间和家具，也可以介绍户型、面积。您想先看哪一间，或者问一件家具也可以。",
-    "没听清您具体想问哪一块。房间带看、家具位置、户型面积我都能讲，您点一项就行。",
-    "我可以按房间带您看，也可以讲户型面积。您想先看哪一间？",
+    "这套房小驻可以带您看房间和家具，也可以介绍户型、面积。您想先看哪一间，或者问一件家具也可以。",
+    "没听清您具体想问哪一块。房间带看、家具位置、户型面积小驻都能讲，您点一项就行。",
+    "小驻可以按房间带您看，也可以讲户型面积。您想先看哪一间？",
 )
 CLARIFY_VARIANTS = (
-    "这套房您更关心户型、价格还是朝向？我按您关心的讲，不瞎编。",
-    "想帮您说到点上：更在意户型、价格，还是朝向？您选一个我展开。",
-    "您更关心户型、价格还是朝向？定了方向我再细讲。",
+    "这套房您更关心户型、价格还是朝向？小驻按您关心的讲，不瞎编。",
+    "小驻想帮您说到点上：更在意户型、价格，还是朝向？您选一个我展开。",
+    "您更关心户型、价格还是朝向？定了方向小驻再细讲。",
 )
 MISSING_REPLY = "抱歉，这套房暂时没有「{q}」的可靠信息，这项暂未提供。"
 
@@ -87,7 +87,7 @@ def _existence_reply(facts: Facts, scene_graph: dict, salt: int) -> str:
             return f"有的，{where_name}。"
         variants = (
             f"有的，{core}。",
-            f"有的，{core}，我可以带您去看。",
+            f"有的，{core}，小驻可以带您去看。",
         )
         return _pick(variants, salt)
     rooms = list(facts.get("room_hits") or [])
@@ -112,7 +112,7 @@ def _existence_object_name(query: str) -> str:
 
 
 def _guide_tail(graph: dict) -> str:
-    return f"不过我可以{offer_topics(graph)}，您看需要吗？"
+    return f"不过小驻可以{offer_topics(graph)}，您看需要吗？"
 
 
 def _pick(options: tuple[str, ...], salt: int) -> str:
@@ -121,23 +121,70 @@ def _pick(options: tuple[str, ...], salt: int) -> str:
     return options[abs(salt) % len(options)]
 
 
-def _bridge(history: list[dict[str, Any]] | None, current_room: str | None) -> str:
-    """最近一轮用户问题 + 当前房间，用于连贯，不编造事实。"""
-    if not history:
-        return ""
-    last_user = ""
-    for item in reversed(history):
-        if isinstance(item, dict) and item.get("role") == "user" and item.get("text"):
-            last_user = str(item["text"]).strip()
-            break
-    bits: list[str] = []
-    if last_user:
-        bits.append(f"您刚提到「{last_user[:24]}」")
-    if current_room:
-        bits.append("我们还在当前房间")
-    if not bits:
-        return ""
-    return "；".join(bits) + "。"
+_INTRO_SKIP = frozenset({"curtain", "plant", "lamp"})
+_INTRO_HERO = (
+    "bed",
+    "sofa",
+    "dining_table",
+    "desk",
+    "refrigerator",
+    "tv_cabinet",
+    "wardrobe",
+    "washing_machine",
+    "coffee_table",
+    "stove",
+    "bookshelf",
+    "toilet",
+    "shower",
+    "sink",
+    "cabinet",
+)
+
+
+def _here_room_reply(room: dict, scene_graph: dict, salt: int) -> str:
+    """当前房间介绍：只拼 scene 已有字段；无家具/邻接则自然省略。"""
+    _ = salt
+    name = str(room.get("name") or "这里").strip() or "这里"
+    area = room.get("area")
+    if isinstance(area, (int, float)):
+        lead = f"小驻为您介绍一下{name}，约 {area} 平。"
+    else:
+        lead = f"小驻为您介绍一下{name}。"
+    seen: set[str] = set()
+    for inst in room.get("instances") or []:
+        if not isinstance(inst, dict):
+            continue
+        cat = str(inst.get("category") or "")
+        if not cat or cat in _INTRO_SKIP:
+            continue
+        seen.add(cat)
+    names: list[str] = []
+    for cat in _INTRO_HERO:
+        if cat not in seen:
+            continue
+        zh = CATEGORY_ZH.get(cat)
+        if zh and zh not in names:
+            names.append(zh)
+    furn = ""
+    if names:
+        furn = f"主要有{'、'.join(names[:5])}。"
+    by_id = {str(r.get("id")): r for r in facts_mod.rooms_of(scene_graph) if r.get("id")}
+    adj: list[str] = []
+    for aid in room.get("adjacent_rooms") or []:
+        if not isinstance(aid, str):
+            continue
+        other = by_id.get(aid)
+        if not isinstance(other, dict):
+            continue
+        n = str(other.get("name") or "").strip()
+        if n and n != "其他" and n not in adj:
+            adj.append(n)
+    neigh = f"邻接{'、'.join(adj[:3])}。" if adj else ""
+    card = str(room.get("story_card") or "").strip()
+    extra = ""
+    if card and name not in card[:8] and card not in lead:
+        extra = card if card.endswith("。") else card + "。"
+    return lead + furn + neigh + extra
 
 
 def generate(
@@ -149,16 +196,15 @@ def generate(
     current_room: str | None = None,
 ) -> str:
     salt = len(history or [])
-    ctx = _bridge(history, current_room)
+    _ = current_room
 
     if intent == Intent.SMALLTALK:
         return _pick(SMALLTALK_VARIANTS, salt)
     if intent == Intent.CLARIFY:
         return _pick(CLARIFY_VARIANTS, salt)
     if intent == Intent.UNKNOWN and not facts["missing"]:
-        extra = f"比如我可以{offer_topics(scene_graph)}。"
-        body = _pick(UNKNOWN_VARIANTS, salt) + extra
-        return (ctx + body) if ctx else body
+        extra = f"比如小驻可以{offer_topics(scene_graph)}。"
+        return _pick(UNKNOWN_VARIANTS, salt) + extra
 
     if facts["missing"]:
         q = facts.get("query") or "这项"
@@ -170,14 +216,22 @@ def generate(
     if intent == Intent.HOUSE_OVERVIEW:
         return _overview_reply(facts, scene_graph, salt)
 
+    if intent == Intent.ROOM_INTRO:
+        room = facts["room"]
+        if not room:
+            extra = f"比如小驻可以{offer_topics(scene_graph)}。"
+            return _pick(UNKNOWN_VARIANTS, salt) + extra
+        return _here_room_reply(room, scene_graph, salt)
+
     if intent == Intent.ENTER_ROOM:
         room = facts["room"] or {}
         card = str(room.get("story_card") or "").strip()
+        name = str(room.get("name") or "这里")
         if card:
-            return card
+            return f"小驻为您介绍一下{name}。{card}" if not card.startswith("小驻") else card
         points = room.get("selling_points")
         if isinstance(points, list) and points:
-            return "；".join(str(p) for p in points if p)
+            return "小驻为您介绍一下" + name + "。" + "；".join(str(p) for p in points if p)
         return MISSING_REPLY.format(q=room.get("name") or "这个房间") + _guide_tail(scene_graph)
 
     if intent == Intent.EXISTENCE:
@@ -190,7 +244,7 @@ def generate(
             room = facts["room"] or {}
             name = str(room.get("name") or "这里")
             card = str(room.get("story_card") or "").strip()
-            lead = f"您已经在{name}了，我帮您介绍一下。"
+            lead = f"您已经在{name}了，小驻为您介绍一下。"
             if card and card not in lead:
                 lead += card
             return lead
@@ -200,28 +254,27 @@ def generate(
             name = _zh_category(inst)
             where = host.get("name") or "屋里"
             variants = (
-                f"好的，这就带您去看{where}的{name}，我帮您看一下。",
-                f"请跟我来，去{where}看{name}。",
-                f"没问题，带您去{where}的{name}。",
+                f"好的，小驻这就带您去看{where}的{name}。",
+                f"请跟我来，小驻带您去{where}看{name}。",
+                f"没问题，小驻带您去{where}的{name}。",
             )
-            text = _pick(variants, salt)
-            return f"{ctx}{text}" if ctx else text
+            return _pick(variants, salt)
         room = facts["room"] or {}
         name = str(room.get("name") or "那里")
         area = room.get("area")
         card = str(room.get("story_card") or "").strip()
         if isinstance(area, (int, float)):
             variants = (
-                f"好的，这就带您去{name}，{name}约 {area} 平。",
-                f"请跟我来，带您去{name}，大约 {area} 平。",
-                f"没问题，带您去{name}看看，约 {area} 平。",
+                f"好的，小驻带您去{name}，{name}约 {area} 平。",
+                f"请跟我来，小驻带您去{name}，大约 {area} 平。",
+                f"没问题，小驻带您去{name}看看，约 {area} 平。",
             )
             lead = _pick(variants, salt)
         else:
-            lead = f"好的，这就带您去{name}。"
+            lead = f"好的，小驻带您去{name}。"
         if card:
             lead = f"{lead}{card}" if lead.endswith("。") else f"{lead}。{card}"
-        return f"{ctx}{lead}" if ctx else lead
+        return lead
 
     if intent == Intent.PROPERTY:
         return _property_reply(facts, scene_graph, salt)
@@ -238,14 +291,14 @@ def generate(
             bits.insert(0, str(tag))
         prefix = f"{where}的{name}" if where else name
         if not bits:
-            return f"{prefix}我帮您看一下，这套房没有更多尺寸或品牌信息。"
+            return f"{prefix}小驻帮您看看，这套房没有更多尺寸或品牌信息。"
         variants = (
-            f"{prefix}，我帮您看一下：{'，'.join(bits)}。",
+            f"{prefix}，小驻帮您看看：{'，'.join(bits)}。",
             f"这边是{prefix}：{'，'.join(bits)}。",
         )
         return _pick(variants, salt)
 
-    extra = f"比如我可以{offer_topics(scene_graph)}。"
+    extra = f"比如小驻可以{offer_topics(scene_graph)}。"
     return _pick(UNKNOWN_VARIANTS, salt) + extra
 
 
@@ -271,7 +324,7 @@ def _overview_reply(facts: Facts, scene_graph: dict, salt: int) -> str:
     if area is not None and not is_placeholder_value(area):
         head_bits.append(f"约{area}㎡")
     if not head_bits:
-        head_bits.append("这套房我带您看过结构")
+        head_bits.append("这套房小驻带您看过结构")
     lead = "、".join(head_bits)
     extras: list[str] = []
     if master and isinstance(master.get("area"), (int, float)):
@@ -289,7 +342,7 @@ def _overview_reply(facts: Facts, scene_graph: dict, salt: int) -> str:
     if mid:
         variants = (
             f"{lead}，{mid}。{invite}",
-            f"{lead}。{mid}。需要的话我再带您走一圈。",
+            f"{lead}。{mid}。需要的话小驻再带您走一圈。",
         )
         return _pick(variants, salt)
     return f"{lead}。{invite}"
@@ -337,8 +390,8 @@ def _property_reply(facts: Facts, scene_graph: dict, salt: int) -> str:
     if chunks and not missing_named:
         core = "，".join(chunks)
         variants = (
-            f"这套房{core}。需要的话我可以再带您看看房间。",
-            f"先说数字：这套房{core}。想看房间随时说。",
+            f"这套房{core}。需要的话小驻可以再带您看看房间。",
+            f"先说数字：这套房{core}。想看房间随时跟小驻说。",
         )
         return _pick(variants, salt)
     if chunks and missing_named:

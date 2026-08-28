@@ -51,6 +51,7 @@ SpatialLM **S0 受阻**（flash-attn 编译 OOM），降级为可选加分；dem
 
 - **拍板**：Python 做在网关内 `backend/app/services/agent/`，与理解层解耦。
 - **本阶段**：chat 接方舟推理接入点（`chat/completions`）；ASR 豆包 WebSocket；TTS 豆包 V3 SeedTTS2.0。细节与变量名见 `docs/AGENT_DEV.md` §13。
+- **人设**：规则版 / 带看 speech / LLM prompt 自称「**小驻**」（不编造事实，只改口吻）。「介绍这个房间」走当前 `room_id` 快路径；睡觉/看书等别名见 `synonyms.py`。无 `room_id` 时当前房介绍回落引导。**# 待确认**：某房无邻接/家具则介绍句自然省略，不硬凑。
 - **铁律**：只出 scene 已有 `tp_id`；**不输出 `position`**；不翻轴。挂牌问答走 `listing_id`（优先于 scene_graph `house` 占位）。
 - key **只在 `backend/.env`、不入库**。
 

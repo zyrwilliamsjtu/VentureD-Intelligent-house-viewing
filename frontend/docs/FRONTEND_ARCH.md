@@ -38,7 +38,7 @@ Splash（落地） → HouseList（选房） → WalkHud（第一人称漫游）
 
 | 块 | 数据 | 说明 |
 |---|---|---|
-| 2D 户型图 | `GET /api/scene/{world_id}` 的 `rooms[].polygon`（scene XZ）+ `instances[].position`（Y-up 取 XZ）+ `category` | `Floorplan2D` SVG：功能区半透明填色、polygon 双线墙体、房间名+面积、真实家具示意、比例尺；listings `orientation` 有则画朝向角标。无门/窗字段则不画假开口。无实例只画轮廓+标注。0330 可回落 `public/mock/real_0330`。失败显示「户型图暂不可用」，**不阻塞**进 3D。 |
+| 2D 户型图 | `GET /api/scene/{world_id}` 的 `rooms[].polygon`（scene XZ） | `Floorplan2D` SVG：**居中**于左侧区域；功能区半透明填色、polygon 双线墙体、房间名+面积在质心居中（不压线）、比例尺；listings `orientation` 有则画朝向角标。**不画家具**。无门/窗字段则不画假开口。失败显示「户型图暂不可用」，**不阻塞**进 3D。 |
 | 介绍 | listings：`title`（楼盘名）/`code`（编号）/`layout`/`area`/`price`/`tags`/`highlight` | 不编造 |
 | 房间清单 | scene_graph `rooms[]`：名称 + 面积 + 主要实例中文名 | 类别→中文与 agent 别名表一致；窗帘等噪点类省略 |
 
@@ -93,7 +93,7 @@ AholoViewport（文件名历史包袱，避免大范围改 import）
 | `src/components/Splash.tsx` | 落地页 |
 | `src/components/HouseList.tsx` | 房源卡片 + 筛选 + 打开详情 |
 | `src/components/ListingDetail.tsx` | 选房详情弹窗 |
-| `src/components/Floorplan2D.tsx` | 真实 polygon/实例 2D 户型图（防幻觉：无数据不画假门窗家具） |
+| `src/components/Floorplan2D.tsx` | 真实 polygon 2D 户型图（居中、无家具、房间名质心居中；无门窗不编造） |
 | `src/components/WalkHud.tsx` | 对话 + PTT；右上角「小驻AI·询问」；**不改** 3D 循环；返回列表 |
 | `src/components/PlaceFacts.tsx` | 常驻房源/房间卡（listings + 当前 `player.room_id`） |
 | `src/components/InfoCard.tsx` | `show_card` HUD（可关 / 6s） |
@@ -194,7 +194,7 @@ Golden Path：问「主卧在哪」→ `teleport` + `tp_id=tp_bedroom_master`（
 | 文件名 `AholoViewport` | 历史包袱，未改名以免大 diff |
 | `0469` 无冰箱 | 问冰箱不会出实例卡（0330 有 `tp_refrigerator_582`） |
 | 独立 TTS | 后端 stub 常 omit `audio_url`；讲解依赖 chat/narration 的 `tts_url` |
-| scene 无门/窗 | **# 待确认**：`scene_graph` 无门/窗字段，2D 户型图只画轮廓 + 真实家具，不编造开口 |
+| scene 无门/窗 | **# 待确认**：`scene_graph` 无门/窗字段，2D 户型图只画轮廓 + 房间名，不编造开口/家具 |
 
 无 `# 待合入`：narration GET、B 键、PlaceFacts、show_card、highlight、tour 均已在 main。
 

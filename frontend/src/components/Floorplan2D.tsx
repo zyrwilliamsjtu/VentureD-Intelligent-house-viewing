@@ -1,4 +1,4 @@
-import type { RepoInstance, RepoRoom } from '../services/mock/data'
+import type { RepoRoom } from '../services/mock/data'
 
 /** 功能区配色：半透明填色，墙体另描。无匹配则中性纸色。 */
 const FILL: Record<string, string> = {
@@ -8,46 +8,6 @@ const FILL: Record<string, string> = {
   bathroom: 'rgba(186, 204, 216, 0.70)',
   study: 'rgba(214, 204, 184, 0.70)',
   laundry: 'rgba(206, 198, 188, 0.68)',
-}
-
-/** 有实例才画；窗帘/绿植/灯/椅过多会糊成一团，不画（数据仍在清单里）。 */
-const DRAW = new Set([
-  'bed',
-  'sofa',
-  'dining_table',
-  'desk',
-  'coffee_table',
-  'refrigerator',
-  'washing_machine',
-  'wardrobe',
-  'tv_cabinet',
-  'cabinet',
-  'toilet',
-  'shower',
-  'sink',
-  'bedside_table',
-  'bookshelf',
-  'stove',
-])
-
-/** 无 bbox 时的示意尺寸（米，XZ）。 */
-const DEFAULT_M: Record<string, [number, number]> = {
-  bed: [2.0, 1.6],
-  sofa: [1.8, 0.85],
-  dining_table: [1.5, 0.9],
-  desk: [1.2, 0.6],
-  coffee_table: [0.9, 0.55],
-  refrigerator: [0.7, 0.65],
-  washing_machine: [0.6, 0.6],
-  wardrobe: [1.4, 0.55],
-  tv_cabinet: [1.6, 0.45],
-  cabinet: [0.9, 0.45],
-  toilet: [0.45, 0.65],
-  shower: [0.85, 0.85],
-  sink: [0.55, 0.4],
-  bedside_table: [0.5, 0.45],
-  bookshelf: [0.9, 0.35],
-  stove: [0.7, 0.55],
 }
 
 function fillOf(room: RepoRoom): string {
@@ -82,7 +42,7 @@ function centroid(poly: [number, number][]): [number, number] {
   return [cx / (6 * a), cz / (6 * a)]
 }
 
-function span(poly: [number, number][]): number {
+function bounds(poly: [number, number][]): { w: number; h: number } {
   let minX = Infinity
   let minZ = Infinity
   let maxX = -Infinity
@@ -93,7 +53,7 @@ function span(poly: [number, number][]): number {
     minZ = Math.min(minZ, z)
     maxZ = Math.max(maxZ, z)
   }
-  return Math.hypot(maxX - minX, maxZ - minZ)
+  return { w: Math.max(maxX - minX, 0.01), h: Math.max(maxZ - minZ, 0.01) }
 }
 
 function polyPoints(
@@ -104,122 +64,9 @@ function polyPoints(
   return poly.map(([x, z]) => `${toX(x).toFixed(1)},${toY(z).toFixed(1)}`).join(' ')
 }
 
-/** scene Y-up → 俯视 XZ；bbox size 的 x/z 为平面边长。 */
-function instSizeM(inst: RepoInstance, cat: string): [number, number] {
-  const sz = inst.bbox3d?.size
-  if (sz && sz.length >= 3 && sz[0] > 0.05 && sz[2] > 0.05) {
-    return [sz[0], sz[2]]
-  }
-  return DEFAULT_M[cat] ?? [0.6, 0.5]
-}
-
-function FurnitureMark({
-  cat,
-  x,
-  y,
-  w,
-  h,
-}: {
-  cat: string
-  x: number
-  y: number
-  w: number
-  h: number
-}) {
-  const left = x - w / 2
-  const top = y - h / 2
-  const stroke = '#5a5248'
-  const sw = Math.max(0.65, Math.min(w, h) * 0.08)
-  const rx = Math.min(2.2, Math.min(w, h) * 0.12)
-  if (cat === 'bed') {
-    return (
-      <g>
-        <rect x={left} y={top} width={w} height={h} rx={rx} fill="#d7bc96" stroke={stroke} strokeWidth={sw} />
-        <rect
-          x={left + w * 0.08}
-          y={top + h * 0.07}
-          width={w * 0.84}
-          height={h * 0.26}
-          rx={1.2}
-          fill="#efe4d4"
-          stroke={stroke}
-          strokeWidth={sw * 0.55}
-        />
-      </g>
-    )
-  }
-  if (cat === 'sofa') {
-    return (
-      <g>
-        <rect x={left} y={top} width={w} height={h} rx={rx + 0.6} fill="#c4b49a" stroke={stroke} strokeWidth={sw} />
-        <rect
-          x={left + w * 0.06}
-          y={top + h * 0.42}
-          width={w * 0.88}
-          height={h * 0.48}
-          rx={1}
-          fill="#d8cbb6"
-          stroke={stroke}
-          strokeWidth={sw * 0.5}
-        />
-      </g>
-    )
-  }
-  if (cat === 'dining_table' || cat === 'desk' || cat === 'coffee_table') {
-    return (
-      <ellipse
-        cx={x}
-        cy={y}
-        rx={w / 2}
-        ry={h / 2}
-        fill="#cbb89a"
-        stroke={stroke}
-        strokeWidth={sw}
-      />
-    )
-  }
-  if (cat === 'refrigerator') {
-    return (
-      <g>
-        <rect x={left} y={top} width={w} height={h} rx={1} fill="#b9c4cc" stroke={stroke} strokeWidth={sw} />
-        <line x1={x} y1={top + 2} x2={x} y2={top + h - 2} stroke={stroke} strokeWidth={sw * 0.7} />
-      </g>
-    )
-  }
-  if (cat === 'washing_machine') {
-    const r = Math.min(w, h) * 0.28
-    return (
-      <g>
-        <rect x={left} y={top} width={w} height={h} rx={1.4} fill="#c5ced4" stroke={stroke} strokeWidth={sw} />
-        <circle cx={x} cy={y} r={r} fill="none" stroke={stroke} strokeWidth={sw} />
-      </g>
-    )
-  }
-  if (cat === 'toilet') {
-    return <ellipse cx={x} cy={y} rx={w / 2} ry={h / 2} fill="#dce3e8" stroke={stroke} strokeWidth={sw} />
-  }
-  if (cat === 'shower') {
-    return (
-      <g>
-        <rect x={left} y={top} width={w} height={h} rx={1} fill="none" stroke={stroke} strokeWidth={sw} />
-        <line x1={left + 2} y1={top + 2} x2={left + w - 2} y2={top + h - 2} stroke={stroke} strokeWidth={sw * 0.7} />
-        <line x1={left + w - 2} y1={top + 2} x2={left + 2} y2={top + h - 2} stroke={stroke} strokeWidth={sw * 0.7} />
-      </g>
-    )
-  }
-  if (cat === 'sink' || cat === 'stove') {
-    return (
-      <rect x={left} y={top} width={w} height={h} rx={1} fill="#cfd6d4" stroke={stroke} strokeWidth={sw} />
-    )
-  }
-  return (
-    <rect x={left} y={top} width={w} height={h} rx={rx} fill="#cfc6b8" stroke={stroke} strokeWidth={sw} />
-  )
-}
-
 /**
- * 真实 scene_graph 俯视图（polygon + 实例 XZ）。
- * 无门/窗字段 → 不画假开口。无实例 → 只画轮廓 + 名称/面积。
+ * 真实 rooms[].polygon（scene XZ）俯视图。
+ * 不画家具；无门/窗字段不画假开口。房间名在质心居中。
  */
 export function Floorplan2D({
   rooms,
@@ -245,7 +92,7 @@ export function Floorplan2D({
       maxZ = Math.max(maxZ, z)
     }
   }
-  const pad = 0.7
+  const pad = 0.55
   minX -= pad
   maxX += pad
   minZ -= pad
@@ -254,10 +101,13 @@ export function Floorplan2D({
   const bh = Math.max(maxZ - minZ, 0.5)
   const W = 540
   const H = 400
-  const barH = 32
-  const scale = Math.min((W - 28) / bw, (H - barH - 16) / bh)
-  const toX = (x: number) => 14 + (x - minX) * scale
-  const toY = (z: number) => 12 + (maxZ - z) * scale
+  const chrome = 36
+  const plotH = H - chrome
+  const scale = Math.min((W - 36) / bw, (plotH - 16) / bh)
+  const ox = (W - bw * scale) / 2
+  const oy = (plotH - bh * scale) / 2
+  const toX = (x: number) => ox + (x - minX) * scale
+  const toY = (z: number) => oy + (maxZ - z) * scale
   const wallOuter = Math.max(4.2, Math.min(7.5, 0.16 * scale))
   const wallInner = Math.max(1.6, wallOuter * 0.38)
 
@@ -273,22 +123,17 @@ export function Floorplan2D({
           <rect width="8" height="8" fill="#f6f2ea" />
           <circle cx="1.2" cy="1.5" r="0.35" fill="#e4ddd2" />
         </pattern>
-        <filter id="fp-soft" x="-4%" y="-4%" width="108%" height="108%">
-          <feDropShadow dx="0" dy="1.2" stdDeviation="1.4" floodColor="#2c3338" floodOpacity="0.12" />
-        </filter>
       </defs>
       <rect x="0" y="0" width={W} height={H} fill="url(#fp-paper)" rx="16" />
 
-      <g filter="url(#fp-soft)">
-        {usable.map((r) => (
-          <polygon
-            key={`${r.id}-fill`}
-            points={polyPoints(r.polygon, toX, toY)}
-            fill={fillOf(r)}
-            stroke="none"
-          />
-        ))}
-      </g>
+      {usable.map((r) => (
+        <polygon
+          key={`${r.id}-fill`}
+          points={polyPoints(r.polygon, toX, toY)}
+          fill={fillOf(r)}
+          stroke="none"
+        />
+      ))}
       {usable.map((r) => (
         <polygon
           key={`${r.id}-wall-o`}
@@ -312,67 +157,58 @@ export function Floorplan2D({
         />
       ))}
 
-      {usable.flatMap((r) =>
-        (r.instances ?? [])
-          .filter((inst) => inst.category && DRAW.has(inst.category) && inst.position?.length >= 3)
-          .map((inst) => {
-            const cat = inst.category
-            const [mx, mz] = instSizeM(inst, cat)
-            const w = Math.min(64, Math.max(8, mx * scale))
-            const h = Math.min(64, Math.max(8, mz * scale))
-            return (
-              <FurnitureMark
-                key={inst.id}
-                cat={cat}
-                x={toX(inst.position[0])}
-                y={toY(inst.position[2])}
-                w={w}
-                h={h}
-              />
-            )
-          }),
-      )}
-
       {usable.map((r) => {
         const label = (r.name || '').replace(/^\s+/, '')
-        const show = label && label !== '其他' && span(r.polygon) > 1.2
-        if (!show) return null
+        if (!label || label === '其他') return null
+        const box = bounds(r.polygon)
+        const rw = box.w * scale
+        const rh = box.h * scale
+        if (rw < 18 || rh < 14) return null
         const [cx, cz] = centroid(r.polygon)
         const area =
-          typeof r.area === 'number' && r.area > 0 ? `${Number.isInteger(r.area) ? r.area : r.area.toFixed(1)}㎡` : ''
-        const fs = span(r.polygon) > 4 ? 11.5 : 9.5
+          typeof r.area === 'number' && r.area > 0
+            ? `${Number.isInteger(r.area) ? r.area : r.area.toFixed(1)}㎡`
+            : ''
+        const twoLine = Boolean(area) && rh >= 28
+        const fs = Math.max(7.5, Math.min(12, Math.min(rw / Math.max(label.length, 2) * 1.35, rh * (twoLine ? 0.28 : 0.38))))
+        const x = toX(cx)
+        const y = toY(cz)
+        const halo = { stroke: '#f6f2ea', strokeWidth: 3.2, paintOrder: 'stroke' as const }
         return (
-          <g key={`${r.id}-lab`} pointerEvents="none">
-            <text
-              x={toX(cx)}
-              y={toY(cz) - (area ? 6 : 0)}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fill="#1d1d1f"
-              fontSize={fs}
-              fontWeight="600"
-              style={{ fontFamily: 'inherit' }}
-            >
-              {label}
-            </text>
-            {area ? (
-              <text
-                x={toX(cx)}
-                y={toY(cz) + 8}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fill="#6e6e73"
-                fontSize={fs - 1.5}
-                style={{ fontFamily: 'inherit' }}
-              >
-                {area}
-              </text>
-            ) : null}
-          </g>
+          <text
+            key={`${r.id}-lab`}
+            x={x}
+            y={y}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="#1d1d1f"
+            fontSize={fs}
+            fontWeight="600"
+            stroke={halo.stroke}
+            strokeWidth={halo.strokeWidth}
+            paintOrder={halo.paintOrder}
+            style={{ fontFamily: 'inherit' }}
+            pointerEvents="none"
+          >
+            {twoLine ? (
+              <>
+                <tspan x={x} dy={-fs * 0.55}>
+                  {label}
+                </tspan>
+                <tspan x={x} dy={fs + 1} fill="#6e6e73" fontSize={Math.max(6.5, fs - 1.5)} fontWeight="500">
+                  {area}
+                </tspan>
+              </>
+            ) : (
+              <tspan x={x} dy="0">
+                {area ? `${label} ${area}` : label}
+              </tspan>
+            )}
+          </text>
         )
       })}
 
-      <g transform={`translate(18, ${H - 20})`}>
+      <g transform={`translate(18, ${H - 18})`}>
         <line x1="0" y1="0" x2={barLen} y2="0" stroke="#1d1d1f" strokeWidth="2.2" />
         <line x1="0" y1="-5" x2="0" y2="5" stroke="#1d1d1f" strokeWidth="2.2" />
         <line x1={barLen} y1="-5" x2={barLen} y2="5" stroke="#1d1d1f" strokeWidth="2.2" />
@@ -381,7 +217,7 @@ export function Floorplan2D({
         </text>
       </g>
       {showOrient ? (
-        <g transform={`translate(${W - 78}, 18)`}>
+        <g transform={`translate(${W - 78}, 16)`}>
           <rect x="0" y="0" width="64" height="22" rx="11" fill="#fff" stroke="#d8d2c8" strokeWidth="0.8" />
           <text x="32" y="12" textAnchor="middle" dominantBaseline="middle" fill="#3a424a" fontSize="10.5" fontWeight="600">
             {orient}

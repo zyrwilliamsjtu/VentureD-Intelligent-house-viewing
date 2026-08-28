@@ -97,7 +97,7 @@ def test_narration_session_dedup() -> None:
     second = handle_narration(WORLD, "room_living", session_id=sid)
     assert "客厅" in first["reply_text"]
     assert first["reply_text"] != second["reply_text"]
-    assert second["reply_text"] == "这就是客厅。"
+    assert second["reply_text"] == "小驻带您看看客厅。"
     session_store.clear(sid)
 
 
@@ -114,7 +114,7 @@ def test_tour_speech_grounded_master_0330() -> None:
     step = _step(body, "room_bedroom_master")
     assert step["narration"] == "主卧约20.1平。"
     speech = step["speech"]
-    assert "这里是主卧" in speech
+    assert "小驻带您看看主卧" in speech
     assert "20.1" in speech
     for token in ("床", "衣柜", "床头柜", "独立卫生间"):
         assert token in speech, token

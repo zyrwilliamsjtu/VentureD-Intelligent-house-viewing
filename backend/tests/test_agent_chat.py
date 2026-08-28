@@ -73,7 +73,7 @@ def test_enter_room_story_card() -> None:
 
 def test_smalltalk() -> None:
     body = _chat("你好")
-    assert "小安" in body["reply_text"]
+    assert "小驻" in body["reply_text"]
     assert "actions" not in body
 
 
@@ -199,12 +199,14 @@ def test_clarify_vague_house() -> None:
     assert "actions" not in body
 
 
-def test_context_mentions_previous_turn() -> None:
+def test_no_echo_previous_turn() -> None:
     sid = "s_ctx"
     session_store.clear(sid)
     handle_chat(session_id=sid, world_id=WORLD, user_text="主卧在哪")
     body = handle_chat(session_id=sid, world_id=WORLD, user_text="今天天气如何")
-    assert "主卧在哪" in body["reply_text"] or "刚提到" in body["reply_text"]
+    assert "刚提到" not in body["reply_text"]
+    assert "主卧在哪" not in body["reply_text"]
+    assert "小驻" in body["reply_text"]
     session_store.clear(sid)
 
 
@@ -308,4 +310,42 @@ def test_audio_chat_attaches_tts(monkeypatch: pytest.MonkeyPatch) -> None:
     assert body.get("tts_url") == "/static/tts/v.mp3"
     session_store.clear("s_voice")
     clear_tts_cache()
+
+
+def test_intro_current_room_fast() -> None:
+    body = _chat("向我介绍这个房间", room_id="room_living")
+    text = body["reply_text"]
+    assert "小驻" in text
+    assert "客厅" in text
+    assert "52.6" in text
+    assert "想先看哪一间" not in text
+    assert "刚提到" not in text
+    assert "actions" not in body
+
+
+def test_intro_current_room_no_room_id_falls_back() -> None:
+    body = _chat("介绍这个房间")
+    text = body["reply_text"]
+    assert "小驻" in text
+    assert "想先看哪一间" in text or "房间" in text
+    assert "刚提到" not in text
+
+
+def test_sleep_place_navigates_bedroom() -> None:
+    body = _chat("我想看看睡觉的地方")
+    assert "小驻" in body["reply_text"]
+    assert "主卧" in body["reply_text"]
+    assert body["actions"][0]["type"] == "teleport"
+    assert body["actions"][0]["tp_id"] == "tp_bedroom_master"
+    assert "刚提到" not in body["reply_text"]
+
+
+def test_desk_nav_no_echo() -> None:
+    body = _chat("我想看看书桌")
+    text = body["reply_text"]
+    assert "刚提到" not in text
+    assert "您刚提到" not in text
+    assert "书桌" in text
+    assert "小驻" in text
+    assert any(a.get("type") == "teleport" for a in body.get("actions") or [])
 

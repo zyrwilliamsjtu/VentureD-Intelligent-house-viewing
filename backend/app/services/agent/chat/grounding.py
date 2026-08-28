@@ -126,7 +126,14 @@ def _generic_bedroom_ask(text: str) -> bool:
     t = strip_query(text)
     if "主卧" in t or "次卧" in t or "卧室3" in t or "卧室4" in t:
         return False
-    return "卧室" in t
+    return "卧室" in t or "睡觉" in t or "休息的地方" in t
+
+
+def _generic_study_ask(text: str) -> bool:
+    t = strip_query(text)
+    if "书房" in t:
+        return True
+    return any(k in t for k in ("看书", "学习", "学习的地方", "办公的地方"))
 
 
 def pick_nav_room(
@@ -135,7 +142,7 @@ def pick_nav_room(
     current_id: str | None,
     graph: dict,
 ) -> dict | None:
-    """多卧室：已在某间卧室 → 该间；否则默认主卧。"""
+    """多卧室：已在某间卧室 → 该间；否则默认主卧。书房别名同理。"""
     here = facts_mod.find_room_by_id(graph, current_id) if current_id else None
     if _generic_bedroom_ask(text):
         if here and _is_bedroom(here):
@@ -146,6 +153,14 @@ def pick_nav_room(
         beds = [r for r in hits if _is_bedroom(r)]
         if beds:
             return beds[0]
+    if _generic_study_ask(text):
+        for room in hits:
+            n = str(room.get("name") or "")
+            if n == "书房" or str(room.get("type") or "") == "study":
+                return room
+        for room in facts_mod.rooms_of(graph):
+            if str(room.get("name") or "") == "书房":
+                return room
     return hits[0] if hits else None
 
 
@@ -311,9 +326,11 @@ def retrieve(
     if intent == Intent.HOUSE_OVERVIEW:
         return _facts(query=text, house=house, hints=hints)
 
-    if intent == Intent.ENTER_ROOM:
+    if intent in (Intent.ENTER_ROOM, Intent.ROOM_INTRO):
         room = facts_mod.find_room_by_id(scene_graph, room_id) if room_id else None
         if room is None:
+            if intent == Intent.ROOM_INTRO:
+                return _facts(missing=False, query=text, house=house, hints=hints)
             return empty_facts(room_id or text, graph=scene_graph)
         return _facts(query=text, room=room, house=house, hints=hints)
 

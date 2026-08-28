@@ -67,6 +67,7 @@ def build(intent: Intent, facts: Facts, scene_graph: dict) -> list[dict[str, Any
         return []
     if facts["missing"] or intent in (
         Intent.ENTER_ROOM,
+        Intent.ROOM_INTRO,
         Intent.SMALLTALK,
         Intent.UNKNOWN,
         Intent.CLARIFY,
@@ -87,7 +88,7 @@ def build(intent: Intent, facts: Facts, scene_graph: dict) -> list[dict[str, Any
             rtp = (host or {}).get("trajectory_point_id")
             fly = itp if isinstance(itp, str) and itp else rtp
             if isinstance(fly, str) and fly:
-                _append(actions, _teleport(fly, f"带您去看{name}", allowed))
+                _append(actions, _teleport(fly, f"小驻带您去看{name}", allowed))
             if isinstance(itp, str) and itp:
                 _append(actions, _highlight(itp, allowed))
             _append(actions, _instance_card(inst))
@@ -96,7 +97,7 @@ def build(intent: Intent, facts: Facts, scene_graph: dict) -> list[dict[str, Any
             name = str(room.get("name") or "那里")
             rtp = room.get("trajectory_point_id")
             if isinstance(rtp, str) and rtp:
-                _append(actions, _teleport(rtp, f"带您去{name}", allowed))
+                _append(actions, _teleport(rtp, f"小驻带您去{name}", allowed))
         return actions
 
     if intent == Intent.PROPERTY:
@@ -129,7 +130,7 @@ def build(intent: Intent, facts: Facts, scene_graph: dict) -> list[dict[str, Any
         itp = inst.get("trajectory_point_id")
         fly = rtp if isinstance(rtp, str) and rtp else itp
         if isinstance(fly, str) and fly:
-            _append(actions, _teleport(fly, f"带您去看{name}", allowed))
+            _append(actions, _teleport(fly, f"小驻带您去看{name}", allowed))
         if isinstance(itp, str) and itp:
             _append(actions, _highlight(itp, allowed))
         _append(actions, _instance_card(inst))

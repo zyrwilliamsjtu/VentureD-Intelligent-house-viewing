@@ -56,6 +56,8 @@ _SMALLTALK = ("你好", "您好", "谢谢", "在吗", "嗨", "早上好", "hello
 _EXIST_RE = re.compile(r"有(没有|无)?(.{0,16}?)(吗|么|嘛|没)")
 _OVERVIEW_VERBS = ("介绍一下", "介绍下", "介绍", "讲讲", "说说", "讲一下", "说一下")
 _OVERVIEW_HOUSE = ("这套房", "这房子", "这个房子", "这屋", "房子", "户型", "整体")
+_HERE_ROOM = ("这个房间", "这间房", "这房间", "当前房间", "这里", "这儿")
+_HERE_HOW = ("怎么样", "如何", "怎样")
 
 
 class Intent(str, Enum):
@@ -64,6 +66,7 @@ class Intent(str, Enum):
     INSTANCE = "instance"
     EXISTENCE = "existence"
     HOUSE_OVERVIEW = "house_overview"
+    ROOM_INTRO = "room_intro"
     ENTER_ROOM = "enter_room"
     SMALLTALK = "smalltalk"
     CLARIFY = "clarify"
@@ -112,6 +115,21 @@ def is_house_overview(text: str) -> bool:
     return has_verb and has_house
 
 
+def is_current_room_intro(text: str) -> bool:
+    """介绍这个房间 / 这里怎么样 → 当前 room_id，不进房子总览、不进引导列表。"""
+    t = strip_query(text)
+    if not t or is_existence_query(t) or is_house_overview(t):
+        return False
+    if any(k in t for k in ("在哪", "在哪儿", "带我", "多大", "多少钱", "价格", "朝向")):
+        return False
+    here = any(h in t for h in _HERE_ROOM)
+    if not here:
+        return False
+    if any(v in t for v in _OVERVIEW_VERBS) or any(v in t for v in _HERE_HOW):
+        return True
+    return t in ("这个房间", "这间房", "这房间", "当前房间", "这里", "这儿")
+
+
 def instance_keywords_of(graph: dict) -> list[str]:
     keys = list(CATEGORY_ZH.values())
     keys.extend(INSTANCE_ALIAS_KEYS)
@@ -158,6 +176,8 @@ def understand(
 
     if is_house_overview(text):
         return Intent.HOUSE_OVERVIEW
+    if is_current_room_intro(text):
+        return Intent.ROOM_INTRO
     if is_vague_overview(text):
         return Intent.CLARIFY
     if has_exist and not has_nav:
@@ -198,7 +218,7 @@ def is_vague_overview(text: str) -> bool:
 
 
 def needs_llm_route(intent: Intent) -> bool:
-    """仅开放/模糊问题走 LLM；导航/存在性/介绍房子走规则快路径。"""
+    """仅开放/模糊问题走 LLM；导航/存在性/介绍房子/当前房间走规则快路径。"""
     return intent == Intent.UNKNOWN
 
 
