@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { WALK_WORLD, type Listing, type RoomPoly } from '../data/listings'
+import { HOUSE_FLOOR } from '../data/houseImages'
 
 // ==== 房源列表页：白纸编辑部风（发丝线网格 + 编号卡片，悬停整卡反色）====
 // 数据源：store.listings（网关 GET /api/listings，失败本地兜底；listingsSource 标注）。
@@ -43,10 +44,15 @@ function MiniFloorplan({ rooms, className }: { rooms: RoomPoly[]; className?: st
 function HouseCard({ l, index, onPick }: { l: Listing; index: number; onPick: (l: Listing) => void }) {
   const no = String(index + 1).padStart(2, '0')
   const walkable = l.worldId === WALK_WORLD // Aholo LOD 目前仅 0330 转码完成
+  const floorImg = HOUSE_FLOOR[l.id]
   return (
     <button className="house-card" onClick={() => onPick(l)}>
       <div className="hc-plan">
-        <MiniFloorplan rooms={l.floorplan} className="fp-svg" />
+        {floorImg ? (
+          <img className="hc-floor-img" src={floorImg} alt={`${l.title} 户型图`} loading="lazy" />
+        ) : (
+          <MiniFloorplan rooms={l.floorplan} className="fp-svg" />
+        )}
         {walkable ? (
           <span className="hc-live-badge mono">3DGS 实景</span>
         ) : (

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { LISTINGS } from '../data/listings'
 import type { Listing } from '../data/listings'
+import { HOUSE_EFFECT } from '../data/houseImages'
 
 // ==== 高端房产落地页（对齐 LuxeEstate Demo：浅色奢华 · 玻璃拟态搜索卡 · 精选房源 · 顾问团队 · 预约表单）====
 // 视觉：Cinzel/Noto Serif SC 衬线标题 + DM Sans 正文；白玻璃吸顶导航；蓝 #0077b6 主按钮 + 金 #ffd700 点缀；
@@ -72,7 +73,7 @@ const FOOT_COLS: Array<{ title: string; links: string[] }> = [
 ]
 
 function FeaturedCard({ l, onPick }: { l: Listing; onPick: (l: Listing) => void }) {
-  const img = CARD_IMG[l.id]
+  const img = HOUSE_EFFECT[l.id] || CARD_IMG[l.id]
   return (
     <button className="prop-card" onClick={() => onPick(l)}>
       <div className="prop-media">
@@ -112,7 +113,12 @@ export function Splash() {
   const [layout, setLayout] = useState('all')
   const [price, setPrice] = useState('all')
 
-  const featured = LISTINGS.slice(0, 3)
+  // 优先展示已有实景效果图的房源（缺图则用占位图补足到 3 套）
+  const withEffect = LISTINGS.filter((l) => HOUSE_EFFECT[l.id])
+  const featured =
+    withEffect.length >= 3
+      ? withEffect.slice(0, 3)
+      : [...withEffect, ...LISTINGS.filter((l) => !HOUSE_EFFECT[l.id])].slice(0, 3)
 
   const onPick = (l: Listing) => {
     selectListing(l)
