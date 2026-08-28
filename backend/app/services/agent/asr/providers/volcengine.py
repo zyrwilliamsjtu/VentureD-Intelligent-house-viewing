@@ -3,6 +3,10 @@
 端点：wss://openspeech.bytedance.com/api/v3/sauc/bigmodel
 文档：https://www.volcengine.com/docs/6561/1354869
 二进制帧实现对照官方 veadk / 文档 header 布局。
+
+官方输入：pcm / wav / ogg / mp3。前端 PTT 为 webm+opus 或 Safari m4a，
+均先经本机 ffmpeg 转到 16kHz 单声道 pcm_s16le 再申报 format=pcm codec=raw。
+ffmpeg 缺失时回退 detect_audio_format（webm→ogg+opus，待确认）。
 """
 
 from __future__ import annotations
@@ -10,8 +14,12 @@ from __future__ import annotations
 import asyncio
 import gzip
 import json
+import shutil
 import struct
+import subprocess
+import tempfile
 import uuid
+from pathlib import Path
 
 from app.config import (
     asr_access_token,
@@ -23,7 +31,8 @@ from app.services.agent.asr.providers.base import ASRProvider
 
 _WS_URL = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel"
 _TIMEOUT = 10.0
-_CHUNK = 3200  # 待确认：约 100ms @ 16kHz s16le mono；压缩容器按字节切
+# 官方：双向流式单包约 200ms 最优；16kHz s16le mono = 6400 bytes
+_CHUNK = 6400
 
 _PROTOCOL_V1 = 0b0001
 _HEADER_SIZE = 0b0001
@@ -172,10 +181,87 @@ def detect_audio_format(audio_bytes: bytes, filename: str) -> tuple[str, str]:
         return "ogg", "opus"
     if name.endswith(".mp3"):
         return "mp3", "raw"
-    # 待确认：浏览器 webm/opus 按 ogg+opus 申报
     if name.endswith(".webm") or audio_bytes[:4] == b"\x1a\x45\xdf\xa3":
-        return "ogg", "opus"
+        return "ogg", "opus"  # 待确认：仅作 ffmpeg 失败时的申报回退
     return "raw", "raw"
+
+
+def wav_to_pcm(wav: bytes) -> bytes:
+    if wav[:4] != b"RIFF" or len(wav) < 44:
+        return wav
+    pos = 12
+    while pos + 8 <= len(wav):
+        chunk_id = wav[pos : pos + 4]
+        size = struct.unpack_from("<I", wav, pos + 4)[0]
+        if chunk_id == b"data":
+            return wav[pos + 8 : pos + 8 + size]
+        pos += 8 + size + (size & 1)
+    return wav[44:]
+
+
+def pcm_duration_ms(pcm: bytes, *, rate: int = 16000) -> int:
+    if not pcm:
+        return 0
+    return int(len(pcm) / (rate * 2) * 1000)
+
+
+def ffmpeg_available() -> bool:
+    return shutil.which("ffmpeg") is not None
+
+
+def transcode_to_pcm16k(audio_bytes: bytes) -> bytes:
+    """ffmpeg：任意容器 → 16kHz 单声道 s16le PCM（官方 pcm/wav 要求 pcm_s16le）。"""
+    if not ffmpeg_available():
+        raise RuntimeError("ffmpeg 不可用，无法把 webm/m4a 转到 pcm16k")
+    with tempfile.NamedTemporaryFile(suffix=".bin", delete=False) as src:
+        src.write(audio_bytes)
+        src_path = src.name
+    dst_path = src_path + ".wav"
+    try:
+        proc = subprocess.run(
+            [
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-i",
+                src_path,
+                "-ac",
+                "1",
+                "-ar",
+                "16000",
+                "-acodec",
+                "pcm_s16le",
+                "-f",
+                "wav",
+                dst_path,
+            ],
+            capture_output=True,
+            timeout=8,
+            check=False,
+        )
+        if proc.returncode != 0 or not Path(dst_path).is_file():
+            err = (proc.stderr or b"").decode("utf-8", errors="replace")[:200]
+            raise RuntimeError(f"ffmpeg 转码失败: {err}")
+        wav = Path(dst_path).read_bytes()
+    finally:
+        Path(src_path).unlink(missing_ok=True)
+        Path(dst_path).unlink(missing_ok=True)
+    pcm = wav_to_pcm(wav)
+    if not pcm:
+        raise RuntimeError("ffmpeg 转码结果无 PCM")
+    return pcm
+
+
+def prepare_pcm(audio_bytes: bytes, filename: str) -> tuple[bytes, str, str, int]:
+    """返回 (pcm_or_raw, format, codec, duration_ms)。优先 ffmpeg 16k mono。"""
+    try:
+        pcm = transcode_to_pcm16k(audio_bytes)
+        return pcm, "pcm", "raw", pcm_duration_ms(pcm)
+    except Exception:
+        fmt, codec = detect_audio_format(audio_bytes, filename)
+        return audio_bytes, fmt, codec, 0
 
 
 def _split(data: bytes, size: int) -> list[bytes]:
@@ -184,7 +270,12 @@ def _split(data: bytes, size: int) -> list[bytes]:
     return [data[i : i + size] for i in range(0, len(data), size)]
 
 
-async def _recognize(audio_bytes: bytes, filename: str) -> tuple[str, int]:
+async def _recognize(
+    audio_bytes: bytes,
+    *,
+    audio_format: str,
+    codec: str,
+) -> str:
     import websockets
 
     app_id = asr_app_id()
@@ -194,7 +285,6 @@ async def _recognize(audio_bytes: bytes, filename: str) -> tuple[str, int]:
     resources = _resource_candidates()
     if not resources:
         raise RuntimeError("volcengine ASR 未配置 RESOURCE_ID")
-    fmt, codec = detect_audio_format(audio_bytes, filename)
     last_err: Exception | None = None
     for resource in resources:
         headers = handshake_headers(
@@ -212,7 +302,9 @@ async def _recognize(audio_bytes: bytes, filename: str) -> tuple[str, int]:
             text = ""
             async with connect as ws:
                 seq = 1
-                await ws.send(pack_full_client_request(seq, audio_format=fmt, codec=codec))
+                await ws.send(
+                    pack_full_client_request(seq, audio_format=audio_format, codec=codec)
+                )
                 seq += 1
                 first = await asyncio.wait_for(ws.recv(), timeout=_TIMEOUT)
                 if isinstance(first, (bytes, bytearray)):
@@ -241,8 +333,7 @@ async def _recognize(audio_bytes: bytes, filename: str) -> tuple[str, int]:
                         parsed.get("code") not in (0, None) and parsed.get("code")
                     ):
                         break
-            duration_ms = max(int(len(audio_bytes) / 32), 0)
-            return text, duration_ms
+            return text
         except Exception as exc:
             last_err = exc
             continue
@@ -255,7 +346,11 @@ class VolcengineASRProvider(ASRProvider):
             return {"text": "", "duration_ms": 0}
         if not asr_app_id() or not asr_access_token():
             raise RuntimeError("volcengine ASR 未配置")
-        text, duration_ms = asyncio.run(
-            asyncio.wait_for(_recognize(audio_bytes, filename), timeout=_TIMEOUT)
+        pcm, fmt, codec, duration_ms = prepare_pcm(audio_bytes, filename)
+        text = asyncio.run(
+            asyncio.wait_for(
+                _recognize(pcm, audio_format=fmt, codec=codec),
+                timeout=_TIMEOUT,
+            )
         )
         return {"text": text, "duration_ms": int(duration_ms or 0)}

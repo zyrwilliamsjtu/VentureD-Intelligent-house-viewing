@@ -141,6 +141,7 @@ A 前端 ──POST /api/agent/chat|asr|tts|tour / GET narration──> backend 
 | 2026-08-28 | agent 真实 API | ASR/TTS/LLM Provider + stub 兜底；配置见 `.env.example`（无 key） |
 | 2026-08-28 | 方舟 chat + 豆包语音 | chat 切 openai_compat（需 ep- 接入点）；volcengine TTS 真接 / ASR 骨架 |
 | 2026-08-28 | ep + TTS V3 + ASR WS | chat 接推理接入点；TTS SeedTTS2.0 V3；ASR WebSocket 真实现 |
+| 2026-08-28 | ASR 真实识别 + 格式对齐 | ffmpeg 将前端 webm/m4a 转到 pcm16k；live 转写「这栋房子的主卧在哪？」 |
 
 ## 8. 与本仓库其他板块的关系
 

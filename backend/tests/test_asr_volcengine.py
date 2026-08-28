@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import gzip
 import json
+import os
 import struct
+from pathlib import Path
 
 import pytest
 
@@ -12,11 +14,14 @@ from app.services.agent.asr.providers import get_asr_provider
 from app.services.agent.asr.providers import volcengine as asr_mod
 from app.services.agent.asr.providers.volcengine import (
     VolcengineASRProvider,
+    detect_audio_format,
     extract_text,
+    ffmpeg_available,
     handshake_headers,
     pack_audio_only,
     pack_full_client_request,
     parse_server_frame,
+    prepare_pcm,
 )
 from app.services.agent.asr.service import transcribe
 
@@ -107,3 +112,41 @@ def test_mock_websocket_protocol(monkeypatch: pytest.MonkeyPatch) -> None:
     body = transcribe(b"\x00\x01\x02\x03")
     assert body["text"] == "你好欢迎"
     assert body["duration_ms"] >= 0
+
+
+def test_detect_audio_format_webm_magic() -> None:
+    fmt, codec = detect_audio_format(b"\x1a\x45\xdf\xa3xxxx", "voice.webm")
+    assert fmt == "ogg"
+    assert codec == "opus"
+
+
+def test_prepare_pcm_falls_back_without_ffmpeg(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(asr_mod, "ffmpeg_available", lambda: False)
+    blob = b"\x1a\x45\xdf\xa3" + b"\x00" * 16
+    pcm, fmt, codec, ms = prepare_pcm(blob, "voice.webm")
+    assert pcm == blob
+    assert fmt == "ogg"
+    assert codec == "opus"
+    assert ms == 0
+
+
+def test_prepare_pcm_m4a_via_ffmpeg() -> None:
+    path = Path(__file__).resolve().parent / "assets" / "test_audio.m4a"
+    if not path.is_file():
+        pytest.skip("missing test_audio.m4a")
+    if not ffmpeg_available():
+        pytest.skip("ffmpeg not on PATH")
+    pcm, fmt, codec, ms = prepare_pcm(path.read_bytes(), "test_audio.m4a")
+    assert fmt == "pcm"
+    assert codec == "raw"
+    assert len(pcm) > 1000
+    assert ms > 0
+
+
+@pytest.mark.skipif(os.environ.get("AGENT_LIVE_VOICE") != "1", reason="live ASR opt-in")
+def test_live_asr_m4a() -> None:
+    path = Path(__file__).resolve().parent / "assets" / "test_audio.m4a"
+    assert path.is_file()
+    body = VolcengineASRProvider().transcribe(path.read_bytes(), filename="test_audio.m4a")
+    assert body["text"].strip()
+    assert body["duration_ms"] > 0
