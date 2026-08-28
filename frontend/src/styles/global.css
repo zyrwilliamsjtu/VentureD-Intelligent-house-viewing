@@ -105,7 +105,8 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .resume-sub { color: #8a90a8; font-size: 12.5px; letter-spacing: 0.06em; }
 
 /* ---- WebGL 不可用兜底 ---- */
-.no-webgl { display: flex; align-items: center; justify-content: center; }
+/* 错误层必须压过 resume-overlay(21)/walk-hud(20)，否则黑屏原因被遮罩盖住 */
+.no-webgl { display: flex; align-items: center; justify-content: center; z-index: 30; background: #0a0b10; }
 .no-webgl div { text-align: center; }
 .no-webgl b { display: block; color: #f2f4ff; font-size: 17px; margin-bottom: 8px; }
 .no-webgl span { color: #8a90a8; font-size: 12.5px; }
