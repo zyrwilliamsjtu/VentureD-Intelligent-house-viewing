@@ -35,8 +35,8 @@ const FALLBACK_RAW: Array<
 > = [
   {
     id: 'listing_0330_840483',
-    community: '阳光里',
-    title: '阳光里',
+    community: '翡翠云邸',
+    title: '翡翠云邸',
     layout: '三室一厅',
     area: 120.1,
     orientation: '南向',
