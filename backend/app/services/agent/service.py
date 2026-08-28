@@ -1,4 +1,4 @@
-"""Agent 统一入口。chat 为 M1 规则版；asr/tts 仍 stub。"""
+"""Agent 统一入口。chat 规则版保底 + 可选 LLM 增强；asr/tts 走 Provider（失败降级 stub）。"""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from app.services.agent.asr.service import transcribe
 from app.services.agent.chat.actions import build as build_actions
 from app.services.agent.chat.grounding import retrieve
 from app.services.agent.chat.intent import understand
+from app.services.agent.chat.llm_provider import get_chat_llm_provider
 from app.services.agent.chat.responder import generate
 from app.services.agent.facts import load as load_facts
 from app.services.agent.narration.service import get_narration
@@ -45,6 +46,16 @@ def handle_chat(
     grounded = retrieve(intent, user_text, graph, room_id=room_id or sess.get("current_room"))
     reply = generate(grounded, intent, graph)
     actions = build_actions(intent, grounded, graph)
+    try:
+        enhanced = get_chat_llm_provider().enhance(
+            grounded,
+            user_text,
+            sess.get("history") if isinstance(sess.get("history"), list) else [],
+        )
+        if enhanced:
+            reply = enhanced
+    except Exception:
+        pass
 
     history = sess.get("history")
     if not isinstance(history, list):
@@ -61,6 +72,13 @@ def handle_chat(
     body: dict[str, Any] = {"reply_text": reply}
     if actions:
         body["actions"] = actions
+    try:
+        tts_body = synthesize(reply)
+        url = tts_body.get("audio_url") if isinstance(tts_body, dict) else None
+        if url:
+            body["tts_url"] = str(url)
+    except Exception:
+        pass
     return body
 
 

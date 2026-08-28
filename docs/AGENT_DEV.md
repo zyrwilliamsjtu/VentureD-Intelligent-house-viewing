@@ -12,12 +12,10 @@ PI 在网关内实现 SPEC v2.2 五接口：
 
 | 接口 | 本阶段 | 目标 |
 |------|--------|------|
-| `POST /api/agent/chat` | **M1 规则版**（intent → grounding → responder → actions） | L1 LLM 增强 |
-
-| `POST /api/agent/asr` | P0 stub `{text:"", duration_ms:0}` | 有 key 后真实 ASR |
-| `POST /api/agent/tts` | P0 stub `{}`（omit `audio_url`） | 有 key 后真实 TTS |
+| `POST /api/agent/chat` | **M1 规则版**（intent → grounding → responder → actions） | P2 LLM 增强 |
+| `POST /api/agent/asr` | Provider：默认 stub；`openai_compat` 失败降级 `{text:""}` | P0 |
+| `POST /api/agent/tts` | Provider：默认 stub；失败 omit `audio_url` | P1 |
 | `GET /api/agent/narration` | story_card + selling_points；可选 `session_id` 去重 | M2 打磨 |
-
 | `POST /api/agent/tour` | **M2 已接入** `build_tour`（`tour_path` → `steps[]`） | 打磨文案 |
 
 前端只打网关，不直连其它服务。A 负责点云落点；agent **只决定讲什么、去哪个语义锚点（tp_id）**。
@@ -35,10 +33,11 @@ backend/app/routers/agent.py          # 校验 session_id/world_id、错误码
         ▼
 app.services.agent.service             # handle_chat / asr / tts / narration / tour
         │
-        ├── chat/                      # M1：intent → grounding → responder + actions
+        ├── chat/                      # M1 规则版 + llm_provider.py（P2，失败回规则版）
         ├── narration/                 # 进房讲解
         ├── tour/                      # 带看动线
-        ├── asr/  tts/                 # 语音 stub → 日后真实引擎
+        ├── asr/providers/             # stub + openai_compat（失败降级 stub）
+        ├── tts/providers/             # stub + openai_compat（失败 omit audio_url）
         ├── session/store.py           # session_id → 上下文（内存 dict）
         └── facts.py                   # 复用 app.data.scene_store.load_scene_graph
 ```
@@ -87,9 +86,9 @@ app.services.agent.service             # handle_chat / asr / tts / narration / t
 
 | 层 | 内容 | 依赖 |
 |----|------|------|
-| **L0 规则版（当前目标）** | 关键词意图 + scene_graph 检索 + 模板回复 + tp_id 动作 | 无 LLM key；全可测；保 demo |
-| **L1 LLM 增强** | 同一 grounding，LLM 只改写话术；事实仍来自 graph | API key；失败回退 L0 |
-| **ASR / TTS 真实** | 替换 asr/tts stub | 语音 key；失败保持 stub 形状 |
+| **L0 规则版** | 关键词意图 + scene_graph 检索 + 模板回复 + tp_id 动作 | 无外部 API；保 demo |
+| **L1 / P2 LLM 增强** | 同一 grounding，LLM 只改写话术 | `CHAT_PROVIDER=openai_compat`；失败回退 L0 |
+| **P0 ASR / P1 TTS** | 真实语音；失败保持 stub 形状 | `ASR_PROVIDER` / `TTS_PROVIDER` |
 
 L0 与 L1 **共用** facts / session / actions 铁律，避免两套幻觉源。
 
@@ -122,10 +121,11 @@ HUD 动作：`teleport.tp_id` → `coords.resolveTeleportCloud` → 体素贴地
 |----|------|------|
 | **M0** | 骨架 + facts/session + asr/tts stub + narration 简单实现 + chat stub + AGENT_DEV | ✅ |
 | **M1** | 规则版 `handle_chat`：intent / grounding / responder / actions | ✅ |
-
 | **M2** | narration 打磨 + session 去重；`handle_tour` 接入 `build_tour` | ✅ |
-| **M3** | router 与契约测试对齐（本提交已把 router 接到 handle_* stub） | 进行中 |
-| **M4** | L1 LLM 增强（需 key） | 未开始 |
+| **M3** | router 与契约测试对齐 | ✅ |
+| **P0** | ASR Provider（stub + openai_compat + 超时/失败降级） | ⏳ 进行中（结构完成，真实端点待确认） |
+| **P1** | TTS Provider（stub + 缓存 + 降级；chat 可附 tts_url） | ⏳ 进行中（结构完成，真实端点待确认） |
+| **P2 / M4** | chat LLM 增强（规则版保底） | ⏳ 进行中（结构完成，真实端点待确认） |
 
 ---
 
@@ -148,7 +148,7 @@ HUD 动作：`teleport.tp_id` → `coords.resolveTeleportCloud` → 体素贴地
 2. **独立可测**：`backend/tests/test_agent_service.py` 不依赖 LLM。
 3. **GT 兜底**：事实只来自入库 JSON；理解层换 DualEngine 后仍可先绑 GT world。
 4. **契约稳定**：先 SPEC 再改字段；omit 空可选。
-5. **小步提交**：chat 规则版不接 LLM。
+5. **小步提交**：外部 API 失败必须降级；key 不入库。
 
 ---
 
@@ -160,11 +160,11 @@ backend/app/services/agent/
 ├── service.py           # 统一入口
 ├── facts.py             # load + 简单检索
 ├── session/store.py     # 内存 load/save/clear
-├── chat/                # M1 规则版：understand / retrieve / generate / build
+├── chat/                # M1 规则版 + llm_provider.py（P2）
 ├── narration/service.py
-├── tour/service.py      # build_tour（handle_tour 已接入）
-├── asr/service.py
-└── tts/service.py
+├── tour/service.py
+├── asr/providers/       # stub / openai_compat
+├── tts/providers/       # stub / openai_compat；缓存在 tts/service.py
 ```
 
 会话存储为**进程内 dict**，重启丢失——多 worker **待确认**是否改 Redis（demo 单进程可接受）。
@@ -178,3 +178,48 @@ backend/app/services/agent/
 | 2026-08-28 | 建立骨架、facts/session、asr/tts stub、narration 简单实现、chat stub、router 接入 handle_* |
 | 2026-08-28 | M1 规则版 handle_chat（intent/grounding/responder/actions）；SPEC §3.1 改为点云 Z-up |
 | 2026-08-28 | M2 handle_tour 接入 build_tour；narration 拼 selling_points + 可选 session 去重；SPEC §4.2 Z-up |
+| 2026-08-28 | 接真实 API：ASR/TTS/chat-LLM Provider 抽象 + stub 兜底（P0/P1/P2）；key 仅 .env |
+
+---
+
+## 13. API 接入
+
+**决策（PI，2026-08-28）**：agent 接真实 API（ASR / TTS / chat LLM），与理解层一样用 **Provider 抽象 + stub 兜底 + 环境变量热切换**。
+
+### 供应商（待确认）
+
+- Key 已在 `backend/.env`（**未跟踪、禁止入库**），`sk-` 前缀，按 **OpenAI 兼容** 优先实现。
+- **base_url / 模型名 / ASR·TTS 端点路径尚未向提供方确认**。代码里默认路径为：
+  - chat：`POST {LLM_BASE_URL}/chat/completions`
+  - ASR：`POST {ASR_BASE_URL}/audio/transcriptions`
+  - TTS：`POST {TTS_BASE_URL}/audio/speech`
+- 上述路径若与供应商不一致，只改 `.env` 的 `*_BASE_URL` 或对应 `openai_compat.py` 顶栏常量，不要把 key 写进仓库。
+
+### 配置（只写变量名）
+
+| 变量 | 作用 | 缺省 |
+|------|------|------|
+| `ASR_PROVIDER` / `TTS_PROVIDER` / `CHAT_PROVIDER` | `stub` 或 `openai_compat` | `stub` |
+| `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` | chat 增强 | 空 → 不调用 |
+| `ASR_*` / `TTS_*` | 语音；空则回退用 `LLM_*` | 空 → 降级 stub |
+
+真实 key **只允许**出现在本机 `backend/.env`。`.env.example` 与文档只列变量名。
+
+### 降级链（demo 永不挂）
+
+```
+ASR：openai_compat（超时 10s）→ stub {text:"", duration_ms:0}
+TTS：openai_compat（超时 15s）+ 同文本缓存 → {}（omit audio_url）
+chat：规则版始终先跑 → LLM enhance 成功才替换 reply_text；失败/未配置保持规则版；actions 仍由规则版产出
+```
+
+热切换：改 `.env` 里 `*_PROVIDER` 后重启 uvicorn（或新进程读环境）。
+
+### 里程碑
+
+| ID | 内容 | 状态 |
+|----|------|------|
+| P0 | ASR | ⏳ 结构完成，真实端点待确认 |
+| P1 | TTS + chat 可选 tts_url | ⏳ 结构完成，真实端点待确认 |
+| P2 | chat LLM 增强 | ⏳ 结构完成，真实端点待确认 |
+
