@@ -1,7 +1,7 @@
 # 项目总览（PROJECT_OVERVIEW）
 
-> **性质**：PI / 全队一页看全。接口字段仍以根目录 `SPEC.md` 为准；本文只记 **main 已落地** 的板块、数据流与 demo 路径。  
-> **日期**：2026-08-28 · 对照 `origin/main` `e10f7d7`（含 narration GET + B 键）  
+> **性质**：PI / 全队一页看全。接口字段仍以根目录 `SPEC.md` 为准；本文记板块、数据流与 demo 路径。  
+> **日期**：2026-08-29 · `feat/agent-ux`（三层页面 + listings 筛选；**尚未合 main**）  
 > **不虚构**：未合 main 的标 `# 待合入`；未拍板的标 `# 待确认`。
 
 ---
@@ -41,8 +41,9 @@
 
 ```
 浏览器
-  │  开场  GET /api/listings
-  │  进房  GET /api/scene/{world_id}
+  │  Splash → HouseList
+  │  列表  GET /api/listings[?layout=&price_min=&price_max=&q=]
+  │  选房  GET /api/scene/{world_id}
   │        GET /api/camera_poses/{world_id}
   │  出画  /ply/{scene}.ply  或  VITE_SPLAT_URL_*
   │
@@ -67,7 +68,7 @@
 
 | # | 接口 | SPEC | main 状态 |
 |---|------|------|-----------|
-| 1 | `GET /api/listings` | §2.6 | 已接；失败前端硬编码兜底 |
+| 1 | `GET /api/listings` | §2.6 | 已接；可选筛选参数；失败前端硬编码兜底 |
 | 2 | `GET /api/scene/{world_id}` | §2 | 已接；5 套 GT + `w_mock_001` |
 | 3 | `GET /api/camera_poses/{world_id}` | §4.4 | 已接；逐场景表 |
 | 4 | `POST /api/agent/chat` | §3.1 | 已接；可选 `listing_id` |
@@ -136,10 +137,11 @@
 ## 一条 demo 路径
 
 1. **进入** — `cd frontend && npm run dev`；`cd backend && uvicorn app.main:app --reload`。前端 `.env.local`：`VITE_API_MODE=real`（联调网关）。
-2. **选房** — 开场页拉 `GET /api/listings`，点一套（如 0469）。
-3. **3D** — Spark 加载 ply；WASD + 鼠标（Pointer Lock）；左上 PlaceFacts 显示挂牌 + 当前房间。
-4. **带看** — 点「开始带看」或漫游中按 **B** → `POST /tour` 按 `steps[]` 走房；再按 B 停止。
-5. **提问** — HUD 输入「主卧在哪」→ chat 回 `reply_text` + `teleport(tp_bedroom_master)`；问家具可叠加 highlight / show_card。
-6. **PTT** — 按住说话 → `POST /asr` → 识别文本自动送 chat；无权限或空文本则打字。
+2. **Splash** — 品牌「小驻看房」/ inNest，点「进入看房」。`# 待合入 feat/agent-ux`
+3. **HouseList** — `GET /api/listings`（可带 `layout` / 价格 / `q`），圆角卡片选一套（如 0469）。
+4. **3D WalkHud** — Spark 加载 ply；WASD + 鼠标（Pointer Lock）；左上 PlaceFacts +「返回列表」。
+5. **带看** — 点「开始带看」或漫游中按 **B** → `POST /tour` 按 `steps[]` 走房；再按 B 停止。
+6. **提问** — HUD 输入「主卧在哪」→ chat 回 `reply_text` + `teleport(tp_bedroom_master)`；问家具可叠加 highlight / show_card。
+7. **PTT** — 按住说话 → `POST /asr` → 识别文本自动送 chat；无权限或空文本则打字。
 
-换房：前端重置 `session_id`（SPEC 方案 A），不要把上一套 history 带到下一套。
+换房：先「返回列表」再选另一套；前端重置 `session_id`（SPEC 方案 A），不要把上一套 history 带到下一套。

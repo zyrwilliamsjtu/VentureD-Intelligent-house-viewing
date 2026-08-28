@@ -4,19 +4,21 @@ import { getHouse } from './services/api'
 import { resetAgentSession } from './services/agent'
 import { stopTour } from './scene/tourPlayer'
 import { AholoViewport } from './scene/AholoViewport'
-import { DEFAULT_WORLD_ID, WORLD_LISTINGS, loadListings, type WorldListing } from './scene/worlds'
+import { WORLD_LISTINGS, loadListings, type WorldListing } from './scene/worlds'
 import { Splash } from './components/Splash'
+import { HouseList } from './components/HouseList'
 import { WalkHud } from './components/WalkHud'
 
 export default function App() {
+  const view = useAppStore((s) => s.view)
   const entered = useAppStore((s) => s.entered)
-  const [worldId, setWorldId] = useState(DEFAULT_WORLD_ID)
+  const [worldId, setWorldId] = useState('')
   const [listings, setListings] = useState<WorldListing[]>(WORLD_LISTINGS)
 
   useEffect(() => {
     let alive = true
     loadListings().then((rows) => {
-      if (alive) setListings(rows)
+      if (alive && rows.length) setListings(rows)
     })
     return () => {
       alive = false
@@ -24,6 +26,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (view !== 'walk' || !worldId) return
     let alive = true
     useAppStore.getState().setHouse(null, true, null)
     ;(async () => {
@@ -40,40 +43,36 @@ export default function App() {
     return () => {
       alive = false
     }
-  }, [worldId])
+  }, [worldId, view])
 
-  const selectWorld = (id: string) => {
-    if (id === worldId) return
+  const pickListing = (w: WorldListing) => {
     stopTour()
     resetAgentSession()
     useAppStore.getState().clearInfoCard()
-    setWorldId(id)
-    console.info('[world] switch → %s', id)
+    setListings((prev) => (prev.some((x) => x.world_id === w.world_id) ? prev : [...prev, w]))
+    setWorldId(w.world_id)
+    useAppStore.getState().enterWalk()
+    useAppStore.getState().showToast('欢迎看房', '点击画面开始漫游 · WASD 走动')
+    console.info('[world] enter → %s', w.world_id)
   }
+
+  const backToList = () => {
+    stopTour()
+    document.exitPointerLock?.()
+    useAppStore.getState().exitToList()
+  }
+
+  const listing =
+    listings.find((w) => w.world_id === worldId) ?? WORLD_LISTINGS.find((w) => w.world_id === worldId)
 
   return (
     <div className="app">
-      <AholoViewport key={worldId} worldId={worldId} />
-      <div className="world-bar" role="navigation" aria-label="选择房源">
-        {(listings.length ? listings : WORLD_LISTINGS).map((w) => (
-          <button
-            key={w.world_id}
-            type="button"
-            className={w.world_id === worldId ? 'world-chip on' : 'world-chip'}
-            onClick={() => selectWorld(w.world_id)}
-          >
-            {w.title.replace('InteriorGS ', '')}
-            <span className="world-price">{w.price}</span>
-          </button>
-        ))}
-      </div>
-      {entered && (
-        <WalkHud
-          worldId={worldId}
-          listing={(listings.length ? listings : WORLD_LISTINGS).find((w) => w.world_id === worldId)}
-        />
-      )}
-      {!entered && <Splash />}
+      {view === 'walk' && worldId ? <AholoViewport key={worldId} worldId={worldId} /> : null}
+      {view === 'walk' && entered && worldId ? (
+        <WalkHud worldId={worldId} listing={listing} onBackToList={backToList} />
+      ) : null}
+      {view === 'list' ? <HouseList onPick={pickListing} /> : null}
+      {view === 'splash' ? <Splash /> : null}
     </div>
   )
 }

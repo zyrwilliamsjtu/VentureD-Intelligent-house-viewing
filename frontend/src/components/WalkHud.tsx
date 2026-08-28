@@ -274,7 +274,15 @@ function CenterToast() {
   )
 }
 
-export function WalkHud({ worldId, listing }: { worldId: string; listing?: WorldListing }) {
+export function WalkHud({
+  worldId,
+  listing,
+  onBackToList,
+}: {
+  worldId: string
+  listing?: WorldListing
+  onBackToList?: () => void
+}) {
   const locked = useAppStore((s) => s.pointerLocked)
   const [agentOpen, setAgentOpen] = useState(false)
   const roomId = useAppStore((s) => s.player?.room_id ?? null)
@@ -286,6 +294,11 @@ export function WalkHud({ worldId, listing }: { worldId: string; listing?: World
     <div className="walk-hud">
       {/* 左上：房源信息 */}
       <div className="hud-tl">
+        {onBackToList && (
+          <button type="button" className="back-list" onClick={onBackToList}>
+            ← 返回列表
+          </button>
+        )}
         <PlaceFacts listing={listing} />
         <TourBar worldId={worldId} />
       </div>

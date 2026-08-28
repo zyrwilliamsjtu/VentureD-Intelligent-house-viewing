@@ -37,8 +37,11 @@ export interface HighlightCmd {
   nonce: number
 }
 
+export type AppView = 'splash' | 'list' | 'walk'
+
 interface AppState {
-  entered: boolean // 是否已通过开场页
+  view: AppView
+  entered: boolean // 是否已进入第一人称漫游
   pointerLocked: boolean // 鼠标是否锁定在画布（第一人称视角激活）
   house: House | null
   houseLoading: boolean
@@ -53,6 +56,9 @@ interface AppState {
   tourLabel: string | null
 
   enter: () => void
+  enterList: () => void
+  enterWalk: () => void
+  exitToList: () => void
   setLocked: (v: boolean) => void
   setHouse: (h: House | null, loading?: boolean, error?: string | null) => void
   setZone: (z: string | null) => void
@@ -71,6 +77,7 @@ let hlSeq = 0
 let cardSeq = 0
 
 export const useAppStore = create<AppState>()((set) => ({
+  view: 'splash',
   entered: false,
   pointerLocked: false,
   house: null,
@@ -85,7 +92,18 @@ export const useAppStore = create<AppState>()((set) => ({
   tourActive: false,
   tourLabel: null,
 
-  enter: () => set({ entered: true }),
+  enter: () => set({ view: 'walk', entered: true }),
+  enterList: () => set({ view: 'list', entered: false, pointerLocked: false }),
+  enterWalk: () => set({ view: 'walk', entered: true }),
+  exitToList: () =>
+    set({
+      view: 'list',
+      entered: false,
+      pointerLocked: false,
+      infoCard: null,
+      tourActive: false,
+      tourLabel: null,
+    }),
   setLocked: (v) => set({ pointerLocked: v }),
   setHouse: (h, loading = false, error = null) => set({ house: h, houseLoading: loading, houseError: error }),
   setZone: (z) => set({ currentZone: z }),

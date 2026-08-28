@@ -147,3 +147,52 @@ def test_align_sample_instances_under_1cm(scene_dir: Path, world_id: str) -> Non
             if checked >= 8:
                 return
     assert checked >= 1
+
+
+def test_listings_filter_layout() -> None:
+    resp = client.get("/api/listings", params={"layout": "四室一厅"})
+    assert resp.status_code == 200
+    rows = resp.json()["listings"]
+    assert len(rows) == 1
+    assert rows[0]["world_id"] == "w_0469_840829"
+
+
+def test_listings_filter_layout_fuzzy() -> None:
+    resp = client.get("/api/listings", params={"layout": "三室"})
+    assert resp.status_code == 200
+    rows = resp.json()["listings"]
+    assert len(rows) == 4
+    assert all("三室" in r["layout"] for r in rows)
+
+
+def test_listings_filter_price_range() -> None:
+    resp = client.get("/api/listings", params={"price_min": "400", "price_max": "470"})
+    assert resp.status_code == 200
+    nums = sorted(r["price_num"] for r in resp.json()["listings"])
+    assert nums == [430, 460]
+
+
+def test_listings_filter_q() -> None:
+    resp = client.get("/api/listings", params={"q": "书房"})
+    assert resp.status_code == 200
+    rows = resp.json()["listings"]
+    assert len(rows) == 1
+    assert rows[0]["id"] == "listing_0259_840804"
+
+
+def test_listings_filter_combo_and_empty() -> None:
+    hit = client.get("/api/listings", params={"layout": "三室一厅", "price_max": "350"})
+    assert hit.status_code == 200
+    ids = {r["id"] for r in hit.json()["listings"]}
+    assert ids == {"listing_0309_840544", "listing_0836_841149"}
+    miss = client.get("/api/listings", params={"q": "学区房绝对不存在"})
+    assert miss.status_code == 200
+    assert miss.json()["listings"] == []
+
+
+def test_listings_invalid_price_400() -> None:
+    resp = client.get("/api/listings", params={"price_min": "abc"})
+    assert resp.status_code == 400
+    body = resp.json()
+    assert body["code"] == "AGENT_ERROR"
+    assert "price_min" in body["message"]

@@ -174,6 +174,17 @@
 | `is_real` | boolean | ✅ | 真实 InteriorGS 场景为 `true`；手写 mock 房源若接入则为 `false` |
 | `floorplan` | string | 可选 | 户型图 URL；无则 `""` 或 omit |
 
+**查询参数（只增 · 全部可选）**：无参时返回全部（与现状兼容）；多个参数同时出现时取**交集**。
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `layout` | string | 房型过滤，子串包含（如 `三室` 可命中 `三室一厅`） |
+| `price_min` | number | 价格下限（按 `price_num`，单位：万），含边界 |
+| `price_max` | number | 价格上限（按 `price_num`，单位：万），含边界 |
+| `q` | string | 关键词，匹配 `title` / `layout` / `highlight` / `tags` / `orientation` / `floor`（不区分大小写） |
+
+`price_min` / `price_max` 若提供且无法解析为数字 → 400 `{ "code": "AGENT_ERROR", "message": "price_min 无效" }`（或 `price_max`）。合法过滤无命中 → 200 `{ "listings": [] }`，不报错。
+
 **数据源**：`mock/listings.json`。文件缺失或损坏 → 500 `{code,message}`；**前端有本地硬编码兜底**，demo 不挂。
 
 **挂牌 vs scene_graph**：价格/朝向/楼层等以 **listing 为准**（数据集无这些字段，listing 为挂牌 mock）。scene_graph 的 `house.price` 等可仍为「待对拍」占位。
@@ -436,3 +447,4 @@ z = 1.087 − Y_pc
 - v2.2 → v2.3（`GET /api/listings`；chat/narration 可选 `listing_id`；5 套真实世界；snake_case / 会话隔离方案 A / 逐场景坐标铁律写入 §7）。
 - v2.3 状态对齐 main（2026-08-28）：§9 坐标改为 Z-up 且 5 套已对拍；§4.1/§8 tour·highlight·show_card 标已实现；§3.1 示例改为 `tp_bedroom_master` 且只出 `tp_id`。**未改字段语义、未改 §7 会话 400 行为**。
 - v2.3 只增（2026-08-28）：§3.5 `steps[].speech` 可选长稿（TTS 专用、不上屏）；既有 `narration` 语义不变。
+- v2.3 只增（2026-08-29）：§2.6 `GET /api/listings` 可选查询 `layout` / `price_min` / `price_max` / `q`；无参仍返回全部。

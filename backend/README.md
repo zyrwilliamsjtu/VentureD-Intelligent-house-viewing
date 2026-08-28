@@ -10,7 +10,7 @@
 - **职责**：
   - `GET /api/scene/{world_id}` — 理解层产出 `scene_graph`（当前 GTProvider；**5 套真实世界** + 手写 mock）
   - `GET /api/camera_poses/{world_id}` — `tp_id` → 点云坐标
-  - `GET /api/listings` — 挂牌列表（`mock/listings.json`；失败 500，前端硬编码兜底）
+  - `GET /api/listings` — 挂牌列表（`mock/listings.json`；可选查询 `layout` / `price_min` / `price_max` / `q`，无参返回全部；失败 500，前端硬编码兜底）
   - **agent 语义服务**：SPEC v2.3 的 `chat` / `asr` / `tts` / `narration` / `tour`（`backend/app/services/agent/`；chat 可选 `listing_id`）
   - 统一错误 `{code,message}`、CORS、会话透传
 - **边界**：不做前端渲染（A）。根目录 `agent/`（队友 Node）**不合并不改**。Spark / ply 托管是前端的事，不进本板块、不进 SPEC。
@@ -100,7 +100,7 @@ backend/
 │   ├── config.py
 │   ├── routers/
 │   │   ├── scene.py     # GET /api/scene/{world_id}
-│   │   ├── listings.py  # GET /api/listings
+│   │   ├── listings.py  # GET /api/listings（可选 layout/price_min/price_max/q）
 │   │   ├── agent.py     # chat|asr|tts|narration|tour
 │   │   └── camera.py    # camera_poses
 │   ├── services/
@@ -182,6 +182,7 @@ A 前端 ──POST chat|asr|tts|tour / GET narration──> services.agent
 | 2026-08-28 | 真实 API | 方舟 chat + 豆包 ASR/TTS + stub |
 | 2026-08-28 | 多世界 + listings | 5 套索引；`listing_id`；SPEC v2.3 |
 | 2026-08-28 | 文档升格 | 本文改为板块唯一总览；链 AGENT_DEV / REFACTOR_PLAN |
+| 2026-08-29 | listings 筛选 | `GET /api/listings` 可选 `layout`/`price_min`/`price_max`/`q`（只增；无参兼容） |
 
 ## 10. 与其他板块
 

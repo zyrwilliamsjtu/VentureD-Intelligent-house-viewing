@@ -1,7 +1,7 @@
 # 前端架构（FRONTEND_ARCH）
 
-> **性质**：前端板块**唯一总览**。接口字段仍以根目录 `SPEC.md` 为准；本文记视口、坐标、HUD、8 接口用法与 main 已跑通事实。  
-> **日期**：2026-08-28 · 对照 `origin/main` `e10f7d7`  
+> **性质**：前端板块**唯一总览**。接口字段仍以根目录 `SPEC.md` 为准；本文记视口、坐标、HUD、8 接口用法。  
+> **日期**：2026-08-29 · `feat/agent-ux`（三层流转 Splash → HouseList → WalkHud；**尚未合 main**）  
 > **不可违反**：命令式 3D（不挂 R3F Canvas）；不改 agent/后端/SPEC 字段语义；ply 不入库。  
 > **执行日志**：[`../WORKLOG.md`](../WORKLOG.md)（决策史 D1–D7，接手先读）。  
 > 旧稿 [`RENDER_ARCH.md`](./RENDER_ARCH.md) 已并入本文，仅作渲染层对照。
@@ -11,6 +11,26 @@
 ## 1. 一句话
 
 React 18 + Vite 5 + TS strict；主视口是**命令式** `THREE.WebGLRenderer` + Spark `SplatMesh`（文件名仍为 `AholoViewport.tsx`）。HUD 只读 store，不进 rAF 循环。只打 PI 网关，不直连 agent 实现。
+
+### 1.5 页面架构（三层流转）
+
+```
+Splash（落地） → HouseList（选房） → WalkHud（第一人称漫游）
+                     ↑                      │
+                     └──── 返回列表 ────────┘
+```
+
+| 层 | 组件 | 职责 |
+|---|---|---|
+| **Splash** | `components/Splash.tsx` | icon +「小驻看房」+ slogan「先驻进去，再住下来」+ inNest / *Step In. Stay Longer.*；主按钮进入列表。不加载 ply、不锁指针。 |
+| **HouseList** | `components/HouseList.tsx` | 圆角卡片展示挂牌；房型 / 价格区间 / 关键词筛选；点卡进入对应 `world_id`。 |
+| **WalkHud** | `components/WalkHud.tsx` | 既有漫游 HUD（对话 / PTT / 带看 / 信息卡 / PlaceFacts / V 回起点）**不改逻辑**；仅加「返回列表」。 |
+
+选房后才挂载 `AholoViewport`（避免开场就拉 ply）。换房：回列表再选，并 `resetAgentSession()`（SPEC 方案 A）。
+
+`GET /api/listings` 可带 `layout` / `price_min` / `price_max` / `q`（`VITE_API_MODE=real`）；失败或 mock 用 `worlds.ts` 硬编码再**本地过滤**。空结果展示「没有符合条件的房源，换个条件试试」。
+
+`store.view`: `splash` | `list` | `walk`；`entered` 仍表示已进入漫游（视口 / narration / V 键）。
 
 ---
 
@@ -49,7 +69,7 @@ AholoViewport（文件名历史包袱，避免大范围改 import）
 | 模块 | 职责 |
 |---|---|
 | `src/scene/AholoViewport.tsx` | 命令式视口；`teleportCmd` **约 0.85s 平滑飞入**（WASD 可打断）；出生点优先 `tp_living` |
-| `src/scene/worlds.ts` | 5 套 `world_id` ↔ `scene_dir` ↔ listing；`splatUrlForWorld` |
+| `src/scene/worlds.ts` | 5 套 `world_id` ↔ `scene_dir` ↔ listing；`loadListings(query)` |
 | `src/scene/coords.ts` | `CLOUD_RULES`、scene↔点云、tp 表、房间 polygon、`resolveTeleportCloud` |
 | `src/scene/voxel.ts` | splat-transform 体素（5 套真实世界默认 `voxel:false`） |
 | `src/scene/agentActions.ts` | chat 动作：teleport / InfoCard / highlight 光柱 / 播 `tts_url` |
@@ -58,11 +78,13 @@ AholoViewport（文件名历史包袱，避免大范围改 import）
 | `src/scene/tourPlayer.ts` | `POST /api/agent/tour` 动线播放 |
 | `src/services/narration.ts` | narration GET 客户端（8s 超时；404 → `null`） |
 | `src/services/agent.ts` / `asr.ts` / `tour.ts` | chat / ASR / tour |
-| `src/components/WalkHud.tsx` | 对话 + PTT；**不改** 3D 循环 |
+| `src/components/Splash.tsx` | 落地页 |
+| `src/components/HouseList.tsx` | 房源卡片 + 筛选 |
+| `src/components/WalkHud.tsx` | 对话 + PTT；**不改** 3D 循环；返回列表 |
 | `src/components/PlaceFacts.tsx` | 常驻房源/房间卡（listings + 当前 `player.room_id`） |
 | `src/components/InfoCard.tsx` | `show_card` HUD（可关 / 6s） |
 | `src/components/TourBar.tsx` | 「开始带看」+ **B 键**（Pointer Lock 时鼠标点不到按钮） |
-| `src/store/useAppStore.ts` | `player` / `teleportCmd` / `highlightCmd` / `infoCard` / `tourActive` / toast |
+| `src/store/useAppStore.ts` | `view` / `player` / `teleportCmd` / `highlightCmd` / `infoCard` / `tourActive` / toast |
 
 `.hud-tl` 的 z-index 在 overlay 之上（main `e10f7d7`），避免全屏遮罩挡住「开始带看」。
 
@@ -133,7 +155,7 @@ AholoViewport（文件名历史包袱，避免大范围改 import）
 
 | 接口 | 调用 | 前端行为 |
 |---|------|----------|
-| `GET /api/listings` | 开场选房 | 失败 → `worlds.ts` 硬编码 5 套兜底 |
+| `GET /api/listings` | HouseList 选房 / 筛选 | 可选 `layout` `price_min` `price_max` `q`；失败 → `worlds.ts` 硬编码再本地过滤 |
 | `GET /api/scene/{world_id}` | 进 3D / 房间 polygon | 图纸 + PlaceFacts zone；未知 world 404 |
 | `GET /api/camera_poses/{world_id}` | 进 3D / 每次 resolve tp | teleport / highlight 共用此表 |
 | `POST /api/agent/chat` | 提问、PTT 转写后、narration 回落 | 30s；带 `session_id` / `world_id` / `listing_id` / `player_*` / `room_id`；执行 `actions` |
