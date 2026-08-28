@@ -58,7 +58,7 @@ function HouseCard({ l, index, onPick }: { l: Listing; index: number; onPick: (l
         <div className="hc-title">{l.title}</div>
         <div className="hc-highlight">{l.highlight}</div>
         <div className="hc-meta">
-          {l.area}㎡ · {l.orientation} · {l.floor}
+          {l.layout} · {l.area}㎡ · {l.orientation} · {l.floor}
         </div>
         <div className="hc-foot">
           <span className="hc-price">

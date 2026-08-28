@@ -1,4 +1,4 @@
-import { LISTINGS, floorplanFor, type Listing, type RoomPoly } from '../data/listings'
+import { LISTINGS, communityFor, floorplanFor, type Listing, type RoomPoly } from '../data/listings'
 import { apiMode } from './api'
 
 // ==== 房源列表服务（SPEC v2.3 §2.6 · GET /api/listings）====
@@ -10,6 +10,7 @@ import { apiMode } from './api'
 export interface ListingDTO {
   id: string
   title: string
+  community?: string
   layout: string
   area: number
   orientation: string
@@ -28,9 +29,14 @@ const BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/+$/, '')
 function toListing(d: ListingDTO): Listing {
   // 后端 floorplan 为空串/缺省 → 本地真实提取回填；若日后下发 polygon 数组则直接用
   const fp: RoomPoly[] = Array.isArray(d.floorplan) && d.floorplan.length ? d.floorplan : floorplanFor(d.world_id)
+  // 小区名：后端下发优先，否则按 listing_id 兜底（避免每套都顶着「InteriorGS」）
+  const community = d.community || communityFor(d.id) || ''
+  // 标题去掉 InteriorGS / 场景号前缀；有小区名则直接以小区名作标题
+  const title = community || d.title.replace(/^InteriorGS\s*\d*\s*·?\s*/, '').trim()
   return {
     id: d.id,
-    title: d.title,
+    community,
+    title,
     layout: d.layout,
     area: d.area,
     orientation: d.orientation,

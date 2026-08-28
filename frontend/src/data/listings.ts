@@ -10,6 +10,7 @@ export type RoomPoly = { name: string; poly: [number, number][]; area?: number }
 
 export interface Listing {
   id: string // = 后端 listing_id（listing_XXXX_YYYYYY）
+  community: string // 小区名
   title: string
   layout: string // 户型（真实提取归纳）
   area: number // 建筑面积 ㎡
@@ -34,7 +35,8 @@ const FALLBACK_RAW: Array<
 > = [
   {
     id: 'listing_0330_840483',
-    title: 'InteriorGS 0330 · 三室一厅',
+    community: '阳光里',
+    title: '阳光里',
     layout: '三室一厅',
     area: 120.1,
     orientation: '南向',
@@ -48,7 +50,8 @@ const FALLBACK_RAW: Array<
   },
   {
     id: 'listing_0469_840829',
-    title: 'InteriorGS 0469 · 四室一厅',
+    community: '星河湾',
+    title: '星河湾',
     layout: '四室一厅',
     area: 135.9,
     orientation: '南向',
@@ -62,7 +65,8 @@ const FALLBACK_RAW: Array<
   },
   {
     id: 'listing_0259_840804',
-    title: 'InteriorGS 0259 · 三室一厅',
+    community: '翠湖天地',
+    title: '翠湖天地',
     layout: '三室一厅',
     area: 135.9,
     orientation: '南北',
@@ -76,7 +80,8 @@ const FALLBACK_RAW: Array<
   },
   {
     id: 'listing_0309_840544',
-    title: 'InteriorGS 0309 · 三室一厅',
+    community: '玉兰公馆',
+    title: '玉兰公馆',
     layout: '三室一厅',
     area: 85.9,
     orientation: '东南',
@@ -90,7 +95,8 @@ const FALLBACK_RAW: Array<
   },
   {
     id: 'listing_0836_841149',
-    title: 'InteriorGS 0836 · 三室一厅',
+    community: '云栖雅苑',
+    title: '云栖雅苑',
     layout: '三室一厅',
     area: 92.9,
     orientation: '南向',
@@ -103,6 +109,15 @@ const FALLBACK_RAW: Array<
     isReal: true,
   },
 ]
+
+/** 小区名按 listing_id 索引（后端未下发 community 时前端兜底，避免每套都顶着 InteriorGS） */
+export const COMMUNITY_BY_ID: Record<string, string> = Object.fromEntries(
+  FALLBACK_RAW.map((l) => [l.id, l.community]),
+)
+
+export function communityFor(id: string): string {
+  return COMMUNITY_BY_ID[id] ?? ''
+}
 
 /** 按世界回填真实提取户型（后端 floorplan 为空时用；提取产物勿手改） */
 export function floorplanFor(worldId: string): RoomPoly[] {
