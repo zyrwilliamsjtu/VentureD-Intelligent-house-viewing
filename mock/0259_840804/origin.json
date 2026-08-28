@@ -1,0 +1,9 @@
+{
+  "scene_id": "0259_840804",
+  "world_id": "w_0259_840804",
+  "ox": -2.768704,
+  "oz": 5.238312,
+  "pc_offset_x": -2.768704,
+  "pc_offset_y_const": -5.238312,
+  "note": "X_pc=x+ox, Y_pc=(-oz)-z, Z_pc=y；ox/oz 为本场景 house_center，禁止套用 0330"
+}
