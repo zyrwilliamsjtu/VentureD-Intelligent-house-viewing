@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { SparkRenderer, SplatMesh } from '@sparkjsdev/spark'
 import { loadVoxelCollision, type VoxelCollision } from './voxel'
@@ -32,6 +32,9 @@ const CAPSULE_R = 0.28
 const SIDE_SIGN = 1
 // 玩家上下文发布节流（Agent chat 请求字段）
 const CTX_INTERVAL = 200
+const CTX_POS_EPS = 0.04
+/** # 待确认：Spark 在 dpr=2 时持续走动易掉帧；1.5 为清晰度/帧率折中，未改 renderer 内部 */
+const DPR_CAP = 1.5
 
 function webglOk(): boolean {
   try {
@@ -50,6 +53,7 @@ export function AholoViewport({ worldId }: { worldId: string }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const errRef = useRef<HTMLDivElement>(null)
   const statusRef = useRef<HTMLDivElement>(null)
+  const [bootEpoch, setBootEpoch] = useState(0)
 
   useEffect(() => {
     const host = hostRef.current
@@ -57,12 +61,41 @@ export function AholoViewport({ worldId }: { worldId: string }) {
     const statusBox = statusRef.current
     if (!host || !errBox) return
 
-    /** 加载仪表盘：黑屏期间把每一步进度写在屏幕上（无需开 F12），完成 1.2s 后淡出 */
-    const setStatus = (text: string, done = false) => {
+    if (statusBox) {
+      statusBox.style.display = ''
+      statusBox.classList.remove('done')
+      statusBox.removeAttribute('aria-hidden')
+      statusBox.textContent = '初始化渲染引擎…'
+    }
+
+    /** 加载浮窗：进度只在未完成时更新；onLoad/initialized 后淡出并卸载，避免 100% 后又被 onProgress 冲掉 done */
+    let bootDone = false
+    let hideStatusTimer = 0
+    const hideStatusNow = () => {
+      bootDone = true
+      if (hideStatusTimer) window.clearTimeout(hideStatusTimer)
+      hideStatusTimer = 0
       if (!statusBox) return
+      statusBox.classList.add('done')
+      statusBox.style.display = 'none'
+      statusBox.textContent = ''
+      statusBox.setAttribute('aria-hidden', 'true')
+    }
+    const setStatus = (text: string, done = false) => {
+      if (!statusBox || bootDone) return
+      statusBox.style.display = ''
       statusBox.textContent = text
-      statusBox.classList.toggle('done', done)
       console.info('[boot]', text)
+      if (!done) return
+      bootDone = true
+      statusBox.classList.add('done')
+      statusBox.setAttribute('aria-hidden', 'true')
+      hideStatusTimer = window.setTimeout(() => {
+        if (statusBox) {
+          statusBox.style.display = 'none'
+          statusBox.textContent = ''
+        }
+      }, 1200)
     }
 
     let renderer: THREE.WebGLRenderer | null = null
@@ -91,14 +124,19 @@ export function AholoViewport({ worldId }: { worldId: string }) {
     const boot = async () => {
       setStatus('初始化渲染引擎…')
       if (!webglOk()) {
+        hideStatusNow()
         errBox.style.display = 'flex'
+        const span = errBox.querySelector('span')
+        if (span) span.textContent = '请换用桌面 Chrome / Edge 打开（需启用硬件加速）'
+        const title = errBox.querySelector('b')
+        if (title) title.textContent = '当前环境不支持 WebGL'
         return
       }
 
       const w0 = Math.max(1, host.clientWidth)
       const h0 = Math.max(1, host.clientHeight)
       renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false })
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, DPR_CAP))
       renderer.setSize(w0, h0, false)
       renderer.setClearColor(0x14161c, 1)
       host.appendChild(renderer.domElement)
@@ -186,8 +224,9 @@ export function AholoViewport({ worldId }: { worldId: string }) {
       splats = new SplatMesh({
         url: splatUrl,
         onProgress: (ev) => {
+          if (bootDone || disposed) return
           if (!ev.lengthComputable || !ev.total) return
-          const pct = ((ev.loaded / ev.total) * 100).toFixed(0)
+          const pct = Math.min(100, Math.round((ev.loaded / ev.total) * 100))
           setStatus(`加载点云… ${pct}%`)
         },
         onLoad: (mesh) => {
@@ -229,17 +268,28 @@ export function AholoViewport({ worldId }: { worldId: string }) {
         },
       })
       scene.add(splats)
-      void splats.initialized.catch((e: unknown) => {
-        if (disposed) return
-        const msg = e instanceof Error ? e.message : String(e)
-        console.error('[boot] splat init failed', e)
-        errBox.style.display = 'flex'
-        const span = errBox.querySelector('span')
-        if (span) span.textContent = `点云加载失败：${msg}`
-      })
+      void splats.initialized
+        .then(() => {
+          if (disposed || bootDone) return
+          setStatus('场景就绪 · WASD 漫游 · V 回起点', true)
+        })
+        .catch((e: unknown) => {
+          if (disposed) return
+          const msg = e instanceof Error ? e.message : String(e)
+          console.error('[boot] splat init failed', e)
+          hideStatusNow()
+          errBox.style.display = 'flex'
+          const title = errBox.querySelector('b')
+          if (title) title.textContent = '点云加载失败'
+          const span = errBox.querySelector('span')
+          if (span) span.textContent = msg
+        })
 
       // ---- 渲染 + 行走主循环 ----
       let lastT = 0
+      let fpsFrames = 0
+      let fpsMoving = 0
+      let fpsT0 = 0
       const lookDir = new THREE.Vector3()
       const lookTarget = new THREE.Vector3()
       const camUp = new THREE.Vector3(0, upAxis === 2 ? 0 : upSign, upAxis === 2 ? 1 : 0)
@@ -268,8 +318,9 @@ export function AholoViewport({ worldId }: { worldId: string }) {
 
       const tick = () => {
         if (disposed || !renderer) return
-        const dt = Math.min(0.05, lastT ? (performance.now() - lastT) / 1000 : 0.016)
-        lastT = performance.now()
+        const now = performance.now()
+        const dt = Math.min(0.05, lastT ? (now - lastT) / 1000 : 0.016)
+        lastT = now
 
         const k = st.keys
         let ix = 0
@@ -354,24 +405,48 @@ export function AholoViewport({ worldId }: { worldId: string }) {
 
         applyLookDir()
 
-        // ---- Agent 上下文发布（节流）：眼位/视线取点云原生坐标，房间按对拍映射归因 ----
+        // ---- Agent 上下文发布（节流）：位置变化小于阈值则不写 store，避免 HUD 无意义重绘 ----
         const p = camera.position
-        const ctxNow = performance.now()
+        const ctxNow = now
         if (worldId && ctxNow - ctxLast > CTX_INTERVAL) {
           ctxLast = ctxNow
-          useAppStore.getState().setPlayer({
-            world_id: worldId,
-            position: [p.x, p.y, p.z],
-            facing: [lookDir.x, lookDir.y, lookDir.z],
-            room_id: roomPolys.length ? roomAtCloud([p.x, p.y, p.z], worldId, roomPolys) : null,
-          })
+          const rid = roomPolys.length ? roomAtCloud([p.x, p.y, p.z], worldId, roomPolys) : null
+          const prev = useAppStore.getState().player
+          const dx = prev ? Math.abs(prev.position[0] - p.x) : 1
+          const dy = prev ? Math.abs(prev.position[1] - p.y) : 1
+          const dz = prev ? Math.abs(prev.position[2] - p.z) : 1
+          const moved = dx > CTX_POS_EPS || dy > CTX_POS_EPS || dz > CTX_POS_EPS
+          if (!prev || prev.world_id !== worldId || prev.room_id !== rid || moved) {
+            useAppStore.getState().setPlayer({
+              world_id: worldId,
+              position: [p.x, p.y, p.z],
+              facing: [lookDir.x, lookDir.y, lookDir.z],
+              room_id: rid,
+            })
+          }
         }
 
-        // 输入已写入 yaw/pitch；本帧只提交一次矩阵（look 向量不 in-place add，避免 facing 被污染）
+        fpsFrames += 1
+        if (ix !== 0 || iz !== 0) fpsMoving += 1
+        if (!fpsT0) fpsT0 = now
+        else if (now - fpsT0 >= 5000) {
+          const fps = (fpsFrames * 1000) / (now - fpsT0)
+          console.info(
+            '[perf] fps=%s moving=%s%% dpr=%s',
+            fps.toFixed(1),
+            fpsFrames ? Math.round((100 * fpsMoving) / fpsFrames) : 0,
+            renderer.getPixelRatio(),
+          )
+          fpsFrames = 0
+          fpsMoving = 0
+          fpsT0 = now
+        }
+
+        // 输入已写入 yaw/pitch；本帧只提交一次矩阵
         camera.up.copy(camUp)
         lookTarget.copy(p).add(lookDir)
         camera.lookAt(lookTarget)
-        camera.updateMatrixWorld(true)
+        camera.updateMatrixWorld()
         renderer.render(scene, camera)
         raf = requestAnimationFrame(tick)
       }
@@ -554,14 +629,18 @@ export function AholoViewport({ worldId }: { worldId: string }) {
     boot().catch((e) => {
       console.error('[AholoViewport]', e)
       if (errBox && !disposed) {
+        hideStatusNow()
         errBox.style.display = 'flex'
+        const title = errBox.querySelector('b')
+        if (title) title.textContent = '点云加载失败'
         const msg = errBox.querySelector('span')
-        if (msg) msg.textContent = `点云加载失败：${e instanceof Error ? e.message : String(e)}`
+        if (msg) msg.textContent = e instanceof Error ? e.message : String(e)
       }
     })
 
     return () => {
       disposed = true
+      if (hideStatusTimer) window.clearTimeout(hideStatusTimer)
       cancelAnimationFrame(raf)
       cleanupFns.forEach((fn) => fn())
       try {
@@ -575,18 +654,39 @@ export function AholoViewport({ worldId }: { worldId: string }) {
         renderer = null
       }
     }
-  }, [worldId])
+  }, [worldId, bootEpoch])
 
   return (
     <>
       <div className="canvas-host" ref={hostRef} />
-      <div className="boot-status" ref={statusRef}>
+      <div className="boot-status" ref={statusRef} role="status">
         初始化渲染引擎…
       </div>
       <div className="canvas-host no-webgl" ref={errRef} style={{ display: 'none' }}>
         <div>
           <b>当前环境不支持 WebGL</b>
           <span>请换用桌面 Chrome / Edge 打开（需启用硬件加速）</span>
+          <div className="boot-err-actions">
+            <button
+              type="button"
+              className="boot-err-btn"
+              onClick={() => {
+                if (errRef.current) errRef.current.style.display = 'none'
+                setBootEpoch((n) => n + 1)
+              }}
+            >
+              重试
+            </button>
+            <button
+              type="button"
+              className="boot-err-btn ghost"
+              onClick={() => {
+                if (errRef.current) errRef.current.style.display = 'none'
+              }}
+            >
+              关闭
+            </button>
+          </div>
         </div>
       </div>
     </>

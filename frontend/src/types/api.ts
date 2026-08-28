@@ -31,6 +31,7 @@ export interface Zone {
   area_m2?: number // 分区面积（后端可选；缺省由前端按 polygon 计算）
   camera?: ZoneCamera // 预置机位
   story_card: string // 讲解兜底文案
+  selling_points?: string[] // scene_graph 房间卖点（只增；无则 omit）
 }
 
 export interface HouseObject {

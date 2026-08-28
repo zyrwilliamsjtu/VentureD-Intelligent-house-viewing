@@ -139,7 +139,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 
 /* ---- 漫游 HUD ---- */
 .walk-hud { position: absolute; inset: 0; z-index: 20; pointer-events: none; }
-.walk-hud button, .walk-hud .mm-card { pointer-events: auto; }
+.walk-hud button, .walk-hud .mm-card, .walk-hud .hint-bar { pointer-events: auto; }
 
 /* ---- 传送准星（白十字 + 深色描边，深浅画面都可见）---- */
 .crosshair { position: absolute; top: 50%; left: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; pointer-events: none; }
@@ -214,7 +214,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .info-card-lines { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 13px; line-height: 1.55; }
 .info-card-lines li { margin: 2px 0; }
 
-.place-card { background: var(--frost-bg); border-radius: var(--r-md); box-shadow: var(--shadow), inset 0 0 0 1px var(--frost-line), inset 0 1px 0 var(--frost-hi); color: var(--ink); padding: 10px 14px 12px; width: min(280px, calc(100vw - 36px)); -webkit-backdrop-filter: blur(var(--frost-blur)) saturate(var(--frost-sat)); backdrop-filter: blur(var(--frost-blur)) saturate(var(--frost-sat)); pointer-events: auto; }
+.place-card { background: var(--frost-bg); border-radius: var(--r-md); box-shadow: var(--shadow), inset 0 0 0 1px var(--frost-line), inset 0 1px 0 var(--frost-hi); color: var(--ink); padding: 10px 14px 12px; width: min(292px, calc(100vw - 36px)); max-height: min(52vh, 440px); overflow: auto; -webkit-backdrop-filter: blur(var(--frost-blur)) saturate(var(--frost-sat)); backdrop-filter: blur(var(--frost-blur)) saturate(var(--frost-sat)); pointer-events: auto; }
 .place-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
 .place-kicker { font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; color: var(--brand-deep); text-transform: uppercase; }
 .place-toggle { color: var(--ink-2); font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: var(--frost-fill); }
@@ -223,17 +223,22 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .place-code { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; color: var(--ink-3); margin-top: 2px; }
 .place-meta { color: var(--ink-2); font-size: 12px; margin-top: 3px; font-variant-numeric: tabular-nums; }
 .place-hl { color: var(--ink); font-size: 12.5px; margin-top: 6px; line-height: 1.45; }
-.place-tags { color: var(--ink-3); font-size: 11.5px; margin-top: 4px; }
+.place-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.place-tags span { font-size: 10.5px; color: var(--ink-2); background: var(--frost-fill); padding: 2px 8px; border-radius: 999px; }
+.place-sec { margin-top: 8px; padding-top: 8px; box-shadow: inset 0 1px 0 var(--frost-line); }
+.place-sec-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--brand-deep); margin-bottom: 4px; }
+.place-rooms { font-size: 11.5px; color: var(--ink-2); line-height: 1.5; font-variant-numeric: tabular-nums; }
 .place-room { margin-top: 8px; padding-top: 8px; box-shadow: inset 0 1px 0 var(--frost-line); }
 .place-room-name { font-size: 13px; font-weight: 600; }
 .place-room-name.muted { font-weight: 500; color: var(--ink-3); }
 .place-room-card { color: var(--ink-2); font-size: 12px; margin-top: 3px; line-height: 1.45; }
 
-/* 底部操作提示 */
-.hint-bar { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); display: flex; gap: 14px; background: var(--frost-bg-strong); box-shadow: var(--shadow), inset 0 0 0 1px var(--frost-line), inset 0 1px 0 var(--frost-hi); padding: 8px 18px 10px; border-radius: 18px; -webkit-backdrop-filter: blur(var(--frost-blur)) saturate(var(--frost-sat)); backdrop-filter: blur(var(--frost-blur)) saturate(var(--frost-sat)); color: var(--ink-2); font-size: 12px; }
-.hint-item { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 48px; }
-.hint-item b { color: var(--ink); font-weight: 700; font-size: 12.5px; letter-spacing: 0.04em; margin-right: 0; }
-.hint-item i { font-style: normal; font-size: 10px; color: var(--ink-2); letter-spacing: 0.04em; }
+/* 底部操作提示：弱存在感，悬停才看清 */
+.hint-bar { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; background: rgba(246, 245, 243, 0.22); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18); padding: 4px 10px 5px; border-radius: 14px; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); color: var(--ink-3); font-size: 10px; opacity: 0.4; transition: opacity 0.2s ease, background 0.2s ease; }
+.hint-bar:hover { opacity: 0.88; background: rgba(246, 245, 243, 0.55); }
+.hint-item { display: flex; flex-direction: column; align-items: center; gap: 0; min-width: 36px; }
+.hint-item b { color: var(--ink-2); font-weight: 650; font-size: 10px; letter-spacing: 0.04em; margin-right: 0; }
+.hint-item i { font-style: normal; font-size: 8.5px; color: var(--ink-3); letter-spacing: 0.02em; }
 
 .rq-panel { width: min(520px, 100%); background: var(--frost-bg-strong); border-radius: var(--r-lg); box-shadow: var(--shadow), inset 0 0 0 1px var(--frost-line), inset 0 1px 0 var(--frost-hi); -webkit-backdrop-filter: blur(var(--frost-blur)) saturate(var(--frost-sat)); backdrop-filter: blur(var(--frost-blur)) saturate(var(--frost-sat)); animation: rise 0.28s ease both; }
 .rq-body { padding: 0 22px 22px; display: flex; flex-direction: column; gap: 12px; }
@@ -259,12 +264,15 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 
 /* ---- 加载仪表盘（黑屏期间显示每步进度，z 高于遮罩低于错误层）---- */
 .boot-status { position: absolute; left: 50%; bottom: 72px; transform: translateX(-50%); z-index: 25; pointer-events: none; font-size: 12.5px; font-weight: 600; color: var(--ink); background: var(--frost-bg-strong); box-shadow: inset 0 0 0 1px var(--frost-line); padding: 6px 16px; border-radius: 999px; -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); animation: pulse-soft 1.6s ease-in-out infinite; transition: opacity 0.8s ease; }
-.boot-status.done { opacity: 0; animation: none; }
+.boot-status.done { opacity: 0; animation: none; pointer-events: none; }
 @keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+.boot-err-actions { display: flex; gap: 10px; justify-content: center; margin-top: 16px; pointer-events: auto; }
+.boot-err-btn { pointer-events: auto; background: var(--brand-grad); color: #fff; font-size: 13px; font-weight: 600; padding: 8px 18px; border-radius: 999px; box-shadow: var(--shadow-btn); }
+.boot-err-btn.ghost { background: var(--frost-fill); color: var(--ink); box-shadow: inset 0 0 0 1px var(--frost-line); }
 
 /* ---- WebGL 不可用兜底 ---- */
 /* 错误层必须压过 resume-overlay(21)/walk-hud(20)，否则黑屏原因被遮罩盖住 */
-.no-webgl { display: flex; align-items: center; justify-content: center; z-index: 30; background: var(--canvas-bg); }
+.no-webgl { display: flex; align-items: center; justify-content: center; z-index: 30; background: var(--canvas-bg); pointer-events: auto; }
 .no-webgl div { text-align: center; }
 .no-webgl b { display: block; color: var(--ink); font-size: 17px; margin-bottom: 8px; }
 .no-webgl span { color: var(--ink-2); font-size: 12.5px; }

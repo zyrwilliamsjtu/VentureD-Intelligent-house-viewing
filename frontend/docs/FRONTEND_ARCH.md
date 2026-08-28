@@ -97,9 +97,9 @@ AholoViewport（文件名历史包袱，避免大范围改 import）
 | `src/components/RecommendAsk.tsx` | 问问小驻弹窗 → `POST /api/agent/recommend` → 查看详情复用 ListingDetail |
 | `src/components/ListingDetail.tsx` | 选房详情弹窗 |
 | `src/components/Floorplan2D.tsx` | 真实 polygon 2D 户型图（居中、无家具；俯瞰图可 `hideLabels` + 位置光点） |
-| `src/components/WalkHud.tsx` | 对话 + PTT；右上角「小驻AI·询问」；**M** 俯瞰图；底栏两行键位；返回列表 |
+| `src/components/WalkHud.tsx` | 对话 + PTT；右上角「小驻AI·询问」；**M** 俯瞰图；底栏两行弱提示；返回列表 |
 | `src/components/WalkMinimap.tsx` | 漫游俯瞰覆盖层：去文字 Floorplan2D + `cloudToScene` 光点 |
-| `src/components/PlaceFacts.tsx` | 常驻房源/房间卡（listings + 当前 `player.room_id`） |
+| `src/components/PlaceFacts.tsx` | 常驻房源卡：去重后挂牌 + 房间清单/屋内实例（scene_graph）+ 当前房间卖点 |
 | `src/components/InfoCard.tsx` | `show_card` HUD（可关 / 6s） |
 | `src/components/TourBar.tsx` | 「开始带看」+ **B 键**（Pointer Lock 时鼠标点不到按钮） |
 | `src/store/useAppStore.ts` | `view` / `player` / `teleportCmd` / `highlightCmd` / `infoCard` / `tourActive` / toast |
@@ -157,12 +157,13 @@ AholoViewport（文件名历史包袱，避免大范围改 import）
 
 | 组件 | 行为 |
 |---|---|
-| **PlaceFacts** | 进入 3D 后常驻：挂牌户型/面积/价/卖点 + 当前 `player.room_id` 对应 zone 的 `story_card`。可收起。与 Agent `show_card` 不是同一块 UI。 |
+| **PlaceFacts** | 进入 3D 后常驻。标题「楼盘 · 户型」一次；面积/价/朝向/楼层各一次；卖点去掉已出现的户型面积句；标签去掉与户型重复项。房间清单与屋内实例来自 scene_graph（无则省略）。当前房间只补 `selling_points`（讲解文案走 toast，不在此重复）。可收起。与 Agent `show_card` 不是同一块 UI。 |
 | **InfoCard** | 仅响应 `actions.show_card`（`title` + `lines[]`；兼容平铺与 `data` 嵌套）。可关，约 6s 消失。 |
 | **TourBar** | 「开始带看」→ `startTour`；进行中显示房间名。失败 toast「带看暂不可用」。 |
 | **B 键** | `keydown` `KeyB` 切换带看（忽略输入框）。Pointer Lock 时点不到左上按钮，用键盘兜底。 |
-| **M 键** | 打开/关闭 2D 俯瞰图（去房间名；橙点 = `player` 点云坐标经 `cloudToScene` 投影）。Esc / 关闭可退。不阻塞 WASD。 |
-| **WalkHud** | 对话气泡 + 打字 + PTT；右上角入口文案「小驻AI·询问」；底栏两行（上行键位、下行功能）；进房 toast 由 `narration.ts` 调 `showToast`。 |
+| **M 键** | 打开/关闭 2D 俯瞰图（去房间名；橙点 = `player` 点云坐标经 `cloudToScene` 投影）。Esc / 关闭可退。不阻塞 WASD。未打开时不订阅 `player`。 |
+| **WalkHud** | 对话气泡 + 打字 + PTT；右上角入口文案「小驻AI·询问」；底栏两行弱存在感（默认 opacity ~0.4，悬停变清晰）；进房 toast 由 `narration.ts` 调 `showToast`。 |
+| **加载浮窗** | `.boot-status`：0→100% 后 `onLoad`/`initialized` 置完成并在约 1.2s 后 `display:none`。失败层可「重试 / 关闭」，不无限转圈。 |
 
 带看期间 `tourActive`：跳过进房 narration，避免与 tour 步骤双讲。切到下一步时 **强制飞入该步 tp**（忽略 WASD，不可取消过渡）；**到位后** 才上屏短句 / 播 `speech`。当前房介绍期间仍可自由走动。TTS stub 按文本时长推进，不卡死。
 
@@ -201,6 +202,7 @@ Golden Path：问「主卧在哪」→ `teleport` + `tp_id=tp_bedroom_master`（
 | `0469` 无冰箱 | 问冰箱不会出实例卡（0330 有 `tp_refrigerator_582`） |
 | 独立 TTS | 后端 stub 常 omit `audio_url`；讲解依赖 chat/narration 的 `tts_url` |
 | scene 无门/窗 | **# 待确认**：`scene_graph` 无门/窗字段，2D 户型图只画轮廓 + 房间名，不编造开口/家具 |
+| Spark / 高 dpr 掉帧 | **# 待确认**：视口 dpr 上限 1.5；走动时控制台每 5s `[perf] fps=…`。未改 Spark renderer 内部 |
 
 无 `# 待合入`：narration GET、B 键、PlaceFacts、show_card、highlight、tour 均已在 main。
 

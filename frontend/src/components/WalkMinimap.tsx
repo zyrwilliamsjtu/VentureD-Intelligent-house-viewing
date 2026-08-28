@@ -7,7 +7,7 @@ import type { RepoSceneGraph } from '../services/mock/data'
 
 export function WalkMinimap({ worldId, open, onClose }: { worldId: string; open: boolean; onClose: () => void }) {
   const [scene, setScene] = useState<RepoSceneGraph | null | undefined>(undefined)
-  const player = useAppStore((s) => s.player)
+  const player = useAppStore((s) => (open ? s.player : null))
 
   useEffect(() => {
     if (!open) return

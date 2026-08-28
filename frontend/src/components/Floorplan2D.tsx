@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, useMemo } from 'react'
 import type { RepoRoom } from '../services/mock/data'
 
 /** 功能区配色：半透明填色，墙体另描。无匹配则中性纸色。 */
@@ -84,47 +84,162 @@ export function Floorplan2D({
 }) {
   const uid = useId().replace(/:/g, '')
   const paperId = `fp-paper-${uid}`
-  const usable = rooms.filter((r) => Array.isArray(r.polygon) && r.polygon.length >= 3)
-  if (!usable.length) {
+  const frame = useMemo(() => {
+    const usable = rooms.filter((r) => Array.isArray(r.polygon) && r.polygon.length >= 3)
+    if (!usable.length) return null
+    let minX = Infinity
+    let minZ = Infinity
+    let maxX = -Infinity
+    let maxZ = -Infinity
+    for (const r of usable) {
+      for (const [x, z] of r.polygon) {
+        minX = Math.min(minX, x)
+        maxX = Math.max(maxX, x)
+        minZ = Math.min(minZ, z)
+        maxZ = Math.max(maxZ, z)
+      }
+    }
+    const pad = 0.55
+    minX -= pad
+    maxX += pad
+    minZ -= pad
+    maxZ += pad
+    const bw = Math.max(maxX - minX, 0.5)
+    const bh = Math.max(maxZ - minZ, 0.5)
+    const W = 540
+    const H = 400
+    const plotH = H - 36
+    const scale = Math.min((W - 36) / bw, (plotH - 16) / bh)
+    const ox = (W - bw * scale) / 2
+    const oy = (plotH - bh * scale) / 2
+    const toX = (x: number) => ox + (x - minX) * scale
+    const toY = (z: number) => oy + (maxZ - z) * scale
+    const wallOuter = Math.max(4.2, Math.min(7.5, 0.16 * scale))
+    return {
+      usable,
+      W,
+      H,
+      toX,
+      toY,
+      scale,
+      wallOuter,
+      wallInner: Math.max(1.6, wallOuter * 0.38),
+      barM: bw >= 12 ? 5 : 2,
+      barLen: (bw >= 12 ? 5 : 2) * scale,
+    }
+  }, [rooms])
+
+  const staticLayer = useMemo(() => {
+    if (!frame) return null
+    const { usable, toX, toY, W, H, scale, wallOuter, wallInner, barM, barLen } = frame
+    const orient = orientation?.trim()
+    const showOrient = !hideLabels && !!orient && orient !== '待对拍'
+    return (
+      <>
+        <rect x="0" y="0" width={W} height={H} fill={`url(#${paperId})`} rx="16" />
+        {usable.map((r) => (
+          <polygon key={`${r.id}-fill`} points={polyPoints(r.polygon, toX, toY)} fill={fillOf(r)} stroke="none" />
+        ))}
+        {usable.map((r) => (
+          <polygon
+            key={`${r.id}-wall-o`}
+            points={polyPoints(r.polygon, toX, toY)}
+            fill="none"
+            stroke="#3a424a"
+            strokeWidth={wallOuter}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        ))}
+        {usable.map((r) => (
+          <polygon
+            key={`${r.id}-wall-i`}
+            points={polyPoints(r.polygon, toX, toY)}
+            fill="none"
+            stroke="#faf7f1"
+            strokeWidth={wallInner}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+        ))}
+        {!hideLabels &&
+          usable.map((r) => {
+            const label = (r.name || '').replace(/^\s+/, '')
+            if (!label || label === '其他') return null
+            const box = bounds(r.polygon)
+            const rw = box.w * scale
+            const rh = box.h * scale
+            if (rw < 18 || rh < 14) return null
+            const [cx, cz] = centroid(r.polygon)
+            const area =
+              typeof r.area === 'number' && r.area > 0
+                ? `${Number.isInteger(r.area) ? r.area : r.area.toFixed(1)}㎡`
+                : ''
+            const twoLine = Boolean(area) && rh >= 28
+            const fs = Math.max(
+              7.5,
+              Math.min(12, Math.min((rw / Math.max(label.length, 2)) * 1.35, rh * (twoLine ? 0.28 : 0.38))),
+            )
+            const x = toX(cx)
+            const y = toY(cz)
+            return (
+              <text
+                key={`${r.id}-lab`}
+                x={x}
+                y={y}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fill="#1d1d1f"
+                fontSize={fs}
+                fontWeight="600"
+                stroke="#f6f2ea"
+                strokeWidth={3.2}
+                paintOrder="stroke"
+                style={{ fontFamily: 'inherit' }}
+                pointerEvents="none"
+              >
+                {twoLine ? (
+                  <>
+                    <tspan x={x} dy={-fs * 0.55}>
+                      {label}
+                    </tspan>
+                    <tspan x={x} dy={fs + 1} fill="#6e6e73" fontSize={Math.max(6.5, fs - 1.5)} fontWeight="500">
+                      {area}
+                    </tspan>
+                  </>
+                ) : (
+                  <tspan x={x} dy="0">
+                    {area ? `${label} ${area}` : label}
+                  </tspan>
+                )}
+              </text>
+            )
+          })}
+        <g transform={`translate(18, ${H - 18})`}>
+          <line x1="0" y1="0" x2={barLen} y2="0" stroke="#1d1d1f" strokeWidth="2.2" />
+          <line x1="0" y1="-5" x2="0" y2="5" stroke="#1d1d1f" strokeWidth="2.2" />
+          <line x1={barLen} y1="-5" x2={barLen} y2="5" stroke="#1d1d1f" strokeWidth="2.2" />
+          <text x={barLen / 2} y="14" textAnchor="middle" fill="#6e6e73" fontSize="10">
+            {barM} m
+          </text>
+        </g>
+        {showOrient ? (
+          <g transform={`translate(${W - 78}, 16)`}>
+            <rect x="0" y="0" width="64" height="22" rx="11" fill="#fff" stroke="#d8d2c8" strokeWidth="0.8" />
+            <text x="32" y="12" textAnchor="middle" dominantBaseline="middle" fill="#3a424a" fontSize="10.5" fontWeight="600">
+              {orient}
+            </text>
+          </g>
+        ) : null}
+      </>
+    )
+  }, [frame, hideLabels, orientation, paperId])
+
+  if (!frame) {
     return <div className="fp-placeholder">户型图暂不可用</div>
   }
 
-  let minX = Infinity
-  let minZ = Infinity
-  let maxX = -Infinity
-  let maxZ = -Infinity
-  for (const r of usable) {
-    for (const [x, z] of r.polygon) {
-      minX = Math.min(minX, x)
-      maxX = Math.max(maxX, x)
-      minZ = Math.min(minZ, z)
-      maxZ = Math.max(maxZ, z)
-    }
-  }
-  const pad = 0.55
-  minX -= pad
-  maxX += pad
-  minZ -= pad
-  maxZ += pad
-  const bw = Math.max(maxX - minX, 0.5)
-  const bh = Math.max(maxZ - minZ, 0.5)
-  const W = 540
-  const H = 400
-  const chrome = 36
-  const plotH = H - chrome
-  const scale = Math.min((W - 36) / bw, (plotH - 16) / bh)
-  const ox = (W - bw * scale) / 2
-  const oy = (plotH - bh * scale) / 2
-  const toX = (x: number) => ox + (x - minX) * scale
-  const toY = (z: number) => oy + (maxZ - z) * scale
-  const wallOuter = Math.max(4.2, Math.min(7.5, 0.16 * scale))
-  const wallInner = Math.max(1.6, wallOuter * 0.38)
-
-  const barM = bw >= 12 ? 5 : 2
-  const barLen = barM * scale
-  const orient = orientation?.trim()
-  const showOrient = !hideLabels && !!orient && orient !== '待对拍'
-
+  const { toX, toY, W, H } = frame
   return (
     <svg className="fp-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="户型平面图">
       <defs>
@@ -133,112 +248,11 @@ export function Floorplan2D({
           <circle cx="1.2" cy="1.5" r="0.35" fill="#e4ddd2" />
         </pattern>
       </defs>
-      <rect x="0" y="0" width={W} height={H} fill={`url(#${paperId})`} rx="16" />
-
-      {usable.map((r) => (
-        <polygon
-          key={`${r.id}-fill`}
-          points={polyPoints(r.polygon, toX, toY)}
-          fill={fillOf(r)}
-          stroke="none"
-        />
-      ))}
-      {usable.map((r) => (
-        <polygon
-          key={`${r.id}-wall-o`}
-          points={polyPoints(r.polygon, toX, toY)}
-          fill="none"
-          stroke="#3a424a"
-          strokeWidth={wallOuter}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-      ))}
-      {usable.map((r) => (
-        <polygon
-          key={`${r.id}-wall-i`}
-          points={polyPoints(r.polygon, toX, toY)}
-          fill="none"
-          stroke="#faf7f1"
-          strokeWidth={wallInner}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-      ))}
-
-      {!hideLabels &&
-        usable.map((r) => {
-        const label = (r.name || '').replace(/^\s+/, '')
-        if (!label || label === '其他') return null
-        const box = bounds(r.polygon)
-        const rw = box.w * scale
-        const rh = box.h * scale
-        if (rw < 18 || rh < 14) return null
-        const [cx, cz] = centroid(r.polygon)
-        const area =
-          typeof r.area === 'number' && r.area > 0
-            ? `${Number.isInteger(r.area) ? r.area : r.area.toFixed(1)}㎡`
-            : ''
-        const twoLine = Boolean(area) && rh >= 28
-        const fs = Math.max(7.5, Math.min(12, Math.min(rw / Math.max(label.length, 2) * 1.35, rh * (twoLine ? 0.28 : 0.38))))
-        const x = toX(cx)
-        const y = toY(cz)
-        const halo = { stroke: '#f6f2ea', strokeWidth: 3.2, paintOrder: 'stroke' as const }
-        return (
-          <text
-            key={`${r.id}-lab`}
-            x={x}
-            y={y}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fill="#1d1d1f"
-            fontSize={fs}
-            fontWeight="600"
-            stroke={halo.stroke}
-            strokeWidth={halo.strokeWidth}
-            paintOrder={halo.paintOrder}
-            style={{ fontFamily: 'inherit' }}
-            pointerEvents="none"
-          >
-            {twoLine ? (
-              <>
-                <tspan x={x} dy={-fs * 0.55}>
-                  {label}
-                </tspan>
-                <tspan x={x} dy={fs + 1} fill="#6e6e73" fontSize={Math.max(6.5, fs - 1.5)} fontWeight="500">
-                  {area}
-                </tspan>
-              </>
-            ) : (
-              <tspan x={x} dy="0">
-                {area ? `${label} ${area}` : label}
-              </tspan>
-            )}
-          </text>
-        )
-      })}
-
+      {staticLayer}
       {marker ? (
         <g pointerEvents="none">
           <circle cx={toX(marker.x)} cy={toY(marker.z)} r="9" fill="rgba(196, 97, 60, 0.22)" />
           <circle cx={toX(marker.x)} cy={toY(marker.z)} r="4.5" fill="#c4613c" stroke="#fff" strokeWidth="1.6" />
-        </g>
-      ) : null}
-
-      <g transform={`translate(18, ${H - 18})`}>
-        <line x1="0" y1="0" x2={barLen} y2="0" stroke="#1d1d1f" strokeWidth="2.2" />
-        <line x1="0" y1="-5" x2="0" y2="5" stroke="#1d1d1f" strokeWidth="2.2" />
-        <line x1={barLen} y1="-5" x2={barLen} y2="5" stroke="#1d1d1f" strokeWidth="2.2" />
-        <text x={barLen / 2} y="14" textAnchor="middle" fill="#6e6e73" fontSize="10">
-          {barM} m
-        </text>
-      </g>
-      {showOrient ? (
-        <g transform={`translate(${W - 78}, 16)`}>
-          <rect x="0" y="0" width="64" height="22" rx="11" fill="#fff" stroke="#d8d2c8" strokeWidth="0.8" />
-          <text x="32" y="12" textAnchor="middle" dominantBaseline="middle" fill="#3a424a" fontSize="10.5" fontWeight="600">
-            {orient}
-          </text>
         </g>
       ) : null}
     </svg>

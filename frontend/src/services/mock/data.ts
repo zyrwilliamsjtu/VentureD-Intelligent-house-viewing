@@ -134,6 +134,7 @@ export function houseFromSceneGraph(scene: RepoSceneGraph, poses?: RepoCameraPos
     polygon: r.polygon,
     camera: zonePose(r.trajectory_point_id),
     story_card: r.story_card,
+    selling_points: r.selling_points,
   }))
 
   const objects: HouseObject[] = scene.rooms.flatMap((r) =>
