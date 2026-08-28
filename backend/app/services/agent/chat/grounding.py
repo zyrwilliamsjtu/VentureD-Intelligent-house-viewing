@@ -12,6 +12,7 @@ from app.services.agent.chat.intent import (
     _longest_in_text,
     instance_keywords_of,
     room_names_of,
+    strip_query,
 )
 from app.services.agent.synonyms import INSTANCE_ALIAS_KEYS, categories_for_text, room_name_needles
 
@@ -29,6 +30,7 @@ class Facts(TypedDict):
     hints: str
     instances: list
     room_hits: list
+    already_here: bool
 
 
 def _facts(**kwargs: Any) -> Facts:
@@ -43,6 +45,7 @@ def _facts(**kwargs: Any) -> Facts:
         "hints": "",
         "instances": [],
         "room_hits": [],
+        "already_here": False,
     }
     base.update(kwargs)  # type: ignore[typeddict-item]
     return base
@@ -109,6 +112,41 @@ def find_rooms_in_text(graph: dict, text: str) -> list[dict]:
         hits.append(room)
     hits.sort(key=lambda r: len(str(r.get("name") or "")))
     return hits
+
+
+def _is_bedroom(room: dict | None) -> bool:
+    if not isinstance(room, dict):
+        return False
+    if str(room.get("type") or "") == "bedroom":
+        return True
+    return "卧" in str(room.get("name") or "")
+
+
+def _generic_bedroom_ask(text: str) -> bool:
+    t = strip_query(text)
+    if "主卧" in t or "次卧" in t or "卧室3" in t or "卧室4" in t:
+        return False
+    return "卧室" in t
+
+
+def pick_nav_room(
+    hits: list[dict],
+    text: str,
+    current_id: str | None,
+    graph: dict,
+) -> dict | None:
+    """多卧室：已在某间卧室 → 该间；否则默认主卧。"""
+    here = facts_mod.find_room_by_id(graph, current_id) if current_id else None
+    if _generic_bedroom_ask(text):
+        if here and _is_bedroom(here):
+            return here
+        for room in facts_mod.rooms_of(graph):
+            if str(room.get("name") or "") == "主卧":
+                return room
+        beds = [r for r in hits if _is_bedroom(r)]
+        if beds:
+            return beds[0]
+    return hits[0] if hits else None
 
 
 def _inst_blob(inst: dict) -> str:
@@ -263,12 +301,15 @@ def retrieve(
     *,
     room_id: str | None = None,
 ) -> Facts:
-    text = (user_text or "").strip()
+    text = strip_query(user_text or "")
     house = facts_mod.house_of(scene_graph) or None
     hints = offer_topics(scene_graph)
 
     if intent in (Intent.UNKNOWN, Intent.SMALLTALK, Intent.CLARIFY):
         return _facts(missing=False, query=text, house=house, hints=hints)
+
+    if intent == Intent.HOUSE_OVERVIEW:
+        return _facts(query=text, house=house, hints=hints)
 
     if intent == Intent.ENTER_ROOM:
         room = facts_mod.find_room_by_id(scene_graph, room_id) if room_id else None
@@ -283,11 +324,22 @@ def retrieve(
     inst_hits = find_instances_in_text(scene_graph, text)
     inst, host = (inst_hits[0] if inst_hits else (None, None))
     room_hits = find_rooms_in_text(scene_graph, text)
-    room = room_hits[0] if room_hits else None
+    room = pick_nav_room(room_hits, text, room_id, scene_graph)
 
-    if intent == Intent.NAVIGATION:
+    if intent in (Intent.NAVIGATION, Intent.EXISTENCE):
         inst_hit = _longest_in_text(text, instance_keywords_of(scene_graph))
-        if inst is not None and (inst_hit or categories_for_text(text, extra_zh=CATEGORY_ZH)):
+        cats = categories_for_text(text, extra_zh=CATEGORY_ZH)
+        if inst is not None and (inst_hit or cats) and intent == Intent.EXISTENCE:
+            return _facts(
+                query=text,
+                instance=inst,
+                host_room=host,
+                house=house,
+                hints=hints,
+                instances=[i for i, _ in inst_hits],
+                room_hits=room_hits,
+            )
+        if inst is not None and (inst_hit or cats) and intent == Intent.NAVIGATION:
             return _facts(
                 query=text,
                 instance=inst,
@@ -298,7 +350,16 @@ def retrieve(
                 room_hits=room_hits,
             )
         if room is not None:
-            return _facts(query=text, room=room, house=house, hints=hints, room_hits=room_hits)
+            here = facts_mod.find_room_by_id(scene_graph, room_id) if room_id else None
+            already = bool(here and here.get("id") and here.get("id") == room.get("id"))
+            return _facts(
+                query=text,
+                room=room,
+                house=house,
+                hints=hints,
+                room_hits=room_hits,
+                already_here=already and intent == Intent.NAVIGATION,
+            )
         if inst is not None:
             return _facts(
                 query=text,

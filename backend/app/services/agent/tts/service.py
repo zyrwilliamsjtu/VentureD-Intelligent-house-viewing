@@ -1,10 +1,9 @@
 """TTS：Provider + 同文本缓存 + stub 兜底。
 
-POST /api/agent/tts 常返回 {} 的根因（# 待确认到具体控制台配置前）：
-1. TTS_PROVIDER=stub（测试 conftest / 默认 .env）→ StubTTSProvider 契约即 {}。
-2. 真实 provider 未配齐 APP_ID/TOKEN/RESOURCE，或合成抛错后本函数吞异常再回落 stub → {}。
-3. RESOURCE_ID / 音色与控制台不一致时 V3 无音频数据。
-配齐 volcengine/openai_compat 且合成成功时应返回 {audio_url}。
+PI 确认：真实 TTS 有音频。POST /api/agent/tts 返回 {} 仅当：
+1. TTS_PROVIDER=stub（测试 conftest / 未配真实 provider）→ 契约即 {}。
+2. 真实 provider 未配齐或合成抛错后回落 stub → {}。
+配齐 volcengine/openai_compat 且合成成功返回 {audio_url}。
 """
 
 from __future__ import annotations

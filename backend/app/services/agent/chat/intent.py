@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from enum import Enum
 from typing import Any
 
@@ -34,21 +35,47 @@ CATEGORY_ZH: dict[str, str] = {
 
 ZH_TO_CATEGORY: dict[str, str] = {zh: cat for cat, zh in CATEGORY_ZH.items()}
 
-_NAV_HINTS = ("在哪", "在哪儿", "带我去", "去看看", "怎么去", "位置", "带我")
+_NAV_HINTS = (
+    "在哪",
+    "在哪儿",
+    "带我去",
+    "带我看看",
+    "带我到",
+    "带去",
+    "去看看",
+    "怎么去",
+    "位置",
+    "带我",
+    "参观",
+    "逛逛",
+)
+_NAV_WITH_ROOM = ("去", "到", "看看", "参观", "带", "走", "逛")
 _PROP_HINTS = ("户型", "面积", "几室", "朝向", "价格", "楼层", "层高", "多少平", "总价", "这套房", "建面", "多少钱")
 _ATTR_HINTS = ("多大", "是什么", "什么牌子", "什么品牌", "容量")
 _SMALLTALK = ("你好", "您好", "谢谢", "在吗", "嗨", "早上好", "hello", "hi")
-_EXIST_HINTS = ("有没有", "有无", "有没有啊")
+_EXIST_RE = re.compile(r"有(没有|无)?(.{0,16}?)(吗|么|嘛|没)")
+_OVERVIEW_VERBS = ("介绍一下", "介绍下", "介绍", "讲讲", "说说", "讲一下", "说一下")
+_OVERVIEW_HOUSE = ("这套房", "这房子", "这个房子", "这屋", "房子", "户型", "整体")
 
 
 class Intent(str, Enum):
     NAVIGATION = "navigation"
     PROPERTY = "property"
     INSTANCE = "instance"
+    EXISTENCE = "existence"
+    HOUSE_OVERVIEW = "house_overview"
     ENTER_ROOM = "enter_room"
     SMALLTALK = "smalltalk"
     CLARIFY = "clarify"
     UNKNOWN = "unknown"
+
+
+def strip_query(text: str) -> str:
+    """去掉首尾标点，避免「有桌子吗？」漏检。"""
+    t = (text or "").strip()
+    t = re.sub(r"^[？?！!。，,、.\s]+", "", t)
+    t = re.sub(r"[？?！!。，,、.\s]+$", "", t)
+    return t
 
 
 def _longest_in_text(text: str, names: list[str]) -> str | None:
@@ -64,15 +91,25 @@ def room_names_of(graph: dict) -> list[str]:
 
 
 def is_existence_query(text: str) -> bool:
-    """「有没有X / 有X吗」存在性问句。"""
-    t = (text or "").strip()
+    """「有没有X / 有X吗 / 有桌子吗？」存在性问句。"""
+    t = strip_query(text)
     if not t:
         return False
-    if any(h in t for h in _EXIST_HINTS):
+    if "有没有" in t or "有无" in t:
         return True
-    if t.startswith("有") and t.endswith(("吗", "么", "没", "嘛")):
-        return True
-    return False
+    return _EXIST_RE.search(t) is not None
+
+
+def is_house_overview(text: str) -> bool:
+    """介绍/讲讲 + 房子/这套房/户型/整体 → 规则版总览，不进 LLM。"""
+    t = strip_query(text)
+    if not t or is_existence_query(t):
+        return False
+    if any(k in t for k in ("在哪", "带我", "多大", "多少钱", "价格", "朝向")):
+        return False
+    has_verb = any(v in t for v in _OVERVIEW_VERBS)
+    has_house = any(h in t for h in _OVERVIEW_HOUSE)
+    return has_verb and has_house
 
 
 def instance_keywords_of(graph: dict) -> list[str]:
@@ -103,7 +140,7 @@ def understand(
     if event == "enter_room":
         return Intent.ENTER_ROOM
 
-    text = (user_text or "").strip()
+    text = strip_query(user_text or "")
     if not text:
         return Intent.UNKNOWN
 
@@ -111,27 +148,32 @@ def understand(
     room_names = room_names_of(graph) + list(ROOM_ALIAS_KEYS)
     room_hit = _longest_in_text(text, room_names)
     inst_hit = _longest_in_text(text, instance_keywords_of(graph))
-    has_nav = any(h in text for h in _NAV_HINTS)
+    has_nav = any(h in text for h in _NAV_HINTS) or (
+        bool(room_hit) and any(v in text for v in _NAV_WITH_ROOM)
+    )
     has_prop = any(h in text for h in _PROP_HINTS)
     has_attr = any(h in text for h in _ATTR_HINTS)
     has_entity = bool(room_hit or inst_hit)
     has_exist = is_existence_query(text)
 
+    if is_house_overview(text):
+        return Intent.HOUSE_OVERVIEW
     if is_vague_overview(text):
         return Intent.CLARIFY
+    if has_exist and not has_nav:
+        return Intent.EXISTENCE
     if has_nav:
         return Intent.NAVIGATION
     if inst_hit and has_attr:
         return Intent.INSTANCE
-    if has_prop and not inst_hit:
+    if has_prop and not inst_hit and not has_exist:
         return Intent.PROPERTY
     if room_hit:
         return Intent.NAVIGATION
     if inst_hit:
         return Intent.INSTANCE if has_attr else Intent.NAVIGATION
     if has_exist:
-        # 有没有X：走导航取证（命中正答 / 未命中引导），不丢给 LLM 编造
-        return Intent.NAVIGATION
+        return Intent.EXISTENCE
     if has_prop:
         return Intent.PROPERTY
     if any(s in text.lower() for s in _SMALLTALK) and not has_entity:
@@ -145,7 +187,9 @@ _SPECIFIC = ("多大", "面积", "价格", "朝向", "户型", "几室", "多少
 
 def is_vague_overview(text: str) -> bool:
     """无具体指标的「房子怎么样/适不适合」→ 澄清，不硬答。"""
-    t = (text or "").strip()
+    t = strip_query(text)
+    if is_house_overview(t):
+        return False
     if not t or any(k in t for k in _SPECIFIC):
         return False
     about_house = any(k in t for k in ("这套房", "这房子", "这屋", "房子"))
@@ -154,7 +198,7 @@ def is_vague_overview(text: str) -> bool:
 
 
 def needs_llm_route(intent: Intent) -> bool:
-    """仅开放/模糊问题走 LLM 语义理解；导航/户型/实例关键词走规则快路径。"""
+    """仅开放/模糊问题走 LLM；导航/存在性/介绍房子走规则快路径。"""
     return intent == Intent.UNKNOWN
 
 

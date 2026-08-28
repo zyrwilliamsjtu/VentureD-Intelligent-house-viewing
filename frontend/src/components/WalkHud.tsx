@@ -3,7 +3,15 @@ import { useAppStore } from '../store/useAppStore'
 import { agentChat, getSessionId } from '../services/agent'
 import { agentAsr } from '../services/asr'
 import { PttRecorder, type Recording } from '../services/recorder'
-import { executeAgentActions, onTtsBlocked, playReplyVoice, playTts, unlockAudio } from '../scene/agentActions'
+import {
+  agentChatWithAudio,
+  executeAgentActions,
+  onTtsBlocked,
+  playReplyVoice,
+  playReplyVoiceManual,
+  playTts,
+  unlockAudio,
+} from '../scene/agentActions'
 import { useRoomNarration } from '../scene/narration'
 import { TourBar } from './TourBar'
 import { InfoCard } from './InfoCard'
@@ -35,6 +43,7 @@ interface Msg {
 function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [ttsReplay, setTtsReplay] = useState<string | null>(null)
+  const [replay, setReplay] = useState<{ text: string; url?: string | null } | null>(null)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
@@ -61,8 +70,8 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
     await sendText(text)
   }
 
-  /** 统一发送入口：打字与语音识别结果都走这里 */
-  async function sendText(text: string) {
+  /** 统一发送入口：打字静音；PTT 带 audio 才会拿到 tts_url 自动播 */
+  async function sendText(text: string, rec?: Recording | null) {
     const q = text.trim()
     if (!q || busy) return
     setMsgs((m) => [...m, { role: 'user', text: q }])
@@ -72,18 +81,19 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
     setBusy(true)
     try {
       const player = useAppStore.getState().player
-      // 视口未启动（如 WebGL 不可用）时 player 为空，用 env 的世界 ID 兜底
       const worldId = player?.world_id || (import.meta.env.VITE_WORLD_ID as string | undefined) || ''
-      const res = await agentChat({
+      const payload = {
         session_id: getSessionId(),
         world_id: worldId,
         user_text: q,
         player_position: player?.position,
         player_facing: player?.facing,
         room_id: player?.room_id ?? null,
-        event: 'button_press',
-      })
+        event: 'button_press' as const,
+      }
+      const res = rec ? await agentChatWithAudio(payload, rec) : await agentChat(payload)
       setMsgs((m) => [...m, { role: 'assistant', text: res.reply_text }])
+      setReplay({ text: res.reply_text, url: res.tts_url })
       await executeAgentActions(res.actions, worldId)
       unlockAudio()
       playReplyVoice(res.reply_text, res.tts_url)
@@ -143,7 +153,7 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
         return
       }
       setVoice('idle')
-      await sendText(text) // 松开即发送，不留输入框确认
+      await sendText(text, rec)
       return
     } catch (e) {
       const msg = e instanceof Error ? e.message : '网络错误'
@@ -189,13 +199,14 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
         ))}
         {busy && <div className="msg assistant pending">让我想想…</div>}
         {voice === 'recognizing' && !busy && <div className="msg assistant pending">语音识别中…</div>}
-        {ttsReplay && (
+        {(ttsReplay || replay) && (
           <button
             className="tts-replay"
             type="button"
             onClick={() => {
               unlockAudio()
-              playTts(ttsReplay)
+              if (ttsReplay) playTts(ttsReplay)
+              else if (replay) playReplyVoiceManual(replay.text, replay.url)
             }}
           >
             🔊 播报

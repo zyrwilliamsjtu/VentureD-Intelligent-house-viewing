@@ -63,18 +63,21 @@ def _instance_card(inst: dict) -> dict[str, Any]:
 
 def build(intent: Intent, facts: Facts, scene_graph: dict) -> list[dict[str, Any]]:
     # 无法回答：只靠话术引导，不强行动作
+    if facts.get("already_here"):
+        return []
     if facts["missing"] or intent in (
         Intent.ENTER_ROOM,
         Intent.SMALLTALK,
         Intent.UNKNOWN,
         Intent.CLARIFY,
+        Intent.HOUSE_OVERVIEW,
     ):
         return []
 
     allowed = all_tp_ids(scene_graph)
     actions: list[dict[str, Any]] = []
 
-    if intent == Intent.NAVIGATION:
+    if intent in (Intent.NAVIGATION, Intent.EXISTENCE):
         inst = facts["instance"]
         host = facts["host_room"]
         room = facts["room"]

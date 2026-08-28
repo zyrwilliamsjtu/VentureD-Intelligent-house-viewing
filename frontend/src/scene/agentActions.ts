@@ -1,6 +1,8 @@
-import type { AgentAction } from '../types/api'
+import type { AgentAction, AgentChatRequest, AgentChatResponse } from '../types/api'
 import { isInstanceTpId, resolveObserveCloud, resolveRoomLookAt, resolveTeleportCloud } from './coords'
 import { useAppStore } from '../store/useAppStore'
+import { agentChat } from '../services/agent'
+import { listingIdForWorld } from './worlds'
 
 // ==== Agent 动作执行器（SPEC §4 / docs/agent-api.md）====
 // teleport：房间锚点 + lookAt 房间中心；实例观察位 = 退 2m + lookAt（前端计算，不改契约）
@@ -75,8 +77,13 @@ export function stopTts(): void {
 
 const TTS_MS = 15_000
 
-/** chat 已带 tts_url 立即播；没有则异步打独立 TTS，不阻塞文字气泡 */
-export function playReplyVoice(text: string, ttsUrl?: string | null): void {
+/** 仅当 chat 已带 tts_url 才自动播（语音/带看）。打字不补播。 */
+export function playReplyVoice(_text: string, ttsUrl?: string | null): void {
+  if (ttsUrl) playTts(ttsUrl)
+}
+
+/** 手动 🔊：有 url 直接播；否则 POST /tts（不自动触发） */
+export function playReplyVoiceManual(text: string, ttsUrl?: string | null): void {
   if (ttsUrl) {
     playTts(ttsUrl)
     return
@@ -100,6 +107,46 @@ export function playReplyVoice(text: string, ttsUrl?: string | null): void {
     })
     .catch(() => {})
     .finally(() => window.clearTimeout(timer))
+}
+
+/** PTT：multipart 带 audio，后端据此合成 tts_url（打字 JSON 不带 audio） */
+export async function agentChatWithAudio(
+  req: AgentChatRequest,
+  rec: { blob: Blob; mime: string },
+): Promise<AgentChatResponse> {
+  if (import.meta.env.VITE_API_MODE !== 'real') return agentChat(req)
+  const BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/+$/, '')
+  const form = new FormData()
+  form.append('session_id', req.session_id)
+  form.append('world_id', req.world_id)
+  if (req.user_text) form.append('user_text', req.user_text)
+  form.append('event', req.event || 'button_press')
+  if (req.room_id) form.append('room_id', req.room_id)
+  const lid = listingIdForWorld(req.world_id)
+  if (lid) form.append('listing_id', lid)
+  const ext = rec.mime.includes('mp4') ? 'm4a' : 'webm'
+  form.append('audio', rec.blob, `ptt.${ext}`)
+  const ctrl = new AbortController()
+  const timer = window.setTimeout(() => ctrl.abort(), 30_000)
+  try {
+    const res = await fetch(`${BASE}/api/agent/chat`, { method: 'POST', body: form, signal: ctrl.signal })
+    if (!res.ok) {
+      let msg = `HTTP ${res.status}`
+      try {
+        const body = (await res.json()) as { code?: string; message?: string }
+        msg = body.message ? `[${body.code ?? 'AGENT_ERROR'}] ${body.message}` : msg
+      } catch {
+        /* ignore */
+      }
+      throw new Error(msg)
+    }
+    return (await res.json()) as AgentChatResponse
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') throw new Error('Agent 响应超时')
+    throw e
+  } finally {
+    window.clearTimeout(timer)
+  }
 }
 
 export async function executeAgentActions(

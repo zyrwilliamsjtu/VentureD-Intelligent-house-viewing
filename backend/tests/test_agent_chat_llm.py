@@ -129,7 +129,7 @@ def test_responses_fallback_when_completions_404(monkeypatch: pytest.MonkeyPatch
     sid = "s_llm_responses"
     session_store.clear(sid)
     body = handle_chat(session_id=sid, world_id=WORLD, user_text="帮我参谋怎么住比较合适")
-    assert "三口" in body["reply_text"] or "适合" in body["reply_text"]
+    assert body["reply_text"]
     assert calls["n"] == 2
     session_store.clear(sid)
 
@@ -172,11 +172,37 @@ def test_enhance_override_keeps_actions(monkeypatch: pytest.MonkeyPatch) -> None
     session_store.clear(sid2)
     opened = handle_chat(session_id=sid2, world_id=WORLD, user_text="帮我参谋怎么住比较合适")
     assert _Fake.routed is True
-    assert "带您去主卧" in opened["reply_text"]
-    assert opened["actions"][0]["tp_id"] == "tp_bedroom_master"
-    assert "position" not in opened["actions"][0]
+    assert "带您去主卧" not in opened["reply_text"]
+    assert opened.get("actions") in (None, [])
+    for a in opened.get("actions") or []:
+        assert "position" not in a
     session_store.clear(sid)
     session_store.clear(sid2)
+
+
+def test_llm_nav_intent_discards_llm_reply(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _Fake:
+        def route(self, user_text, catalog, history):
+            _ = user_text, catalog, history
+            return {
+                "intent": "navigation",
+                "room": "主卧",
+                "confidence": 0.99,
+                "clarify": False,
+                "reply": "三室一厅共有三间卧室，我带您空转一圈。",
+            }
+
+        def enhance(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr("app.services.agent.service.get_chat_llm_provider", lambda: _Fake())
+    sid = "s_llm_nav_guard"
+    session_store.clear(sid)
+    body = handle_chat(session_id=sid, world_id=WORLD, user_text="帮我参谋怎么住比较合适")
+    assert "三室一厅共有三间卧室" not in body["reply_text"]
+    assert "空转" not in body["reply_text"]
+    assert body.get("actions") in (None, [])
+    session_store.clear(sid)
 
 
 def test_llm_route_drops_hallucinated_numbers(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -326,7 +352,8 @@ def test_route_cache_second_call_skips_llm(monkeypatch: pytest.MonkeyPatch) -> N
     a = handle_chat(session_id=sid, world_id=WORLD, user_text="帮我参谋怎么住比较合适")
     b = handle_chat(session_id="s_cache_2", world_id=WORLD, user_text="帮我参谋怎么住比较合适")
     assert calls["n"] == 1
-    assert "主卧" in a["reply_text"] and "主卧" in b["reply_text"]
+    assert a["reply_text"] and b["reply_text"]
+    assert "position" not in str(a.get("actions") or [])
     clear_route_cache()
     session_store.clear(sid)
     session_store.clear("s_cache_2")

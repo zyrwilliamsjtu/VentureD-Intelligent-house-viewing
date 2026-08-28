@@ -56,7 +56,7 @@ def llm_model() -> str:
 
 
 def llm_route_model() -> str:
-    # 待确认：lite 接入点（如 doubao-1.5-lite-32k-... / ep-...）；未开通则回落 LLM_MODEL
+    # PI 确认：doubao-1-5-lite-32k-250115；未配则回落 LLM_MODEL
     return _opt("AGENT_ROUTE_MODEL") or llm_model()
 
 

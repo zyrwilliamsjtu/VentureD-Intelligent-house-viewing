@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.services.agent import facts as facts_mod
 from app.services.agent.chat.grounding import Facts, is_placeholder_field, is_placeholder_value, offer_topics
-from app.services.agent.chat.intent import CATEGORY_ZH, Intent, is_existence_query
+from app.services.agent.chat.intent import CATEGORY_ZH, Intent, _longest_in_text, is_existence_query, strip_query
+from app.services.agent.synonyms import INSTANCE_ALIAS_KEYS
 
 _SKIP_ATTR_KEYS = frozenset({"source_label"})
 
@@ -79,6 +81,10 @@ def _existence_reply(facts: Facts, scene_graph: dict, salt: int) -> str:
             seen.add(key)
             bits.append(f"{where}有{name}")
         core = "，".join(bits)
+        if len(bits) == 1:
+            # 有的，客厅有一张餐桌
+            where_name = bits[0].replace("有", "有一张", 1) if "有" in bits[0] else bits[0]
+            return f"有的，{where_name}。"
         variants = (
             f"有的，{core}。",
             f"有的，{core}，我可以带您去看。",
@@ -95,7 +101,14 @@ def _existence_reply(facts: Facts, scene_graph: dict, salt: int) -> str:
                 names.append(n)
         label = "、".join(names) if names else "相关房间"
         return f"有的，这套房有{label}。"
-    return MISSING_REPLY.format(q=facts.get("query") or "这项") + _guide_tail(scene_graph)
+    asked = _existence_object_name(str(facts.get("query") or ""))
+    return f"这套房里没有找到{asked}。" + _guide_tail(scene_graph)
+
+
+def _existence_object_name(query: str) -> str:
+    q = strip_query(query)
+    hit = _longest_in_text(q, list(CATEGORY_ZH.values()) + list(INSTANCE_ALIAS_KEYS))
+    return hit or q or "这项"
 
 
 def _guide_tail(graph: dict) -> str:
@@ -149,9 +162,13 @@ def generate(
 
     if facts["missing"]:
         q = facts.get("query") or "这项"
-        if is_existence_query(str(facts.get("query") or "")):
-            return f"这套房暂未找到「{q}」相关信息，这项暂未提供。" + _guide_tail(scene_graph)
+        if is_existence_query(str(facts.get("query") or "")) or intent == Intent.EXISTENCE:
+            asked = _existence_object_name(str(q))
+            return f"这套房里没有找到{asked}。" + _guide_tail(scene_graph)
         return MISSING_REPLY.format(q=q) + _guide_tail(scene_graph)
+
+    if intent == Intent.HOUSE_OVERVIEW:
+        return _overview_reply(facts, scene_graph, salt)
 
     if intent == Intent.ENTER_ROOM:
         room = facts["room"] or {}
@@ -163,9 +180,20 @@ def generate(
             return "；".join(str(p) for p in points if p)
         return MISSING_REPLY.format(q=room.get("name") or "这个房间") + _guide_tail(scene_graph)
 
+    if intent == Intent.EXISTENCE:
+        return _existence_reply(facts, scene_graph, salt)
+
     if intent == Intent.NAVIGATION:
         if is_existence_query(str(facts.get("query") or "")):
             return _existence_reply(facts, scene_graph, salt)
+        if facts.get("already_here"):
+            room = facts["room"] or {}
+            name = str(room.get("name") or "这里")
+            card = str(room.get("story_card") or "").strip()
+            lead = f"您已经在{name}了，我帮您介绍一下。"
+            if card and card not in lead:
+                lead += card
+            return lead
         inst = facts["instance"]
         if inst is not None:
             host = facts["host_room"] or {}
@@ -219,6 +247,57 @@ def generate(
 
     extra = f"比如我可以{offer_topics(scene_graph)}。"
     return _pick(UNKNOWN_VARIANTS, salt) + extra
+
+
+def _overview_reply(facts: Facts, scene_graph: dict, salt: int) -> str:
+    """规则版总览：户型/面积/主卧客厅，自然口吻，不用挂牌标题。"""
+    house = facts["house"] or {}
+    layout = house.get("type")
+    area = house.get("total_area")
+    price = house.get("price")
+    highlight = ""
+    blob = house.get("facts") if isinstance(house.get("facts"), dict) else {}
+    if isinstance(blob, dict) and blob.get("highlight"):
+        highlight = str(blob["highlight"]).strip()
+    rooms = [r for r in facts_mod.rooms_of(scene_graph) if isinstance(r, dict)]
+    master = next((r for r in rooms if str(r.get("name") or "") == "主卧"), None)
+    living = next((r for r in rooms if str(r.get("name") or "") == "客厅"), None)
+    named = [str(r.get("name")) for r in rooms if r.get("name") and r.get("name") != "其他"]
+    bed_n = sum(1 for r in rooms if _is_bed_name(r))
+
+    head_bits: list[str] = []
+    if layout and not is_placeholder_value(layout):
+        head_bits.append(f"这套是{layout}")
+    if area is not None and not is_placeholder_value(area):
+        head_bits.append(f"约{area}㎡")
+    if not head_bits:
+        head_bits.append("这套房我带您看过结构")
+    lead = "、".join(head_bits)
+    extras: list[str] = []
+    if master and isinstance(master.get("area"), (int, float)):
+        extras.append(f"主卧约{master['area']}平")
+    if living and isinstance(living.get("area"), (int, float)):
+        extras.append(f"客厅约{living['area']}平")
+    if bed_n:
+        extras.append(f"一共{bed_n}间卧室")
+    if price and not is_placeholder_value(price):
+        extras.append(f"挂牌大约{price}")
+    if highlight and "InteriorGS" not in highlight:
+        extras.append(highlight.rstrip("。"))
+    mid = "，".join(extras)
+    invite = "您想先看客厅还是主卧？" if ("客厅" in named and "主卧" in named) else "您想先从哪一间看起？"
+    if mid:
+        variants = (
+            f"{lead}，{mid}。{invite}",
+            f"{lead}。{mid}。需要的话我再带您走一圈。",
+        )
+        return _pick(variants, salt)
+    return f"{lead}。{invite}"
+
+
+def _is_bed_name(room: dict) -> bool:
+    name = str(room.get("name") or "")
+    return str(room.get("type") or "") == "bedroom" or ("卧" in name and "卫生间" not in name)
 
 
 def _property_reply(facts: Facts, scene_graph: dict, salt: int) -> str:

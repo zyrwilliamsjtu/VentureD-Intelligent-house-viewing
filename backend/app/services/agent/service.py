@@ -119,6 +119,7 @@ def handle_chat(
     event: str | None = None,
     room_id: str | None = None,
     listing_id: str | None = None,
+    audio: Any = None,
     **_: Any,
 ) -> dict:
     """intent → grounding → responder → actions；开放问题可 LLM 路由。"""
@@ -181,24 +182,50 @@ def handle_chat(
                     reply = CLARIFY_REPLY
                 actions = []
             else:
-                mapped = _INTENT_FROM_LLM.get(str(routed.get("intent") or "").lower(), Intent.UNKNOWN)
-                q = _query_from_route(routed, user_text, mapped)
-                grounded = retrieve(mapped, q, graph, room_id=here)
-                intent = mapped
-                rule = generate(
-                    grounded,
-                    intent,
-                    graph,
-                    history=history if isinstance(history, list) else None,
-                    current_room=str(here) if here else None,
-                )
-                blob = catalog_brief(graph) + " " + rule
-                reply = _reply_grounded(
-                    str(routed.get("reply") or routed.get("reply_text") or ""),
-                    blob,
-                    rule,
-                )
-                actions = _whitelist(build_actions(intent, grounded, graph), graph)
+                llm_intent = str(routed.get("intent") or "").lower()
+                mapped = _INTENT_FROM_LLM.get(llm_intent, Intent.UNKNOWN)
+                if mapped == Intent.NAVIGATION or llm_intent.startswith("nav"):
+                    # 导航绝不采用 LLM 话术：规则版取证；原文取不到则回落引导
+                    intent = Intent.NAVIGATION
+                    grounded = retrieve(intent, user_text, graph, room_id=here)
+                    if grounded.get("missing"):
+                        intent = Intent.UNKNOWN
+                        grounded = retrieve(intent, user_text, graph, room_id=here)
+                        reply = generate(
+                            grounded,
+                            intent,
+                            graph,
+                            history=history if isinstance(history, list) else None,
+                            current_room=str(here) if here else None,
+                        )
+                        actions = []
+                    else:
+                        reply = generate(
+                            grounded,
+                            intent,
+                            graph,
+                            history=history if isinstance(history, list) else None,
+                            current_room=str(here) if here else None,
+                        )
+                        actions = _whitelist(build_actions(intent, grounded, graph), graph)
+                else:
+                    q = _query_from_route(routed, user_text, mapped)
+                    grounded = retrieve(mapped, q, graph, room_id=here)
+                    intent = mapped
+                    rule = generate(
+                        grounded,
+                        intent,
+                        graph,
+                        history=history if isinstance(history, list) else None,
+                        current_room=str(here) if here else None,
+                    )
+                    blob = catalog_brief(graph) + " " + rule
+                    reply = _reply_grounded(
+                        str(routed.get("reply") or routed.get("reply_text") or ""),
+                        blob,
+                        rule,
+                    )
+                    actions = _whitelist(build_actions(intent, grounded, graph), graph)
 
     actions = _whitelist(actions, graph)
 
@@ -217,7 +244,10 @@ def handle_chat(
     body: dict[str, Any] = {"reply_text": reply}
     if actions:
         body["actions"] = actions
-    return attach_tts_url(body, reply)
+    # 仅语音输入（chat 带 audio）才合成；打字请求省略 tts_url
+    if audio is not None:
+        return attach_tts_url(body, reply)
+    return body
 
 
 def handle_asr(audio: object | None = None) -> dict:

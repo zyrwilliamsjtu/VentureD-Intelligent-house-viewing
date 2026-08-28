@@ -8,6 +8,8 @@ INSTANCE_ALIASES: dict[str, tuple[str, ...]] = {
     "餐桌": ("dining_table",),
     "饭桌": ("dining_table",),
     "餐台": ("dining_table",),
+    "dining table": ("dining_table",),
+    "dining_table": ("dining_table",),
     "书桌": ("desk",),
     "写字台": ("desk",),
     "电脑桌": ("desk",),

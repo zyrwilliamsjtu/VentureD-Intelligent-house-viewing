@@ -240,7 +240,72 @@ def test_existence_washer_0469_honest() -> None:
     body = _chat("有没有洗衣机", world="w_0469_840829")
     text = body["reply_text"]
     assert "洗衣机" in text
-    assert "暂未" in text or "没有" in text
+    assert "没有找到" in text
     assert "有的" not in text
+    assert "可靠信息显示是否有" not in text
     assert "actions" not in body
+
+
+def test_existence_you_zhuozi_ma() -> None:
+    body = _chat("有桌子吗？")
+    text = body["reply_text"]
+    assert "有的" in text
+    assert "餐桌" in text
+    assert "可靠信息" not in text
+    tps = {a.get("tp_id") for a in body.get("actions") or []}
+    assert any(isinstance(t, str) and t.startswith("tp_dining_table") for t in tps)
+
+
+def test_already_in_bedroom_no_teleport() -> None:
+    body = _chat("带我去卧室", room_id="room_bedroom_master")
+    assert "已经在" in body["reply_text"]
+    assert "主卧" in body["reply_text"]
+    assert "actions" not in body
+
+
+def test_nav_kitchen_still_teleports() -> None:
+    body = _chat("带我看看厨房", room_id="room_bedroom_master")
+    assert "厨房" in body["reply_text"]
+    assert "已经在" not in body["reply_text"]
+    assert body["actions"][0]["type"] == "teleport"
+    assert body["actions"][0]["tp_id"] == "tp_kitchen"
+    assert "position" not in body["actions"][0]
+
+
+def test_house_overview_fast_path() -> None:
+    body = _chat("介绍这个房子")
+    text = body["reply_text"]
+    assert "三室一厅" in text
+    assert "120.1" in text
+    assert "InteriorGS" not in text
+    assert "actions" not in body
+
+
+def test_text_chat_omits_tts_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.services.agent.service.attach_tts_url",
+        lambda body, text, voice=None: {**body, "tts_url": "/static/tts/x.mp3"},
+    )
+    body = _chat("主卧在哪")
+    assert "tts_url" not in body
+
+
+def test_audio_chat_attaches_tts(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.services.agent.tts.service.get_tts_provider",
+        lambda: type("P", (), {"synthesize": staticmethod(lambda text, voice=None: {"audio_url": "/static/tts/v.mp3"})})(),
+    )
+    from app.services.agent.tts.service import clear_tts_cache
+
+    clear_tts_cache()
+    session_store.clear("s_voice")
+    body = handle_chat(
+        session_id="s_voice",
+        world_id=WORLD,
+        user_text="主卧在哪",
+        audio=object(),
+    )
+    assert body.get("tts_url") == "/static/tts/v.mp3"
+    session_store.clear("s_voice")
+    clear_tts_cache()
 
