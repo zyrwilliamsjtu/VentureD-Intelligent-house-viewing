@@ -89,9 +89,13 @@ def asr_access_token() -> str:
     return _opt("ASR_ACCESS_TOKEN")
 
 
+def asr_secret_key() -> str:
+    return _opt("ASR_SECRET_KEY")
+
+
 def asr_resource_id() -> str:
-    # 待确认：小时版 volc.bigasr.sauc.duration / 并发版 volc.bigasr.sauc.concurrent
-    return _opt("ASR_RESOURCE_ID") or "volc.bigasr.sauc.duration"
+    # 流式识别资源 ID，只从 .env 读（控制台可能是数字 ID 或 volc.bigasr.sauc.*）
+    return _opt("ASR_RESOURCE_ID")
 
 
 def tts_app_id() -> str:
@@ -102,9 +106,17 @@ def tts_access_token() -> str:
     return _opt("TTS_ACCESS_TOKEN")
 
 
+def tts_secret_key() -> str:
+    return _opt("TTS_SECRET_KEY")
+
+
+def tts_resource_id() -> str:
+    return _opt("TTS_RESOURCE_ID")
+
+
 def tts_voice() -> str:
-    # 待确认：控制台音色列表；缺省女声代号
-    return _opt("TTS_VOICE") or "zh_female_qingxin"
+    # 待确认：SeedTTS2.0 控制台音色；缺省 2.0 女声
+    return _opt("TTS_VOICE") or "zh_female_vv_uranus_bigtts"
 
 
 def tts_output_dir() -> Path:

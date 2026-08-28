@@ -13,14 +13,17 @@ from app.services.agent.chat.grounding import Facts, is_placeholder_value
 
 # SPEC §0：chat 30s
 _TIMEOUT = 30.0
-# 方舟：POST {LLM_BASE_URL}/chat/completions；BASE 已含 /api/v3，不要再拼 /v1
-_PATH = "/chat/completions"
+_COMPLETIONS_PATH = "/chat/completions"
+_RESPONSES_PATH = "/responses"
 
 _SYSTEM = (
     "你是 AI 置业顾问小安。只根据用户消息后附带的【场景事实】回答，禁止编造。"
     "事实不足就明确说没有可靠信息。不要编造灶台、朝向、价格、品牌、升数等未出现在事实中的内容。"
     "不要输出坐标数字，不要改变事实含义。用简短中文。"
 )
+
+# 最近一次成功调用的路径，便于验收记录（不含密钥）
+last_chat_api: str = ""
 
 
 class ChatLLMProvider(ABC):
@@ -86,6 +89,92 @@ def facts_brief(facts: Facts) -> str:
     return "\n".join(lines) if lines else "（无结构化事实）"
 
 
+def _parse_completions(data: object) -> str | None:
+    if not isinstance(data, dict):
+        return None
+    try:
+        content = data["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError):
+        return None
+    text = str(content or "").strip()
+    return text or None
+
+
+def _parse_responses(data: object) -> str | None:
+    if not isinstance(data, dict):
+        return None
+    direct = data.get("output_text")
+    if isinstance(direct, str) and direct.strip():
+        return direct.strip()
+    chunks: list[str] = []
+    for item in data.get("output") or []:
+        if not isinstance(item, dict):
+            continue
+        content = item.get("content")
+        if isinstance(content, str) and content.strip():
+            chunks.append(content)
+            continue
+        if not isinstance(content, list):
+            continue
+        for part in content:
+            if isinstance(part, dict) and part.get("text"):
+                chunks.append(str(part["text"]))
+    text = "".join(chunks).strip()
+    return text or None
+
+
+def _try_chat_completions(
+    client: httpx.Client,
+    base: str,
+    model: str,
+    messages: list[dict[str, str]],
+    headers: dict[str, str],
+) -> str | None:
+    url = join_url(base, _COMPLETIONS_PATH)
+    payload = {"model": model, "messages": messages, "temperature": 0.2}
+    resp = client.post(url, headers=headers, json=payload)
+    try:
+        data = resp.json()
+    except Exception:
+        return None
+    if resp.status_code >= 400:
+        return None
+    return _parse_completions(data)
+
+
+def _try_responses(
+    client: httpx.Client,
+    base: str,
+    model: str,
+    messages: list[dict[str, str]],
+    headers: dict[str, str],
+) -> str | None:
+    url = join_url(base, _RESPONSES_PATH)
+    input_items: list[dict[str, object]] = []
+    for item in messages:
+        role = item.get("role")
+        text = item.get("content") or ""
+        if role == "system" or not text:
+            continue
+        # assistant 的 content type 待确认：按 OpenAI responses 用 output_text
+        ctype = "output_text" if role == "assistant" else "input_text"
+        input_items.append({"role": role, "content": [{"type": ctype, "text": text}]})
+    payload: dict[str, object] = {
+        "model": model,
+        "instructions": _SYSTEM,
+        "input": input_items,
+        "temperature": 0.2,
+    }
+    resp = client.post(url, headers=headers, json=payload)
+    try:
+        data = resp.json()
+    except Exception:
+        return None
+    if resp.status_code >= 400:
+        return None
+    return _parse_responses(data)
+
+
 class OpenAICompatChatLLMProvider(ChatLLMProvider):
     def enhance(
         self,
@@ -98,7 +187,6 @@ class OpenAICompatChatLLMProvider(ChatLLMProvider):
         model = llm_model()
         if not key or not base or not model:
             return None
-        url = join_url(base, _PATH)
         brief = facts_brief(facts)
         user_block = (
             f"用户：{(user_text or '').strip() or '（无文本）'}\n\n【场景事实】\n{brief}"
@@ -112,18 +200,19 @@ class OpenAICompatChatLLMProvider(ChatLLMProvider):
             if role in ("user", "assistant") and text:
                 messages.append({"role": str(role), "content": str(text)})
         messages.append({"role": "user", "content": user_block})
-        payload = {"model": model, "messages": messages, "temperature": 0.2}
         headers = {**bearer_headers(key), "Content-Type": "application/json"}
+        global last_chat_api
+        last_chat_api = ""
         with httpx.Client(timeout=_TIMEOUT) as client:
-            resp = client.post(url, headers=headers, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
-        try:
-            content = data["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, TypeError):
-            return None
-        text = str(content or "").strip()
-        return text or None
+            text = _try_chat_completions(client, base, model, messages, headers)
+            if text:
+                last_chat_api = "chat/completions"
+                return text
+            text = _try_responses(client, base, model, messages, headers)
+            if text:
+                last_chat_api = "responses"
+                return text
+        return None
 
 
 _REGISTRY: dict[str, type[ChatLLMProvider]] = {

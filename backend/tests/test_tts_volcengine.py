@@ -1,8 +1,10 @@
-"""P1 volcengine TTS：未配置降级、mock 成功写静态 URL、缓存。"""
+"""P1 volcengine TTS V3：未配置降级、mock chunked 流、缓存。"""
 
 from __future__ import annotations
 
 import base64
+import json
+import os
 
 import pytest
 
@@ -11,30 +13,48 @@ from app.services.agent.tts.providers.volcengine import VolcengineTTSProvider
 from app.services.agent.tts.service import clear_tts_cache, synthesize
 
 
-def test_unconfigured_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:
-    clear_tts_cache()
+def _clear_creds(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TTS_PROVIDER", "volcengine")
     monkeypatch.setenv("TTS_APP_ID", "")
     monkeypatch.setenv("TTS_ACCESS_TOKEN", "")
+    monkeypatch.setenv("TTS_SECRET_KEY", "")
+    monkeypatch.setenv("TTS_RESOURCE_ID", "")
+
+
+def test_unconfigured_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:
+    clear_tts_cache()
+    _clear_creds(monkeypatch)
     assert isinstance(get_tts_provider(), VolcengineTTSProvider)
     assert synthesize("主卧朝南") == {}
 
 
-def test_mock_success_returns_static_url(
+def test_mock_v3_stream_returns_static_url(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     clear_tts_cache()
     monkeypatch.setenv("TTS_PROVIDER", "volcengine")
     monkeypatch.setenv("TTS_APP_ID", "app")
     monkeypatch.setenv("TTS_ACCESS_TOKEN", "tok")
-    monkeypatch.setattr("app.services.agent.tts.providers.volcengine.tts_output_dir", lambda: tmp_path)
+    monkeypatch.setenv("TTS_RESOURCE_ID", "res")
+    monkeypatch.setattr(
+        "app.services.agent.tts.providers.volcengine.tts_output_dir",
+        lambda: tmp_path,
+    )
 
-    class _Resp:
-        def raise_for_status(self) -> None:
+    class _Stream:
+        status_code = 200
+
+        def __enter__(self) -> "_Stream":
+            return self
+
+        def __exit__(self, *args: object) -> None:
             return None
 
-        def json(self) -> dict:
-            return {"code": 3000, "data": base64.b64encode(b"ID3fake").decode("ascii")}
+        def iter_lines(self):
+            yield json.dumps(
+                {"code": 0, "data": base64.b64encode(b"ID3fake").decode("ascii")}
+            )
+            yield json.dumps({"code": 20000000, "data": None})
 
     class _Client:
         def __init__(self, *args: object, **kwargs: object) -> None:
@@ -46,11 +66,12 @@ def test_mock_success_returns_static_url(
         def __exit__(self, *args: object) -> None:
             return None
 
-        def post(self, url: str, headers: dict, json: dict) -> _Resp:
-            assert url.endswith("/api/v1/tts")
-            assert headers.get("Authorization") == "Bearer;tok"
-            assert json["request"]["operation"] == "query"
-            return _Resp()
+        def stream(self, method: str, url: str, headers: dict, json: dict) -> _Stream:
+            assert method == "POST"
+            assert url.endswith("/api/v3/tts/unidirectional")
+            assert headers.get("X-Api-Access-Key") == "tok"
+            assert json["req_params"]["text"] == "你好"
+            return _Stream()
 
     monkeypatch.setattr(
         "app.services.agent.tts.providers.volcengine.httpx.Client",
@@ -84,4 +105,12 @@ def test_cache_skips_second_provider_call(monkeypatch: pytest.MonkeyPatch) -> No
     b = synthesize("同一句", voice="v1")
     assert a == b == {"audio_url": "/static/tts/cached.mp3"}
     assert calls["n"] == 1
+    clear_tts_cache()
+
+
+@pytest.mark.skipif(os.environ.get("AGENT_LIVE_VOICE") != "1", reason="live TTS opt-in")
+def test_live_tts_smoke() -> None:
+    clear_tts_cache()
+    body = synthesize("你好，欢迎了解这套房")
+    assert body.get("audio_url", "").startswith("/static/tts/")
     clear_tts_cache()

@@ -75,6 +75,62 @@ def test_openai_compat_http_error_keeps_rule(monkeypatch: pytest.MonkeyPatch) ->
     session_store.clear(sid)
 
 
+def test_responses_fallback_when_completions_404(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CHAT_PROVIDER", "openai_compat")
+    monkeypatch.setenv("LLM_API_KEY", "ark-test-not-real")
+    monkeypatch.setenv("LLM_BASE_URL", "https://example.invalid/api/v3")
+    monkeypatch.setenv("LLM_MODEL", "ep-test")
+
+    class _Resp:
+        def __init__(self, status: int, data: dict) -> None:
+            self.status_code = status
+            self._data = data
+
+        def json(self) -> dict:
+            return self._data
+
+    calls = {"n": 0}
+
+    class _Client:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            _ = args, kwargs
+
+        def __enter__(self) -> "_Client":
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        def post(self, url: str, headers: dict, json: dict) -> _Resp:
+            _ = headers
+            calls["n"] += 1
+            if url.endswith("/chat/completions"):
+                return _Resp(404, {"error": {"message": "does not support chat/completions"}})
+            assert url.endswith("/responses")
+            assert json["model"] == "ep-test"
+            assert json["input"]
+            return _Resp(
+                200,
+                {
+                    "output": [
+                        {
+                            "content": [
+                                {"type": "output_text", "text": "根据场景事实，这套房适合三口之家。"}
+                            ]
+                        }
+                    ]
+                },
+            )
+
+    monkeypatch.setattr("app.services.agent.chat.llm_provider.httpx.Client", _Client)
+    sid = "s_llm_responses"
+    session_store.clear(sid)
+    body = handle_chat(session_id=sid, world_id=WORLD, user_text="这套房适合什么人住")
+    assert "三口" in body["reply_text"] or "适合" in body["reply_text"]
+    assert calls["n"] == 2
+    session_store.clear(sid)
+
+
 def test_enhance_override_keeps_actions(monkeypatch: pytest.MonkeyPatch) -> None:
     class _Fake:
         def enhance(self, facts, user_text, history):
