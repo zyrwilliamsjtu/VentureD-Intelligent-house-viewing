@@ -175,9 +175,9 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
 
   if (!open) {
     return (
-      <button className="agent-stub live" onClick={() => setOpen(true)} title="问 AI 置业顾问">
+      <button className="agent-stub live" onClick={() => setOpen(true)} title="问小驻AI">
         <span className="dot" />
-        AI 讲解 · 询问
+        小驻AI·询问
       </button>
     )
   }
@@ -185,7 +185,7 @@ function AgentChat({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => 
   return (
     <div className="agent-panel">
       <div className="agent-head">
-        <span className="ah-title">AI 置业顾问</span>
+        <span className="ah-title">小驻AI·询问</span>
         <button className="agent-close" onClick={() => setOpen(false)}>
           收起
         </button>

@@ -28,6 +28,8 @@ export interface TeleportCmd {
   position: V3
   label?: string
   lookAt?: V3
+  /** 带看切房：飞入不可被 WASD 打断，到位后再讲解 */
+  force?: boolean
   nonce: number
 }
 
@@ -64,7 +66,7 @@ interface AppState {
   setZone: (z: string | null) => void
   showToast: (text: string, sub?: string) => void
   setPlayer: (ctx: PlayerContext) => void
-  requestTeleport: (position: V3, label?: string, lookAt?: V3) => void
+  requestTeleport: (position: V3, label?: string, lookAt?: V3, force?: boolean) => void
   requestHighlight: (position: V3, label?: string) => void
   showInfoCard: (title: string, lines: string[]) => void
   clearInfoCard: () => void
@@ -109,8 +111,8 @@ export const useAppStore = create<AppState>()((set) => ({
   setZone: (z) => set({ currentZone: z }),
   showToast: (text, sub) => set({ toast: { text, sub, key: ++toastSeq } }),
   setPlayer: (ctx) => set({ player: ctx }),
-  requestTeleport: (position, label, lookAt) =>
-    set({ teleportCmd: { position, label, lookAt, nonce: ++tpSeq } }),
+  requestTeleport: (position, label, lookAt, force) =>
+    set({ teleportCmd: { position, label, lookAt, force: !!force, nonce: ++tpSeq } }),
   requestHighlight: (position, label) => set({ highlightCmd: { position, label, nonce: ++hlSeq } }),
   showInfoCard: (title, lines) => set({ infoCard: { title, lines, key: ++cardSeq } }),
   clearInfoCard: () => set({ infoCard: null }),

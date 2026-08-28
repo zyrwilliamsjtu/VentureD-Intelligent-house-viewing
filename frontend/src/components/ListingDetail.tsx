@@ -120,7 +120,7 @@ export function ListingDetail({
             {scene === undefined ? (
               <div className="fp-placeholder">正在读取户型…</div>
             ) : scene ? (
-              <Floorplan2D rooms={scene.rooms} />
+              <Floorplan2D rooms={scene.rooms} orientation={listing.orientation} />
             ) : (
               <div className="fp-placeholder">户型图暂不可用</div>
             )}

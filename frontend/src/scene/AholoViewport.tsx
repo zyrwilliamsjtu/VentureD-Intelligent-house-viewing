@@ -253,6 +253,8 @@ export function AholoViewport({ worldId }: { worldId: string }) {
         pitch0: number; pitch1: number
         t0: number
       } | null = null
+      /** 带看切房：飞入完成前忽略 WASD（不取消平滑过渡） */
+      let flyLocked = false
 
       const applyLookDir = () => {
         const lc = Math.cos(st.pitch)
@@ -277,7 +279,10 @@ export function AholoViewport({ worldId }: { worldId: string }) {
         if (k.has('KeyA') || k.has('ArrowLeft')) ix -= 1
         if (k.has('KeyD') || k.has('ArrowRight')) ix += 1
 
-        if (fly && (ix !== 0 || iz !== 0)) {
+        if (flyLocked) {
+          ix = 0
+          iz = 0
+        } else if (fly && (ix !== 0 || iz !== 0)) {
           fly = null
         }
 
@@ -296,7 +301,10 @@ export function AholoViewport({ worldId }: { worldId: string }) {
           st.pitch = fly.pitch0 + (fly.pitch1 - fly.pitch0) * s
           st.vx = 0
           st.vz = 0
-          if (u >= 1) fly = null
+          if (u >= 1) {
+            fly = null
+            flyLocked = false
+          }
         } else {
         const speed = k.has('ShiftLeft') || k.has('ShiftRight') ? RUN : WALK
         let tv1 = 0
@@ -420,10 +428,13 @@ export function AholoViewport({ worldId }: { worldId: string }) {
           pitch0: st.pitch, pitch1,
           t0: performance.now(),
         }
+        flyLocked = !!cmd.force
         st.vx = 0
         st.vz = 0
-        useAppStore.getState().showToast(cmd.label ? `已传送 · ${cmd.label}` : '已传送')
-        console.info('[teleport] agent world=%s fly→ %o', state.player?.world_id, [x1, y1, z1])
+        if (!cmd.force) {
+          useAppStore.getState().showToast(cmd.label ? `已传送 · ${cmd.label}` : '已传送')
+        }
+        console.info('[teleport] agent world=%s fly→ %o force=%s', state.player?.world_id, [x1, y1, z1], !!cmd.force)
       })
       cleanupFns.push(unsubTp)
 

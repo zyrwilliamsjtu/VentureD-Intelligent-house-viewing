@@ -4,12 +4,14 @@ import { playTtsAndWait, stopTts, unlockAudio } from './agentActions'
 import { useAppStore } from '../store/useAppStore'
 import type { TourStep } from '../types/api'
 
-// 自主带看：拉 steps → 依次 teleport + 短句上屏 + 长 speech 发声。
+// 自主带看：拉 steps → 依次强制 teleport（WASD 不可打断飞入）+ 到位后短句上屏 + 长 speech。
 // 等 TTS 播完（onended）再切下一房；stub/失败按文本时长估算兜底。
-// 用 generation token 中途停止；换世界必须 stopTour。
+// 当前房介绍期间可自由走动。用 generation token 中途停止；换世界必须 stopTour。
 
 const TTS_FETCH_MS = 15_000
 const MIN_DWELL_MS = 1_200
+/** 对齐 AholoViewport FLY_MS=850：强制飞入完成后再上屏/播 speech */
+const FLY_WAIT_MS = 900
 
 let generation = 0
 
@@ -104,16 +106,19 @@ export async function startTour(worldId: string): Promise<void> {
       if (token !== generation) return
       if (hit) {
         const look = await resolveRoomLookAt(step.trajectory_point_id, worldId)
-        useAppStore.getState().requestTeleport(hit.position, hit.label, look?.lookAt)
+        useAppStore.getState().requestTeleport(hit.position, hit.label, look?.lookAt, true)
       } else {
         useAppStore.getState().showToast('传送点不可用', step.trajectory_point_id)
       }
       const onScreen = step.narration || step.room_id
-      useAppStore.getState().showToast(`带看 ${label}`, onScreen)
       const voice = voiceText(step)
       const nextVoice = i + 1 < steps.length ? voiceText(steps[i + 1]) : ''
       if (nextVoice) void ttsOf(nextVoice)
-      const url = voice ? await ttsOf(voice) : null
+      const urlP = voice ? ttsOf(voice) : Promise.resolve(null)
+      if (hit) await sleep(FLY_WAIT_MS, token)
+      if (token !== generation) return
+      useAppStore.getState().showToast(`带看 ${label}`, onScreen)
+      const url = await urlP
       if (token !== generation) return
       if (url) {
         await playTtsAndWait(

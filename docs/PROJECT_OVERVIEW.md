@@ -139,9 +139,9 @@
 1. **进入** — `cd frontend && npm run dev`；`cd backend && uvicorn app.main:app --reload`。前端 `.env.local`：`VITE_API_MODE=real`（联调网关）。
 2. **Splash** — 品牌「小驻看房」/ inNest，点「进入看房」。`# 待合入 feat/agent-ux`
 3. **HouseList** — `GET /api/listings`，卡片显示楼盘名 + 编号（如 云栖雅苑 / 0330）。
-4. **详情弹窗** — 点卡片：真实 2D 户型图（scene polygon）+ 挂牌介绍 + 房间清单；点「进入3D空间」才进漫游。
-5. **3D WalkHud** — Spark 加载 ply；WASD + 鼠标（Pointer Lock）；左上 PlaceFacts +「返回列表」。
-6. **带看** — 点「开始带看」或漫游中按 **B** → `POST /tour` 按 `steps[]` 走房；再按 B 停止。
+4. **详情弹窗** — 点卡片：2D 户型图（真实 polygon 墙体/功能配色 + 有则画家具示意；无门窗数据不编造）+ 挂牌介绍 + 房间清单；点「进入3D空间」才进漫游。
+5. **3D WalkHud** — Spark 加载 ply；WASD + 鼠标（Pointer Lock）；左上 PlaceFacts +「返回列表」；右上「小驻AI·询问」。
+6. **带看** — 点「开始带看」或漫游中按 **B** → `POST /tour` 按 `steps[]` 走房；**每次切房强制拉回对应房间**（介绍期可走动）；再按 B 停止。
 7. **提问** — HUD 输入「主卧在哪」→ chat 回 `reply_text` + `teleport(tp_bedroom_master)`；问家具可叠加 highlight / show_card。
 8. **PTT** — 按住说话 → `POST /asr` → 识别文本自动送 chat；无权限或空文本则打字。
 

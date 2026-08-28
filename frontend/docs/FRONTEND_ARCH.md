@@ -38,7 +38,7 @@ Splash（落地） → HouseList（选房） → WalkHud（第一人称漫游）
 
 | 块 | 数据 | 说明 |
 |---|---|---|
-| 2D 户型图 | `GET /api/scene/{world_id}` 的 `rooms[].polygon`（scene XZ） | `Floorplan2D` SVG：房间填色/描边/名称/比例尺。真实 polygon，不画假图。0330 可回落 `public/mock/real_0330`。失败显示「户型图暂不可用」，**不阻塞**进 3D。 |
+| 2D 户型图 | `GET /api/scene/{world_id}` 的 `rooms[].polygon`（scene XZ）+ `instances[].position`（Y-up 取 XZ）+ `category` | `Floorplan2D` SVG：功能区半透明填色、polygon 双线墙体、房间名+面积、真实家具示意、比例尺；listings `orientation` 有则画朝向角标。无门/窗字段则不画假开口。无实例只画轮廓+标注。0330 可回落 `public/mock/real_0330`。失败显示「户型图暂不可用」，**不阻塞**进 3D。 |
 | 介绍 | listings：`title`（楼盘名）/`code`（编号）/`layout`/`area`/`price`/`tags`/`highlight` | 不编造 |
 | 房间清单 | scene_graph `rooms[]`：名称 + 面积 + 主要实例中文名 | 类别→中文与 agent 别名表一致；窗帘等噪点类省略 |
 
@@ -80,21 +80,21 @@ AholoViewport（文件名历史包袱，避免大范围改 import）
 
 | 模块 | 职责 |
 |---|---|
-| `src/scene/AholoViewport.tsx` | 命令式视口；`teleportCmd` **约 0.85s 平滑飞入**（WASD 可打断）；出生点优先 `tp_living` |
+| `src/scene/AholoViewport.tsx` | 命令式视口；`teleportCmd` **约 0.85s 平滑飞入**；Agent 传送 WASD 可打断；**带看 `force` 飞入不可打断**，到位后才讲解 |
 | `src/scene/sceneGraphFetch.ts` | 详情弹窗拉 scene_graph（网关 + 0330 本地兜底） |
 | `src/scene/coords.ts` | `CLOUD_RULES`、scene↔点云、tp 表、房间 polygon、`resolveTeleportCloud` |
 | `src/scene/voxel.ts` | splat-transform 体素（5 套真实世界默认 `voxel:false`） |
 | `src/scene/agentActions.ts` | chat 动作：teleport / InfoCard / highlight 光柱 / 播 `tts_url` |
 | `src/scene/highlightMarker.ts` | highlight 陶土橙光柱 Mesh |
 | `src/scene/narration.ts` | 进房：优先 GET `/api/agent/narration`，失败回落 chat `enter_room`；带看中跳过 |
-| `src/scene/tourPlayer.ts` | `POST /api/agent/tour` 动线播放 |
+| `src/scene/tourPlayer.ts` | `POST /api/agent/tour` 动线播放；每步 **强制 teleport**（`force`），飞入完成后再 toast/TTS；介绍期可 WASD |
 | `src/services/narration.ts` | narration GET 客户端（8s 超时；404 → `null`） |
 | `src/services/agent.ts` / `asr.ts` / `tour.ts` | chat / ASR / tour |
 | `src/components/Splash.tsx` | 落地页 |
 | `src/components/HouseList.tsx` | 房源卡片 + 筛选 + 打开详情 |
 | `src/components/ListingDetail.tsx` | 选房详情弹窗 |
-| `src/components/Floorplan2D.tsx` | 真实 polygon 2D 户型图 |
-| `src/components/WalkHud.tsx` | 对话 + PTT；**不改** 3D 循环；返回列表 |
+| `src/components/Floorplan2D.tsx` | 真实 polygon/实例 2D 户型图（防幻觉：无数据不画假门窗家具） |
+| `src/components/WalkHud.tsx` | 对话 + PTT；右上角「小驻AI·询问」；**不改** 3D 循环；返回列表 |
 | `src/components/PlaceFacts.tsx` | 常驻房源/房间卡（listings + 当前 `player.room_id`） |
 | `src/components/InfoCard.tsx` | `show_card` HUD（可关 / 6s） |
 | `src/components/TourBar.tsx` | 「开始带看」+ **B 键**（Pointer Lock 时鼠标点不到按钮） |
@@ -157,9 +157,9 @@ AholoViewport（文件名历史包袱，避免大范围改 import）
 | **InfoCard** | 仅响应 `actions.show_card`（`title` + `lines[]`；兼容平铺与 `data` 嵌套）。可关，约 6s 消失。 |
 | **TourBar** | 「开始带看」→ `startTour`；进行中显示房间名。失败 toast「带看暂不可用」。 |
 | **B 键** | `keydown` `KeyB` 切换带看（忽略输入框）。Pointer Lock 时点不到左上按钮，用键盘兜底。 |
-| **WalkHud** | 对话气泡 + 打字 + PTT；进房 toast 由 `narration.ts` 调 `showToast`。 |
+| **WalkHud** | 对话气泡 + 打字 + PTT；右上角入口文案「小驻AI·询问」；进房 toast 由 `narration.ts` 调 `showToast`。 |
 
-带看期间 `tourActive`：跳过进房 narration，避免与 tour 步骤双讲。
+带看期间 `tourActive`：跳过进房 narration，避免与 tour 步骤双讲。切到下一步时 **强制飞入该步 tp**（忽略 WASD，不可取消过渡）；**到位后** 才上屏短句 / 播 `speech`。当前房介绍期间仍可自由走动。TTS stub 按文本时长推进，不卡死。
 
 ---
 
@@ -176,7 +176,7 @@ AholoViewport（文件名历史包袱，避免大范围改 import）
 | `POST /api/agent/asr` | PTT 松手 | multipart `audio`；空文本不发 chat |
 | `POST /api/agent/tts` | 独立合成（少用） | chat 已带 `tts_url` 则直接播；独立 TTS 常 `{}` |
 | `GET /api/agent/narration` | `room_id` 变化（防抖 700ms） | 优先路径；404/失败/空文案 → chat `event=enter_room`；每房间每会话一次（前端 Set） |
-| `POST /api/agent/tour` | TourBar / B 键 | `{steps[]}` 依次 teleport + toast + 可选 TTS；可中途停止 |
+| `POST /api/agent/tour` | TourBar / B 键 | `{steps[]}` 依次 **强制** teleport（到位后再 toast + TTS）；介绍期可走动；可中途停止 |
 
 会话：前端生成 `session_id`，换房重置（SPEC 方案 A）。错误顶层 `{code,message}`。
 
@@ -194,6 +194,7 @@ Golden Path：问「主卧在哪」→ `teleport` + `tp_id=tp_bedroom_master`（
 | 文件名 `AholoViewport` | 历史包袱，未改名以免大 diff |
 | `0469` 无冰箱 | 问冰箱不会出实例卡（0330 有 `tp_refrigerator_582`） |
 | 独立 TTS | 后端 stub 常 omit `audio_url`；讲解依赖 chat/narration 的 `tts_url` |
+| scene 无门/窗 | **# 待确认**：`scene_graph` 无门/窗字段，2D 户型图只画轮廓 + 真实家具，不编造开口 |
 
 无 `# 待合入`：narration GET、B 键、PlaceFacts、show_card、highlight、tour 均已在 main。
 
