@@ -35,7 +35,8 @@
 ### 架构：Provider 统一接口
 ```
 GET /api/scene/{world_id}
-  → scene_service.get_scene_graph(world_id)
+  → scene_service.get_scene(world_id)
+  → provider.get_scene_graph()
   → SceneUnderstandingProvider（统一接口）
       ├─ GTProvider（当前默认，读 mock/real_0330）
       └─ DualEngineProvider（未来占位 Stub）
@@ -49,7 +50,7 @@ GET /api/scene/{world_id}
 ```
 读 GT 场景数据（mock/real_0330/scene_graph.json + labels/structure）
   → 房间划分（segmenter.py：直接用 GT rooms polygon）
-  → 实例（instance_source.py：直接读 GT labels，59→20 映射）
+  → 实例已在 GT scene_graph 内；GTInstanceSource 钩子只收集、不重算（映射已在 GT JSON 完成）
   → scene_graph 组装（pipeline.py：房间+实例+coord+tour_path+topology）
 ```
 - **不做**：俯视图生成、房间截图、识别/核验（留给未来双引擎）。
@@ -83,7 +84,7 @@ backend/
 │   ├── services/        # 业务逻辑（scene 路由、scene_graph 加载、world 索引）
 │   │   └── understanding/  # 理解层：Provider 工厂 + GT 极简管线（L0+L1）
 │   ├── data/            # 数据访问（读 mock、真实 scene_graph）
-│   └── schemas/         # Pydantic 模型（对齐 SPEC 字段）
+│   └── schemas/         # 目前仅 GatewayError；scene/agent 响应未用 Pydantic 校验（可选增强）
 ├── tests/               # 测试（对齐 SPEC 验收标准）
 └── requirements.txt
 ```
@@ -117,6 +118,7 @@ A 前端 ──POST /api/agent/chat|asr|tts|tour / GET narration──> backend 
 | 2026-08-27 | 后端初始化 | 建立 FastAPI 骨架（main/config/routers 占位） |
 | 2026-08-28 | 理解层产出显式化 | `UnderstandingOutput` + README/SPEC 标明 scene_graph 为 PI 核心产出、供 B/A 消费 |
 | 2026-08-28 | camera / agent 网关 stub | `GET /api/camera_poses/{world_id}`；agent 五路由契约层 stub（SPEC §4 新增 camera_poses） |
+| 2026-08-28 | 验收 Y 项清理 | README 架构图/GT 钩子/schemas 表述对齐代码；agent stub 空可选字段 omit；SPEC §0 点云层改为 Z-up |
 
 ## 8. 与本仓库其他板块的关系
 

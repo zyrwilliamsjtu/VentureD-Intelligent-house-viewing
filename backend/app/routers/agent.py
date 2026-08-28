@@ -59,11 +59,8 @@ async def chat(request: Request) -> dict:
         raise GatewayError(400, "AGENT_ERROR", "user_text 与 audio 二选一")
 
     _ = session_id  # stub 阶段仅透传，不落会话存储
-    return {
-        "reply_text": _STUB_REPLY,
-        "tts_url": None,
-        "actions": [],
-    }
+    # SPEC §0：可选字段无值时省略（不发 null / 空数组）
+    return {"reply_text": _STUB_REPLY}
 
 
 @router.post("/asr")
@@ -87,7 +84,7 @@ async def tts(request: Request) -> dict:
         raise GatewayError(400, "TTS_FAILED", "请求体无效") from None
     if not isinstance(body, dict) or not body.get("text"):
         raise GatewayError(400, "TTS_FAILED", "text 必填")
-    return {"audio_url": None}
+    return {}
 
 
 @router.get("/narration")
@@ -95,7 +92,7 @@ def narration(world_id: str | None = None, room_id: str | None = None) -> dict:
     # TODO: 待接入 agent 进房讲解；无内容时按 SPEC 可 404
     if not world_id or not room_id:
         raise GatewayError(400, "AGENT_ERROR", "world_id 与 room_id 必填")
-    return {"reply_text": "（stub）", "tts_url": None}
+    return {"reply_text": "（stub）"}
 
 
 @router.post("/tour")
