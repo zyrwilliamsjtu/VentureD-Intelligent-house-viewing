@@ -13,6 +13,14 @@ interface ImportMetaEnv {
   readonly VITE_AHOLO_LOD_META_URL?: string
   /** 体素碰撞元数据（splat-transform Voxel 产物，本地 public/ 或直链） */
   readonly VITE_AHOLO_VOXEL_META_URL?: string
+  readonly VITE_WORLD_ID?: string
+  /** 生产 ply 统一前缀（/{scene_dir}/3dgs_compressed.ply）；# 待确认存储位置 */
+  readonly VITE_SPLAT_BASE?: string
+  readonly VITE_SPLAT_URL_w_0330_840483?: string
+  readonly VITE_SPLAT_URL_w_0469_840829?: string
+  readonly VITE_SPLAT_URL_w_0259_840804?: string
+  readonly VITE_SPLAT_URL_w_0309_840544?: string
+  readonly VITE_SPLAT_URL_w_0836_841149?: string
 }
 
 interface ImportMeta {

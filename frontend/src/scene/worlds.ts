@@ -84,6 +84,18 @@ export function sceneDirForWorld(worldId: string): string {
 }
 
 export function splatUrlForWorld(worldId: string): string {
+  // Vite 只内联静态出现的 VITE_*，必须逐套写出；未配置则回落 dev `/ply/{scene}.ply`
+  const perWorld: Record<string, string | undefined> = {
+    w_0330_840483: import.meta.env.VITE_SPLAT_URL_w_0330_840483,
+    w_0469_840829: import.meta.env.VITE_SPLAT_URL_w_0469_840829,
+    w_0259_840804: import.meta.env.VITE_SPLAT_URL_w_0259_840804,
+    w_0309_840544: import.meta.env.VITE_SPLAT_URL_w_0309_840544,
+    w_0836_841149: import.meta.env.VITE_SPLAT_URL_w_0836_841149,
+  }
+  const direct = perWorld[worldId]?.trim()
+  if (direct) return direct
+  const base = (import.meta.env.VITE_SPLAT_BASE as string | undefined)?.replace(/\/+$/, '')
+  if (base) return `${base}/${sceneDirForWorld(worldId)}/3dgs_compressed.ply`
   return `/ply/${sceneDirForWorld(worldId)}.ply`
 }
 

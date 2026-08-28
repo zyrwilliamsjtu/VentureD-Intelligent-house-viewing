@@ -3,7 +3,7 @@ import path from 'node:path'
 import { defineConfig, searchForWorkspaceRoot, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 
-/** InteriorGS 数据盘（未入库）。dev 只读映射 ply，禁止复制进仓库。 */
+/** InteriorGS 数据盘（未入库）。dev 只读映射 ply；生产请配 VITE_SPLAT_URL_* / VITE_SPLAT_BASE（# 待确认对象存储）。 */
 const INTERIORGS_SCENES = 'E:/科研/ventureD_data/interiorgs/scenes'
 
 function serveInteriorGsPly(): Plugin {
